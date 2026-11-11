@@ -35,6 +35,17 @@ export interface ApiCandle {
   volume: number;
 }
 
+export interface ApiStats {
+  settled: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number;
+  pnl: number;
+  rank: number;
+  total: number;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   userId: number;
