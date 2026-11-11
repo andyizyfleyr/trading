@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { apiOpenTrade, ApiError } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
@@ -9,11 +10,26 @@ import { durationLabel } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
 import { Btn, Card, HelpTip } from "./ui";
 
+/** Signal venant de la page Signaux : quoi appuyer, et à quel moment exact. */
+export interface SignalHint {
+  direction: "UP" | "DOWN";
+  atMs: number;
+}
+
 interface Props {
   balance: number;
   symbol: string;
   online: boolean;
   onOpened: (trade: ApiTrade, balance: number) => void;
+  /** Durée pré-choisie (signal). */
+  initialDuration?: number;
+  /** Bouton conseillé + heure exacte pour miser (signal). */
+  signal?: SignalHint | null;
+}
+
+function formatSignalRemain(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
 function parseAmount(raw: string): number | null {
@@ -22,11 +38,29 @@ function parseAmount(raw: string): number | null {
 }
 
 /** Formulaire ultra-compact : 2 lignes + boutons, tout sur une vue. */
-export function TradeForm({ balance, symbol, online, onOpened }: Props) {
-  const [durationSec, setDurationSec] = useState<number>(60);
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal }: Props) {
+  const [durationSec, setDurationSec] = useState<number>(initialDuration ?? 60);
   const [amountStr, setAmountStr] = useState("50");
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [signalNow, setSignalNow] = useState(() => Date.now());
+
+  // Durée imposée par le signal (arrive après le premier affichage).
+  useEffect(() => {
+    if (initialDuration != null) setDurationSec(initialDuration);
+  }, [initialDuration]);
+
+  // Décompte du signal : quand appuyer sur le bouton conseillé.
+  useEffect(() => {
+    if (!signal) return;
+    setSignalNow(Date.now());
+    const t = setInterval(() => setSignalNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [signal]);
+
+  const signalRemainMs = signal ? signal.atMs - signalNow : 0;
+  const signalLive = signal != null && signalRemainMs > 0;
+  const signalLabel = signal?.direction === "DOWN" ? "VENTE ▼" : "ACHAT ▲";
 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
@@ -144,6 +178,30 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
         </div>
       </div>
 
+      {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
+      {signalLive && (
+        <div role="status" className="anim-in rounded-xl bg-action/15 px-3 py-2 text-center">
+          <p className="text-sm font-bold">
+            Dans{" "}
+            <span className="text-lg font-extrabold tabular-nums">
+              {formatSignalRemain(signalRemainMs)}
+            </span>
+            , appuie sur{" "}
+            <span className="font-extrabold">{signalLabel}</span>
+          </p>
+        </div>
+      )}
+      {signal && !signalLive && (
+        <div role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center">
+          <p className="text-sm font-bold text-baisse">
+            Trop tard : ce coup est passé.{" "}
+            <Link href="/predictions" className="underline">
+              Voir le prochain signal
+            </Link>
+          </p>
+        </div>
+      )}
+
       {/* Prédiction */}
       <div id="guide-buttons" className="grid grid-cols-2 gap-1.5">
         <Btn
@@ -151,7 +209,9 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
           onClick={() => place("UP")}
           disabled={placing !== null}
           aria-label="ACHAT : je prédis que le prix va monter"
-          className="min-h-[56px] text-lg font-extrabold"
+          className={`min-h-[56px] text-lg font-extrabold ${
+            signalLive && signal?.direction === "UP" ? "animate-pulse ring-4 ring-white" : ""
+          }`}
         >
           {placing === "UP" ? "…" : "ACHAT ▲"}
         </Btn>
@@ -160,7 +220,9 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
           onClick={() => place("DOWN")}
           disabled={placing !== null}
           aria-label="VENTE : je prédis que le prix va descendre"
-          className="min-h-[56px] text-lg font-extrabold"
+          className={`min-h-[56px] text-lg font-extrabold ${
+            signalLive && signal?.direction === "DOWN" ? "animate-pulse ring-4 ring-white" : ""
+          }`}
         >
           {placing === "DOWN" ? "…" : "VENTE ▼"}
         </Btn>

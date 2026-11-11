@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
-import { TradeForm } from "@/components/TradeForm";
+import { TradeForm, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
 import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
-import { SYMBOLS, isOtc, isStock, symbolDisplay } from "@/lib/symbols";
+import { SYMBOLS, isDuration, isOtc, isStock, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -52,6 +52,8 @@ export default function TraderPage() {
   const [tradesOpen, setTradesOpen] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
+  const [signal, setSignal] = useState<SignalHint | null>(null);
 
   const { price, tickCandle, online } = useLiveMarket(symbol, "1m");
   const settlingRef = useRef(false);
@@ -154,6 +156,7 @@ export default function TraderPage() {
       openIdsRef.current.add(trade.id);
       setOpenTrades((prev) => [trade, ...prev]);
       setBalance(balance);
+      setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
     },
     [setBalance]
