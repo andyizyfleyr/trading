@@ -138,7 +138,7 @@ export default function HistoriquePage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Filtrer l'historique">
+        <div className="grid grid-cols-3 gap-1.5 lg:max-w-md" role="group" aria-label="Filtrer l'historique">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -177,7 +177,11 @@ export default function HistoriquePage() {
             }
           />
         ) : (
-          visible.map((trade) => <TradeRow key={trade.id} trade={trade} />)
+          <div className="grid gap-2 lg:grid-cols-2">
+            {visible.map((trade) => (
+              <TradeRow key={trade.id} trade={trade} />
+            ))}
+          </div>
         )}
       </div>
     </RequireAuth>

@@ -68,11 +68,11 @@ export default function ProfilPage() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-2">
-        <h1 className="text-lg font-extrabold">Profil</h1>
+      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:gap-3">
+        <h1 className="text-lg font-extrabold lg:col-span-2">Profil</h1>
 
         {/* Identité + solde */}
-        <div className="flex items-center gap-2.5 rounded-xl border border-ligne bg-carte p-2.5">
+        <div className="flex items-center gap-2.5 rounded-xl border border-ligne bg-carte p-2.5 lg:col-span-2">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-action text-lg font-extrabold text-white">
             {initial}
           </span>
@@ -87,7 +87,7 @@ export default function ProfilPage() {
         {message && (
           <p
             role="status"
-            className={`anim-in rounded-xl px-3 py-1.5 text-center text-sm font-medium ${
+            className={`anim-in rounded-xl px-3 py-1.5 text-center text-sm font-medium lg:col-span-2 ${
               message.kind === "ok" ? "bg-hausse/10 text-hausse" : "bg-baisse/10 text-baisse"
             }`}
           >

@@ -140,8 +140,8 @@ export default function CoursPage() {
             text="Reviens bientôt."
           />
         ) : (
-          <>
-            <div className="rounded-xl border border-ligne bg-carte p-2.5">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start">
+            <div className="rounded-xl border border-ligne bg-carte p-2.5 lg:col-span-2">
               <div className="flex items-center justify-between gap-2 text-sm">
                 <p className="font-bold">Progression</p>
                 <p className="font-extrabold tabular-nums">
@@ -172,7 +172,7 @@ export default function CoursPage() {
                 saving={savingId === lesson.id}
               />
             ))}
-          </>
+          </div>
         )}
       </div>
     </RequireAuth>

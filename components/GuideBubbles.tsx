@@ -27,7 +27,7 @@ const STEPS = [
   {
     id: "guide-buttons",
     title: "5. Prédis la direction",
-    text: "ACHAT ▲ si ça monte, VENTE ▼ si ça descend. Tes prédictions apparaissent dans le bouton « En cours ».",
+    text: "ACHAT ▲ si ça monte, VENTE ▼ si ça descend. Tes prédictions en cours s'affichent avec leur compte à rebours.",
   },
 ];
 
@@ -71,7 +71,7 @@ export function GuideBubbles({
   return (
     <>
       <div className="pointer-events-none fixed inset-0 z-40 bg-fond/60" aria-hidden="true" />
-      <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-xl">
+      <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-xl lg:bottom-8">
         <div className="anim-in rounded-2xl border border-action bg-carte p-4 shadow-2xl">
           <p className="text-sm font-semibold text-doux">
             Premier trade guidé · {step + 1}/{STEPS.length}
