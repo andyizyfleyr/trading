@@ -71,10 +71,10 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   };
 
   return (
-    <Card className="flex flex-col gap-2 p-2.5">
+    <Card className="flex flex-col gap-1.5 p-2">
       {/* Durée */}
       <div id="guide-duration">
-        <div className="mb-1 flex items-center gap-1 text-xs font-medium text-doux">
+        <div className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-doux">
           Durée
           <HelpTip
             label="Durée"
@@ -88,7 +88,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
               type="button"
               onClick={() => setDurationSec(d)}
               aria-pressed={durationSec === d}
-              className={`min-h-[44px] rounded-xl text-base font-bold transition-colors duration-200 ${
+              className={`h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
                 durationSec === d
                   ? "bg-action text-white"
                   : "border border-ligne bg-fond text-doux active:text-texte"

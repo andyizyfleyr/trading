@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from "lightweight-charts";
 import { apiCandles, ApiError } from "@/lib/api";
-import { fmtPrice } from "@/lib/format";
-import { INTERVALS, type Interval } from "@/lib/symbols";
+import { type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
-import { HelpTip } from "./ui";
 
 export interface ChartPriceLine {
   price: number;
@@ -17,12 +15,8 @@ export interface ChartPriceLine {
 interface Props {
   symbol: string;
   interval: Interval;
-  onIntervalChange: (i: Interval) => void;
-  /** Dernier prix connu (WebSocket ou sondage). */
-  price: number | null;
   /** Bougie en formation reçue en direct. */
   tickCandle: ApiCandle | null;
-  live: boolean;
   priceLines: ChartPriceLine[];
 }
 
@@ -37,36 +31,17 @@ function toBar(c: ApiCandle) {
 }
 
 /** Graphique en bougies (TradingView Lightweight Charts, chargé à la demande). */
-export function PriceChart({
-  symbol,
-  interval,
-  onIntervalChange,
-  price,
-  tickCandle,
-  live,
-  priceLines,
-}: Props) {
+export function PriceChart({ symbol, interval, tickCandle, priceLines }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const lastBarRef = useRef<{ time: number } | null>(null);
   const pendingRef = useRef<ReturnType<typeof toBar>[] | null>(null);
-  const prevPriceRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [up, setUp] = useState<boolean | null>(null);
-
-  // Flèche ▲/▼ selon le sens du dernier mouvement de prix.
-  useEffect(() => {
-    if (price == null) return;
-    const prev = prevPriceRef.current;
-    prevPriceRef.current = price;
-    if (prev == null || prev === price) return;
-    setUp(price > prev);
-  }, [price]);
 
   // Création du graphique (une seule fois, import dynamique pour rester léger).
   useEffect(() => {
@@ -206,52 +181,6 @@ export function PriceChart({
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-ligne bg-carte">
-      {/* Barre d'intervalle + prix en direct */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-2">
-        <div className="flex items-center gap-1 rounded-xl bg-fond/85 p-1 backdrop-blur">
-          {INTERVALS.map((iv) => (
-            <button
-              key={iv}
-              type="button"
-              onClick={() => onIntervalChange(iv)}
-              aria-pressed={interval === iv}
-              className={`min-h-[44px] rounded-lg px-3 text-base font-bold transition-colors duration-200 ${
-                interval === iv ? "bg-action text-white" : "text-doux active:text-texte"
-              }`}
-            >
-              {iv}
-            </button>
-          ))}
-          <span className="px-1">
-            <HelpTip
-              label="Bougie"
-              text="Chaque bougie résume le prix sur une période (1, 5 ou 15 minutes). Verte ▲ : le prix a monté. Rouge ▼ : il a baissé."
-            />
-          </span>
-        </div>
-
-        <div className="flex flex-col items-end rounded-xl bg-fond/85 px-3 py-1.5 backdrop-blur">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-doux">
-            <span
-              className={`h-2 w-2 rounded-full ${live ? "bg-hausse pulse-dot" : "bg-doux"}`}
-            />
-            {live ? "EN DIRECT" : "PRIX"}
-          </span>
-          <span className="text-lg font-extrabold tabular-nums">
-            {price != null ? (
-              <>
-                <span className={up == null ? "" : up ? "text-hausse" : "text-baisse"}>
-                  {up == null ? "" : up ? "▲ " : "▼ "}
-                </span>
-                {fmtPrice(price)}
-              </>
-            ) : (
-              "…"
-            )}
-          </span>
-        </div>
-      </div>
-
       <div ref={containerRef} className="h-full w-full" role="img" aria-label="Graphique en bougies" />
 
       {loading && (

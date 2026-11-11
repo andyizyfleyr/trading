@@ -172,11 +172,8 @@ export default function TraderPage() {
         <div id="guide-chart" className="min-h-[100px] flex-1">
           <PriceChart
             symbol={symbol}
-            interval={timeInterval}
-            onIntervalChange={setTimeInterval}
-            price={price}
+            interval="1m"
             tickCandle={tickCandle}
-            live={live}
             priceLines={priceLines}
           />
         </div>

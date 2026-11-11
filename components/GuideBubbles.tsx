@@ -12,7 +12,7 @@ const STEPS = [
   {
     id: "guide-chart",
     title: "2. Lis le graphique",
-    text: "Bougie verte ▲ : le prix a monté. Bougie rouge ▼ : il a baissé. Touche « ? » pour revoir l'explication.",
+    text: "Bougie verte ▲ : le prix a monté. Bougie rouge ▼ : il a baissé.",
   },
   {
     id: "guide-duration",
