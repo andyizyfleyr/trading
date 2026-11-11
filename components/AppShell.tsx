@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { apiSettle } from "@/lib/api";
 import { useOnline } from "@/hooks/useOnline";
 import { fmtMoney } from "@/lib/format";
 import { BottomNav } from "./BottomNav";
@@ -117,6 +119,54 @@ function OfflineBanner() {
   );
 }
 
+/**
+ * Garde le solde affiché toujours juste, sur toutes les pages :
+ * clôture ce qui est arrivé à échéance puis met à jour le solde,
+ * à chaque navigation, au retour sur l'app, et toutes les 30 secondes.
+ * Sans cela, les pages qui ne clôturent pas (Classement, Cours, Profil)
+ * afficheraient un solde périmé dès qu'une prédiction se termine ailleurs.
+ */
+function BalanceSync() {
+  const { user, setBalance } = useAuth();
+  const pathname = usePathname();
+  const userId = user?.id ?? null;
+
+  useEffect(() => {
+    if (!userId) return;
+    let stopped = false;
+    let running = false;
+
+    const sync = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const res = await apiSettle();
+        if (!stopped) setBalance(res.balance);
+      } catch {
+        /* hors ligne ou erreur : on garde le dernier solde connu */
+      } finally {
+        running = false;
+      }
+    };
+
+    sync();
+    const timer = setInterval(sync, 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", sync);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", sync);
+    };
+  }, [userId, pathname, setBalance]);
+
+  return null;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const bare = CHROMELESS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -127,6 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-fond text-texte">
+      <BalanceSync />
       <Header />
       <OfflineBanner />
       <main className="mx-auto max-w-xl px-4 pb-28 pt-3 lg:max-w-6xl lg:px-6 lg:pb-10">{children}</main>

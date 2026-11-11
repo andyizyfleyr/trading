@@ -77,11 +77,38 @@ export default function TraderPage() {
     }
   };
 
+  // Prédictions connues comme en cours + résultats déjà montrés.
+  // Servent à retrouver ici les résultats clôturés par une autre page
+  // (la synchro globale clôture partout, pas seulement sur le Trader).
+  const openIdsRef = useRef<Set<number>>(new Set());
+  const shownRef = useRef<Set<number>>(new Set());
+
   // Charge les prédictions en cours (conservées même si l'app a été fermée).
+  // Si certaines ont été clôturées ailleurs, leurs résultats sont affichés.
   const loadOpen = useCallback(async () => {
     try {
       const { trades } = await apiMyTrades("open", 50);
       setOpenTrades(trades);
+      const fresh = new Set(trades.map((t) => t.id));
+      const vanished = [...openIdsRef.current].filter(
+        (id) => !fresh.has(id) && !shownRef.current.has(id)
+      );
+      openIdsRef.current = fresh;
+      if (vanished.length > 0) {
+        try {
+          const { trades: settled } = await apiMyTrades("settled", 50);
+          const found = settled.filter((t) => vanished.includes(t.id));
+          if (found.length > 0) {
+            found.forEach((t) => shownRef.current.add(t.id));
+            setResults((prev) => {
+              const known = new Set(prev.map((p) => p.id));
+              return [...found.filter((t) => !known.has(t.id)), ...prev].slice(0, 5);
+            });
+          }
+        } catch {
+          /* réessayé au prochain chargement */
+        }
+      }
     } catch {
       /* la bannière hors ligne informe déjà l'utilisateur */
     }
@@ -104,6 +131,7 @@ export default function TraderPage() {
       try {
         const res = await apiSettle(due.map((d) => d.id));
         if (res.settled.length > 0) {
+          res.settled.forEach((s) => shownRef.current.add(s.id));
           setOpenTrades((prev) =>
             prev.filter((p) => !res.settled.some((s) => s.id === p.id))
           );
@@ -123,6 +151,7 @@ export default function TraderPage() {
 
   const handleOpened = useCallback(
     (trade: ApiTrade, balance: number) => {
+      openIdsRef.current.add(trade.id);
       setOpenTrades((prev) => [trade, ...prev]);
       setBalance(balance);
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
@@ -144,21 +173,23 @@ export default function TraderPage() {
       ? 0
       : Math.max(0, +new Date(sortedOpen[0].closesAt) - now);
   const totalStaked = sortedOpen.reduce((s, t) => s + t.amount, 0);
+  const isDesktop = useIsDesktop();
   // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
-  const encoursVisible = tradesOpen && sortedOpen.length > 0;
+  // Sur desktop, « En cours » est affiché dans la colonne de droite, pas en panneau.
+  const encoursVisible = tradesOpen && sortedOpen.length > 0 && !isDesktop;
   const current = SYMBOLS.find((s) => s.id === symbol) ?? SYMBOLS[0];
 
   return (
     <RequireAuth>
       {/* Vue unique : 100 % de la hauteur dispo, aucun scroll de page. */}
-      <div className="-mb-[6.5rem] flex h-[calc(100dvh-7.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 overflow-hidden">
+      <div className="-mb-[6.5rem] flex h-[calc(100dvh-7.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 overflow-hidden lg:mb-0 lg:grid lg:h-[calc(100dvh-7.5rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:overflow-visible">
         {/* Sélecteur d'actif (liste déroulante) + prix en direct */}
         <button
           id="guide-symbol"
           type="button"
           onClick={() => setAssetOpen(true)}
           aria-haspopup="dialog"
-          className="flex h-11 w-full shrink-0 items-center justify-between rounded-xl border border-ligne bg-carte px-3 active:bg-ligne"
+          className="flex h-11 w-full shrink-0 items-center justify-between rounded-xl border border-ligne bg-carte px-3 active:bg-ligne lg:col-span-2 lg:max-w-xl"
         >
           <span className="flex items-center gap-2 text-base font-extrabold">
             <span
