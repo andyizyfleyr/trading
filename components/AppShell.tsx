@@ -19,7 +19,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   if (!loading && !user) {
     router.replace(`/connexion?next=${encodeURIComponent(pathname)}`);
     return (
-      <div className="mx-auto flex max-w-xl flex-col gap-3 p-4">
+      <div className="mx-auto flex max-w-xl flex-col lg:max-w-3xl gap-3 p-4">
         <div className="skeleton h-40 rounded-2xl" />
         <div className="skeleton h-24 rounded-2xl" />
       </div>
@@ -28,7 +28,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-xl flex-col gap-3 p-4" aria-label="Chargement...">
+      <div className="mx-auto flex max-w-xl flex-col lg:max-w-3xl gap-3 p-4" aria-label="Chargement...">
         <div className="skeleton h-40 rounded-2xl" />
         <div className="skeleton h-24 rounded-2xl" />
         <div className="skeleton h-24 rounded-2xl" />
@@ -39,13 +39,21 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+const DESKTOP_TABS = [
+  { href: "/", label: "Trader" },
+  { href: "/historique", label: "Historique" },
+  { href: "/classement", label: "Classement" },
+  { href: "/cours", label: "Cours" },
+];
+
 function Header() {
   const { user } = useAuth();
+  const pathname = usePathname();
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
 
   return (
     <header className="safe-top sticky top-0 z-40 border-b border-ligne bg-fond/95 backdrop-blur">
-      <div className="mx-auto flex h-12 max-w-xl items-center justify-between gap-2 px-4">
+      <div className="mx-auto flex h-12 max-w-xl items-center justify-between gap-2 px-4 lg:max-w-6xl lg:px-6">
         <Link href="/" className="flex items-center gap-1.5" aria-label="Accueil Trader">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-carte text-sm font-extrabold">
             <span className="text-hausse">▲</span>
@@ -53,6 +61,25 @@ function Header() {
           </span>
           <span className="text-base font-extrabold tracking-tight">TradeFacile</span>
         </Link>
+
+        {/* Navigation desktop : la barre du bas mobile est masquée sur grand écran. */}
+        <nav aria-label="Navigation principale" className="hidden items-center gap-1 lg:flex">
+          {DESKTOP_TABS.map(({ href, label }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors duration-200 ${
+                  active ? "bg-carte text-white" : "text-doux hover:bg-carte hover:text-texte"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div className="flex items-center gap-1.5">
           <Link
@@ -102,7 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-fond text-texte">
       <Header />
       <OfflineBanner />
-      <main className="mx-auto max-w-xl px-4 pb-28 pt-3">{children}</main>
+      <main className="mx-auto max-w-xl px-4 pb-28 pt-3 lg:max-w-6xl lg:px-6 lg:pb-10">{children}</main>
       <BottomNav />
     </div>
   );

@@ -84,10 +84,10 @@ export default function ClassementPage() {
             text="Fais une prédiction pour apparaître ici."
           />
         ) : (
-          <>
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
             {/* Ma position */}
             {me && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-action bg-carte p-2.5">
+              <div className="flex items-center gap-2.5 rounded-xl border border-action bg-carte p-2.5 lg:sticky lg:top-16">
                 <RankBadge rank={me.rank} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-extrabold">
@@ -115,7 +115,7 @@ export default function ClassementPage() {
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </RequireAuth>

@@ -9,6 +9,7 @@ import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
 import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
@@ -177,7 +178,7 @@ export default function TraderPage() {
         </button>
 
         {/* Graphique en bougies : prend toute la place restante */}
-        <div id="guide-chart" className="min-h-[100px] flex-1">
+        <div id="guide-chart" className="min-h-[100px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0">
           <PriceChart
             symbol={symbol}
             interval="1m"
@@ -186,14 +187,42 @@ export default function TraderPage() {
           />
         </div>
 
-        {/* Paris */}
-        <div className="shrink-0">
-          <TradeForm
-            balance={user?.balance ?? 0}
-            symbol={symbol}
-            online={online}
-            onOpened={handleOpened}
-          />
+        {/* Paris + En cours (colonne de droite sur desktop) */}
+        <div className="shrink-0 lg:col-start-2 lg:row-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto">
+          <div className="lg:shrink-0">
+            <TradeForm
+              balance={user?.balance ?? 0}
+              symbol={symbol}
+              online={online}
+              onOpened={handleOpened}
+            />
+          </div>
+
+          {/* En cours affiché directement sur desktop (panneau sur mobile). */}
+          {sortedOpen.length > 0 && (
+            <div className="hidden lg:block">
+              <div className="flex flex-col gap-2 rounded-2xl border border-ligne bg-carte p-3">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <p className="font-extrabold">
+                    En cours ({sortedOpen.length})
+                  </p>
+                  <p className="font-bold tabular-nums text-action">
+                    Fin dans {formatRemain(nearestMs)}
+                  </p>
+                </div>
+                <p className="-mt-1 text-xs tabular-nums text-doux">
+                  Mises {fmtMoney(totalStaked)}
+                </p>
+                {sortedOpen.map((trade) => (
+                  <ActiveTradeCard
+                    key={trade.id}
+                    trade={trade}
+                    price={trade.symbol === symbol ? price : null}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -203,7 +232,7 @@ export default function TraderPage() {
           type="button"
           onClick={() => setTradesOpen(true)}
           aria-label={`Voir les ${openTrades.length} prédictions en cours`}
-          className="anim-in fixed bottom-[4.75rem] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-action px-4 text-base font-extrabold tabular-nums text-white shadow-xl active:bg-blue-600"
+          className="anim-in fixed bottom-[4.75rem] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-action px-4 text-base font-extrabold tabular-nums text-white shadow-xl active:bg-blue-600 lg:hidden"
         >
           <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
           {openTrades.length} · {formatRemain(nearestMs)}
