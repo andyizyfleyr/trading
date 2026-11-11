@@ -8,6 +8,21 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+  /* Pas de zoom par pincement ni par double-tap, le défilement reste libre */
+  touch-action: pan-x pan-y;
+  /* Pas d'agrandissement automatique du texte sur mobile */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+ * Pas de zoom automatique quand on touche un champ (iPhone zoome si < 16px).
+ * Règle non classée volontairement : elle gagne sur les utilitaires.
+ */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
 }
 
 body {
