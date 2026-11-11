@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
-import { SYMBOLS } from "@/lib/symbols";
+import { SYMBOLS, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -197,7 +197,7 @@ export default function TraderPage() {
               style={{ backgroundColor: current.color }}
               aria-hidden="true"
             />
-            {current.base}/USDT
+            {symbolDisplay(current.id)}
             <span className="font-medium text-doux">{current.name}</span>
           </span>
           <span className="flex items-center gap-1.5">
@@ -263,7 +263,7 @@ export default function TraderPage() {
           type="button"
           onClick={() => setTradesOpen(true)}
           aria-label={`Voir les ${openTrades.length} prédictions en cours`}
-          className="anim-in fixed bottom-[4.75rem] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-action px-4 text-base font-extrabold tabular-nums text-white shadow-xl active:bg-blue-600 lg:hidden"
+          className="anim-in fixed bottom-[4.75rem] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-primary px-4 text-base font-extrabold tabular-nums text-white shadow-xl active:bg-blue-700 lg:hidden"
         >
           <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
           {openTrades.length} · {formatRemain(nearestMs)}
@@ -291,8 +291,11 @@ export default function TraderPage() {
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-base font-extrabold">{s.base}/USDT</span>
-                  <span className="block text-sm text-doux">{s.name}</span>
+                  <span className="block text-base font-extrabold">{symbolDisplay(s.id)}</span>
+                  <span className="block text-sm text-doux">
+                    {s.name}
+                    {s.kind === "stock" ? " · Action" : ""}
+                  </span>
                 </span>
                 {active && <CheckIcon className="h-5 w-5 shrink-0 text-hausse" />}
               </button>

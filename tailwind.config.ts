@@ -13,6 +13,10 @@ const config: Config = {
         hausse: "#22C55E",
         baisse: "#EF4444",
         action: "#3B82F6",
+        /** Bleu bouton : texte blanc dessus ≥ 4,5:1 (WCAG AA). */
+        primary: "#2563EB",
+        /** Rouge VENTE : texte blanc dessus ≥ 4,5:1 (WCAG AA). */
+        vente: "#DC2626",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],

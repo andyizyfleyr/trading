@@ -7,7 +7,7 @@ const STEPS = [
   {
     id: "guide-symbol",
     title: "1. Choisis un actif",
-    text: "Touche « BTC/USDT » pour ouvrir la liste : Bitcoin, Ethereum… Les prix sont réels.",
+    text: "Touche « BTC/USDT » pour ouvrir la liste : cryptos (Bitcoin, Ethereum…) et actions (Apple, Tesla…). Les prix sont réels.",
   },
   {
     id: "guide-chart",

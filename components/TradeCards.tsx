@@ -2,7 +2,7 @@
 
 import type { ApiTrade } from "@/lib/types";
 import { fmtMoney, fmtPrice, fmtSigned, symbolBase } from "@/lib/format";
-import { durationLabel } from "@/lib/symbols";
+import { durationLabel, symbolDisplay } from "@/lib/symbols";
 import { Btn, Card } from "./ui";
 import { CountdownRing } from "./CountdownRing";
 
@@ -35,15 +35,15 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
           </div>
           <div className="mt-1 grid grid-cols-3 gap-1 text-center tabular-nums">
             <div>
-              <p className="text-[11px] leading-tight text-doux">Mise</p>
+              <p className="text-xs leading-tight text-doux">Mise</p>
               <p className="text-sm font-bold leading-tight">{fmtMoney(trade.amount)}</p>
             </div>
             <div>
-              <p className="text-[11px] leading-tight text-doux">Départ</p>
+              <p className="text-xs leading-tight text-doux">Départ</p>
               <p className="text-sm font-bold leading-tight">{fmtPrice(trade.openPrice)}</p>
             </div>
             <div>
-              <p className="text-[11px] leading-tight text-doux">Actuel</p>
+              <p className="text-xs leading-tight text-doux">Actuel</p>
               <p
                 className={`text-sm font-bold leading-tight ${
                   winning == null ? "" : winning ? "text-hausse" : "text-baisse"
@@ -113,7 +113,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
           )}
         </p>
         <p className="mt-1 text-xs text-doux tabular-nums">
-          {isUp ? "ACHAT" : "VENTE"} · {symbolBase(trade.symbol)}/USDT · {durationLabel(trade.durationSec)}
+          {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)} · {durationLabel(trade.durationSec)}
           <br />
           {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
         </p>

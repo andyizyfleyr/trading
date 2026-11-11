@@ -5,7 +5,7 @@ import { trades, users, type Trade } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiTrade } from "@/lib/trade-shape";
-import { getPrice } from "@/lib/binance";
+import { getPrice } from "@/lib/market";
 import { RULES } from "@/lib/symbols";
 import type { TradeResult } from "@/lib/types";
 

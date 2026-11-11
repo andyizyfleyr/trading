@@ -59,14 +59,14 @@ export function PriceChart({ symbol, interval, tickCandle, priceLines }: Props) 
           background: { type: ColorType.Solid, color: "transparent" },
           textColor: "#9CA3AF",
           fontFamily: "Inter, system-ui, sans-serif",
-          fontSize: 11,
+          fontSize: 12,
         },
-        grid: { vertLines: { color: "#1E2A44" }, horzLines: { color: "#1E2A44" } },
+        grid: { vertLines: { color: "#26345A" }, horzLines: { color: "#26345A" } },
         rightPriceScale: { borderVisible: false },
         timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 4 },
         crosshair: {
-          vertLine: { color: "#3B82F6", labelBackgroundColor: "#3B82F6" },
-          horzLine: { color: "#3B82F6", labelBackgroundColor: "#3B82F6" },
+          vertLine: { color: "#3B82F6", labelBackgroundColor: "#2563EB" },
+          horzLine: { color: "#3B82F6", labelBackgroundColor: "#2563EB" },
         },
       });
       const series = chart.addCandlestickSeries({

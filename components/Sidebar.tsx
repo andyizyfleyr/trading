@@ -94,7 +94,7 @@ export function Sidebar() {
       <div className="rounded-2xl border border-ligne bg-carte p-3">
         <p className="text-xs font-bold uppercase tracking-wide text-doux">Mon compte</p>
         <div className="mt-2 flex items-center gap-2.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-action text-base font-extrabold text-white">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white">
             {initial}
           </span>
           <div className="min-w-0 flex-1">
@@ -114,23 +114,23 @@ export function Sidebar() {
             <div className="grid grid-cols-2 gap-2 text-center">
               <div className="rounded-xl bg-fond p-2">
                 <p className="text-lg font-extrabold tabular-nums">#{stats.rank}</p>
-                <p className="text-[11px] leading-tight text-doux">sur {stats.total}</p>
+                <p className="text-xs leading-tight text-doux">sur {stats.total}</p>
               </div>
               <div className="rounded-xl bg-fond p-2">
                 <p className="text-lg font-extrabold tabular-nums">{stats.winRate} %</p>
-                <p className="text-[11px] leading-tight text-doux">réussite</p>
+                <p className="text-xs leading-tight text-doux">réussite</p>
               </div>
               <div className="rounded-xl bg-fond p-2">
                 <p className="text-lg font-extrabold tabular-nums text-hausse">
                   ▲ {stats.wins}
                 </p>
-                <p className="text-[11px] leading-tight text-doux">victoires</p>
+                <p className="text-xs leading-tight text-doux">victoires</p>
               </div>
               <div className="rounded-xl bg-fond p-2">
                 <p className="text-lg font-extrabold tabular-nums text-baisse">
                   ▼ {stats.losses}
                 </p>
-                <p className="text-[11px] leading-tight text-doux">défaites</p>
+                <p className="text-xs leading-tight text-doux">défaites</p>
               </div>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-fond px-2.5 py-2">

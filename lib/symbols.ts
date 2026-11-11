@@ -1,19 +1,43 @@
-/** Actifs disponibles : vrais prix Binance, jamais de faux prix "OTC". */
+/**
+ * Actifs disponibles : vrais prix de marché, jamais de faux prix "OTC".
+ * - cryptos : prix Binance en direct ;
+ * - actions : vrais cours de la Bourse américaine (Yahoo Finance).
+ */
 export const SYMBOLS = [
-  { id: "BTCUSDT", base: "BTC", name: "Bitcoin", color: "#F7931A" },
-  { id: "ETHUSDT", base: "ETH", name: "Ethereum", color: "#8A9CFF" },
-  { id: "BNBUSDT", base: "BNB", name: "BNB", color: "#F0B90B" },
-  { id: "SOLUSDT", base: "SOL", name: "Solana", color: "#14F195" },
-  { id: "XRPUSDT", base: "XRP", name: "XRP", color: "#4AA8E0" },
-  { id: "DOGEUSDT", base: "DOGE", name: "Dogecoin", color: "#D3BE5D" },
+  { id: "BTCUSDT", base: "BTC", name: "Bitcoin", color: "#F7931A", kind: "crypto" },
+  { id: "ETHUSDT", base: "ETH", name: "Ethereum", color: "#8A9CFF", kind: "crypto" },
+  { id: "BNBUSDT", base: "BNB", name: "BNB", color: "#F0B90B", kind: "crypto" },
+  { id: "SOLUSDT", base: "SOL", name: "Solana", color: "#14F195", kind: "crypto" },
+  { id: "XRPUSDT", base: "XRP", name: "XRP", color: "#4AA8E0", kind: "crypto" },
+  { id: "DOGEUSDT", base: "DOGE", name: "Dogecoin", color: "#D3BE5D", kind: "crypto" },
+  { id: "ADAUSDT", base: "ADA", name: "Cardano", color: "#4A7DFF", kind: "crypto" },
+  { id: "AVAXUSDT", base: "AVAX", name: "Avalanche", color: "#E84142", kind: "crypto" },
+  { id: "LINKUSDT", base: "LINK", name: "Chainlink", color: "#8FB4FF", kind: "crypto" },
+  { id: "TRXUSDT", base: "TRX", name: "Tron", color: "#FF6B6B", kind: "crypto" },
+  { id: "AAPL", base: "AAPL", name: "Apple", color: "#D1D5DB", kind: "stock" },
+  { id: "TSLA", base: "TSLA", name: "Tesla", color: "#E31937", kind: "stock" },
+  { id: "NVDA", base: "NVDA", name: "NVIDIA", color: "#76B900", kind: "stock" },
 ] as const;
 
 export type SymbolId = (typeof SYMBOLS)[number]["id"];
+export type SymbolKind = (typeof SYMBOLS)[number]["kind"];
 
 export const SYMBOL_IDS = new Set<string>(SYMBOLS.map((s) => s.id));
 
 export function isSymbol(v: unknown): v is SymbolId {
   return typeof v === "string" && SYMBOL_IDS.has(v);
+}
+
+/** Vrai si l'actif est une action (sinon c'est une crypto). */
+export function isStock(symbol: string): boolean {
+  return SYMBOLS.find((s) => s.id === symbol)?.kind === "stock";
+}
+
+/** Nom affiché : "BTC/USDT" pour les cryptos, "AAPL" pour les actions. */
+export function symbolDisplay(symbol: string): string {
+  const found = SYMBOLS.find((s) => s.id === symbol);
+  if (!found) return symbol;
+  return found.kind === "stock" ? found.base : `${found.base}/USDT`;
 }
 
 /** Durées de prédiction autorisées (en secondes). */

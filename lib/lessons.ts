@@ -120,6 +120,23 @@ export const LESSONS: ApiLesson[] = [
     ],
     takeaway: "Ici, on joue pour apprendre. Le score ne mesure pas votre valeur.",
   },
+  {
+    id: "actions",
+    title: "Les actions : la Bourse dort la nuit",
+    summary: "Apple, Tesla, NVIDIA : pareil que les cryptos, sauf les horaires.",
+    minutes: 2,
+    blocks: [
+      {
+        heading: "La Bourse ouvre et ferme",
+        text: "Les cryptos bougent jour et nuit, mais la Bourse américaine n'ouvre qu'en semaine, l'après-midi heure d'Europe. Le soir et le week-end, le prix affiché est le dernier cours réel : la clôture.",
+      },
+      {
+        heading: "Que se passe-t-il si je joue Bourse fermée ?",
+        text: "Le prix ne bouge plus, donc le prix de fin est souvent égal au prix de départ : c'est une égalité et votre mise vous est rendue. Pour vibrer, jouez les actions quand la Bourse est ouverte.",
+      },
+    ],
+    takeaway: "Bourse ouverte = prix qui bouge. Bourse fermée = égalité probable, mise rendue.",
+  },
 ];
 
 export const LESSON_IDS = new Set(LESSONS.map((l) => l.id));
