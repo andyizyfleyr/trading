@@ -18,22 +18,22 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
         : price < trade.openPrice;
 
   return (
-    <Card className="anim-in">
+    <Card className="anim-in p-3">
       <div className="flex items-center gap-3">
-        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} />
+        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={68} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span
-              className={`rounded-lg px-2.5 py-1 text-base font-extrabold ${
+              className={`rounded-lg px-2 py-0.5 text-base font-extrabold ${
                 isUp ? "bg-hausse/15 text-hausse" : "bg-baisse/15 text-baisse"
               }`}
             >
               {isUp ? "ACHAT ▲" : "VENTE ▼"}
             </span>
-            <span className="text-base font-bold">{symbolBase(trade.symbol)}/USDT</span>
+            <span className="text-base font-bold">{symbolBase(trade.symbol)}</span>
             <span className="text-sm font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
           </div>
-          <dl className="mt-2 space-y-1 text-base tabular-nums">
+          <dl className="mt-1 space-y-0.5 text-base tabular-nums">
             <div className="flex justify-between gap-2">
               <dt className="text-doux">Mise</dt>
               <dd className="font-bold">{fmtMoney(trade.amount)}</dd>

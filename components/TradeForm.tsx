@@ -21,6 +21,7 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
+/** Formulaire compact : tient avec le graphique sur une seule vue. */
 export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   const [durationSec, setDurationSec] = useState<number>(60);
   const [amountStr, setAmountStr] = useState("50");
@@ -70,10 +71,10 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   };
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex flex-col gap-2 p-3">
       {/* Durée */}
       <div id="guide-duration">
-        <div className="mb-1.5 flex items-center gap-1.5 text-base font-medium text-doux">
+        <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-doux">
           Durée
           <HelpTip
             label="Durée"
@@ -87,7 +88,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
               type="button"
               onClick={() => setDurationSec(d)}
               aria-pressed={durationSec === d}
-              className={`min-h-[48px] rounded-xl text-base font-bold transition-colors duration-200 ${
+              className={`min-h-[44px] rounded-xl text-base font-bold transition-colors duration-200 ${
                 durationSec === d
                   ? "bg-action text-white"
                   : "border border-ligne bg-fond text-doux active:text-texte"
@@ -99,77 +100,72 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
         </div>
       </div>
 
-      {/* Mise */}
+      {/* Mise : montant + raccourcis sur une seule ligne */}
       <div id="guide-amount">
-        <div className="mb-1.5 flex items-center gap-1.5 text-base font-medium text-doux">
+        <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-doux">
           Mise
           <HelpTip
             label="Mise"
             text="La somme jouée sur cette prédiction. Minimum 10, maximum 10 % de ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
           />
         </div>
-        <input
-          value={amountStr}
-          onChange={(e) => setAmountStr(e.target.value)}
-          inputMode="decimal"
-          autoComplete="off"
-          aria-label="Montant de la mise"
-          className="h-[52px] w-full rounded-xl border border-ligne bg-fond px-4 text-center text-xl font-extrabold tabular-nums outline-none focus:border-action"
-        />
-        <div className="mt-2 grid grid-cols-4 gap-2" role="group" aria-label="Mises rapides">
-          {[10, 50, 100].map((v) => (
+        <div className="flex gap-2">
+          <input
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
+            inputMode="decimal"
+            autoComplete="off"
+            aria-label="Montant de la mise"
+            className="h-11 w-24 shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-lg font-extrabold tabular-nums outline-none focus:border-action"
+          />
+          <div className="grid flex-1 grid-cols-4 gap-1.5" role="group" aria-label="Mises rapides">
+            {[10, 50, 100].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setAmountStr(String(v))}
+                className="min-h-[44px] rounded-xl border border-ligne bg-fond text-base font-bold tabular-nums active:bg-ligne"
+              >
+                {v}
+              </button>
+            ))}
             <button
-              key={v}
               type="button"
-              onClick={() => setAmountStr(String(v))}
-              className="min-h-[48px] rounded-xl border border-ligne bg-fond text-base font-bold tabular-nums active:bg-ligne"
+              onClick={() => setAmountStr(String(maxBet))}
+              className="min-h-[44px] rounded-xl border border-ligne bg-fond text-sm font-bold active:bg-ligne"
+              aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
             >
-              {v}
+              Max
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setAmountStr(String(maxBet))}
-            className="min-h-[48px] rounded-xl border border-ligne bg-fond text-base font-bold active:bg-ligne"
-            aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
-          >
-            10 %
-          </button>
+          </div>
         </div>
-        <p className="mt-2 text-center text-base tabular-nums">
-          <span className="text-doux">Gain possible : </span>
+        <p className="mt-1 text-center text-sm tabular-nums">
+          <span className="text-doux">Gain possible </span>
           <span className="font-bold text-hausse">+{fmtMoney(gain)}</span>
-          <span className="text-doux"> · Max : {fmtMoney(maxBet)}</span>
+          <span className="text-doux"> · Max {fmtMoney(maxBet)}</span>
         </p>
       </div>
 
       {/* Prédiction */}
-      <div id="guide-buttons">
-        <div className="mb-1.5 flex items-center gap-1.5 text-base font-medium text-doux">
-          Ta prédiction
-          <HelpTip
-            label="ACHAT / VENTE"
-            text="ACHAT ▲ : tu prédis que le prix va monter. VENTE ▼ : tu prédis qu'il va descendre. Le prix de départ est le prix réel au moment où tu touches le bouton."
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Btn
-            variant="green"
-            onClick={() => place("UP")}
-            disabled={placing !== null}
-            className="min-h-[60px] text-xl font-extrabold"
-          >
-            {placing === "UP" ? "…" : "ACHAT ▲"}
-          </Btn>
-          <Btn
-            variant="red"
-            onClick={() => place("DOWN")}
-            disabled={placing !== null}
-            className="min-h-[60px] text-xl font-extrabold"
-          >
-            {placing === "DOWN" ? "…" : "VENTE ▼"}
-          </Btn>
-        </div>
+      <div id="guide-buttons" className="grid grid-cols-2 gap-2">
+        <Btn
+          variant="green"
+          onClick={() => place("UP")}
+          disabled={placing !== null}
+          aria-label="ACHAT : je prédis que le prix va monter"
+          className="min-h-[56px] text-lg font-extrabold"
+        >
+          {placing === "UP" ? "…" : "ACHAT ▲"}
+        </Btn>
+        <Btn
+          variant="red"
+          onClick={() => place("DOWN")}
+          disabled={placing !== null}
+          aria-label="VENTE : je prédis que le prix va descendre"
+          className="min-h-[56px] text-lg font-extrabold"
+        >
+          {placing === "DOWN" ? "…" : "VENTE ▼"}
+        </Btn>
       </div>
 
       {error && (

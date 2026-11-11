@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
 import { TradeForm } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
-import { EmptyState, Skeleton } from "@/components/ui";
-import { ChartIcon } from "@/components/Icons";
+import { Skeleton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
@@ -25,6 +23,7 @@ const PriceChart = dynamic(
 );
 
 const SYMBOL_KEY = "tf_symbol";
+type Tab = "parier" | "encours";
 
 function loadSymbol(): string {
   try {
@@ -40,6 +39,7 @@ export default function TraderPage() {
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>("BTCUSDT");
   const [timeInterval, setTimeInterval] = useState<Interval>("1m");
+  const [tab, setTab] = useState<Tab>("parier");
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -112,9 +112,7 @@ export default function TraderPage() {
     (trade: ApiTrade, balance: number) => {
       setOpenTrades((prev) => [trade, ...prev]);
       setBalance(balance);
-      requestAnimationFrame(() => {
-        document.getElementById("trades-actifs")?.scrollIntoView({ behavior: "smooth" });
-      });
+      setTab("encours"); // Bascule vers le compte à rebours, sans scroll.
     },
     [setBalance]
   );
@@ -127,11 +125,14 @@ export default function TraderPage() {
       color: t.direction === "UP" ? "#22C55E" : "#EF4444",
     }));
 
+  const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
+
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-3">
+      {/* Vue unique : 100 % de la hauteur dispo, aucun scroll de page. */}
+      <div className="-mb-[6.5rem] flex h-[calc(100dvh-8.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 overflow-hidden">
         {/* Choix de l'actif */}
-        <div id="guide-symbol" className="no-scrollbar -mx-4 overflow-x-auto px-4">
+        <div id="guide-symbol" className="no-scrollbar -mx-4 shrink-0 overflow-x-auto px-4">
           <div className="flex gap-2" role="group" aria-label="Choisir l'actif">
             {SYMBOLS.map((s) => {
               const active = s.id === symbol;
@@ -141,7 +142,7 @@ export default function TraderPage() {
                   type="button"
                   onClick={() => pickSymbol(s.id)}
                   aria-pressed={active}
-                  className={`flex min-h-[48px] shrink-0 items-center gap-2 rounded-xl px-4 text-base font-bold transition-colors duration-200 ${
+                  className={`flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl px-4 text-base font-bold transition-colors duration-200 ${
                     active
                       ? "bg-action text-white"
                       : "border border-ligne bg-carte text-texte active:bg-ligne"
@@ -159,8 +160,8 @@ export default function TraderPage() {
           </div>
         </div>
 
-        {/* Graphique en bougies */}
-        <div id="guide-chart" className="h-[38dvh] min-h-[260px]">
+        {/* Graphique en bougies : prend toute la place restante */}
+        <div id="guide-chart" className="min-h-[120px] flex-1">
           <PriceChart
             symbol={symbol}
             interval={timeInterval}
@@ -172,62 +173,101 @@ export default function TraderPage() {
           />
         </div>
 
-        {/* Résultats récents */}
-        {results.map((trade) => (
-          <ResultCard
-            key={trade.id}
-            trade={trade}
-            onReplay={() => setResults((prev) => prev.filter((r) => r.id !== trade.id))}
-          />
-        ))}
+        {/* Bas : onglets Parier / En cours */}
+        <div className="flex max-h-[52dvh] shrink-0 flex-col">
+          <div className="grid shrink-0 grid-cols-2 gap-2" role="tablist" aria-label="Panneau de jeu">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "parier"}
+              onClick={() => setTab("parier")}
+              className={`min-h-[44px] rounded-xl text-base font-extrabold transition-colors duration-200 ${
+                tab === "parier" ? "bg-action text-white" : "border border-ligne bg-carte text-doux"
+              }`}
+            >
+              Parier
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "encours"}
+              onClick={() => setTab("encours")}
+              className={`min-h-[44px] rounded-xl text-base font-extrabold tabular-nums transition-colors duration-200 ${
+                tab === "encours" ? "bg-action text-white" : "border border-ligne bg-carte text-doux"
+              }`}
+            >
+              En cours{openTrades.length > 0 ? ` (${openTrades.length})` : ""}
+            </button>
+          </div>
 
-        {/* Prédictions en cours */}
-        <section id="trades-actifs" aria-label="Prédictions en cours" className="flex flex-col gap-3">
-          {listLoading ? (
-            <>
-              <Skeleton className="h-28" />
-            </>
-          ) : openTrades.length > 0 ? (
-            <>
-              <h2 className="text-lg font-extrabold">
-                En cours ({openTrades.length})
-              </h2>
-              {[...openTrades]
-                .sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt))
-                .map((trade) => (
+          <div className="no-scrollbar mt-2 min-h-0 overflow-y-auto" role="tabpanel">
+            {tab === "parier" ? (
+              <TradeForm
+                balance={user?.balance ?? 0}
+                symbol={symbol}
+                online={online}
+                onOpened={handleOpened}
+              />
+            ) : listLoading ? (
+              <Skeleton className="h-24" />
+            ) : sortedOpen.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setTab("parier")}
+                className="w-full rounded-xl border border-dashed border-ligne bg-carte px-4 py-5 text-center text-base text-doux active:bg-ligne"
+              >
+                Aucune prédiction en cours.
+                <span className="block font-bold text-action">Toucher pour parier</span>
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 pb-1">
+                {sortedOpen.map((trade) => (
                   <ActiveTradeCard
                     key={trade.id}
                     trade={trade}
                     price={trade.symbol === symbol ? price : null}
                   />
                 ))}
-            </>
-          ) : (
-            <EmptyState
-              icon={<ChartIcon className="h-10 w-10" />}
-              title="Aucune prédiction en cours"
-              text="Choisis une durée, une mise, puis prédis si le prix monte ou descend."
-            />
-          )}
-        </section>
-
-        {/* Formulaire */}
-        <TradeForm
-          balance={user?.balance ?? 0}
-          symbol={symbol}
-          online={online}
-          onOpened={handleOpened}
-        />
-
-        <p className="pb-2 text-center text-sm text-doux">
-          Les prix sont les vrais prix du marché en direct.{" "}
-          <Link href="/cours" className="font-semibold text-action underline">
-            Apprendre à lire le graphique
-          </Link>
-        </p>
+                <button
+                  type="button"
+                  onClick={() => setTab("parier")}
+                  className="min-h-[48px] rounded-xl border border-action bg-action/10 text-base font-bold text-action active:bg-action/20"
+                >
+                  + Nouveau trade
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {showGuide && <GuideBubbles onDone={() => setShowGuide(false)} />}
+      {/* Résultat : panneau au-dessus de la vue, un à la fois */}
+      {results.length > 0 && (
+        <>
+          <div className="fixed inset-0 z-40 bg-fond/60" aria-hidden="true" />
+          <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-xl">
+            {results.length > 1 && (
+              <p className="mb-1 text-center text-sm font-semibold text-doux">
+                +{results.length - 1} autre{results.length > 2 ? "s" : ""} résultat
+                {results.length > 2 ? "s" : ""} après celui-ci
+              </p>
+            )}
+            <ResultCard
+              trade={results[0]}
+              onReplay={() => setResults((prev) => prev.slice(1))}
+            />
+          </div>
+        </>
+      )}
+
+      {showGuide && (
+        <GuideBubbles
+          onDone={() => setShowGuide(false)}
+          onStep={(step) => {
+            if (step >= 2) setTab("parier");
+          }}
+        />
+      )}
     </RequireAuth>
   );
 }

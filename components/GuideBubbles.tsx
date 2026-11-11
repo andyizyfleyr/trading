@@ -34,10 +34,17 @@ const STEPS = [
 const GUIDE_KEY = "tf_guide";
 
 /** Premier trade guidé : bulles d'aide pas à pas. */
-export function GuideBubbles({ onDone }: { onDone: () => void }) {
+export function GuideBubbles({
+  onDone,
+  onStep,
+}: {
+  onDone: () => void;
+  onStep?: (step: number) => void;
+}) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
+    onStep?.(step);
     const el = document.getElementById(STEPS[step].id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
