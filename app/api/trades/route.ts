@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/trades — Ouvrir une prédiction (protégé).
  * Corps : { "symbol": "BTCUSDT", "direction": "UP"|"DOWN",
- *           "amount": 100, "durationSec": 30|60|300 }
+ *           "amount": 100, "durationSec": 3|10|30|60|300 }
  * Le client n'envoie jamais ni prix ni résultat : le prix d'ouverture
  * est le prix Binance lu côté serveur, la mise est retirée du solde.
  */
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     return fail("DIRECTION_INVALIDE", "Choisissez ACHAT (ça monte) ou VENTE (ça descend).", 400);
   }
   if (!isDuration(body.durationSec)) {
-    return fail("DUREE_INVALIDE", "Choisissez une durée : 30 s, 1 min ou 5 min.", 400);
+    return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
   }
   const amount = round2(Number(body.amount));
   if (!Number.isFinite(amount) || amount <= 0) {

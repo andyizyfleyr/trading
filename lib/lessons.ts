@@ -42,13 +42,17 @@ export const LESSONS: ApiLesson[] = [
   },
   {
     id: "durees",
-    title: "Bien choisir la durée : 30 s, 1 min, 5 min",
+    title: "Bien choisir la durée : 3 s, 10 s, 30 s, 1 min, 5 min",
     summary: "Chaque durée demande une lecture différente du graphique.",
     minutes: 2,
     blocks: [
       {
+        heading: "3 et 10 secondes : l'éclair",
+        text: "En quelques secondes, le résultat dépend d'un seul petit mouvement du prix. C'est amusant mais très imprévisible : misez petit sur ces durées.",
+      },
+      {
         heading: "30 secondes : très rapide",
-        text: "En 30 secondes, le prix bouge peu mais de façon imprévisible. C'est la durée la plus nerveuse : un petit mouvement suffit à changer le résultat.",
+        text: "En 30 secondes, le prix bouge peu mais de façon imprévisible. C'est une durée nerveuse : un petit mouvement suffit à changer le résultat.",
       },
       {
         heading: "1 minute : l'équilibre",

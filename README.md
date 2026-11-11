@@ -61,7 +61,7 @@ Ouvrez http://localhost:3000 — créez un compte, vous commencez avec **10 000*
 |---|---|
 | Solde de départ | 10 000 |
 | Mise minimum / maximum | 10 / 10 % du solde |
-| Durées | 30 s, 1 min, 5 min |
+| Durées | 3 s, 10 s, 30 s, 1 min, 5 min |
 | Prix d'ouverture / clôture | Prix Binance lu par le serveur |
 | Bonne prédiction | Mise + 85 % de gain (mise × 1,85) |
 | Mauvaise prédiction | Rien rendu |
@@ -96,9 +96,10 @@ Format unique :
 | POST | `/api/me/reset` | Solde remis à 10 000 |
 | POST | `/api/me/deposit` | `{amount}` 100–50 000, ajout au solde |
 | POST | `/api/me/withdraw` | `{amount}` ≥ 100, retrait du solde |
+| GET | `/api/me/stats` | Victoires, défaites, taux de réussite, gains nets, rang |
 | GET | `/api/candles?symbol=BTCUSDT&interval=1m&limit=200` | Bougies `{time, open, high, low, close, volume}` |
 | GET | `/api/price?symbol=BTCUSDT` | Prix actuel (secours si WebSocket indisponible) |
-| POST | `/api/trades` | `{symbol, direction: UP\|DOWN, amount, durationSec: 30\|60\|300}` → `{trade, balance}` (201) |
+| POST | `/api/trades` | `{symbol, direction: UP\|DOWN, amount, durationSec: 3\|10\|30\|60\|300}` → `{trade, balance}` (201) |
 | GET | `/api/trades?status=open\|settled\|all&limit=50` | Mes prédictions |
 | POST | `/api/trades/settle` | Clôture ce qui est échu (`{ids?}` optionnel) → `{settled, pending, balance}` |
 | GET | `/api/leaderboard` | Top 20 des soldes + mon rang |

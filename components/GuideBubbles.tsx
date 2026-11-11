@@ -17,7 +17,7 @@ const STEPS = [
   {
     id: "guide-duration",
     title: "3. Choisis une durée",
-    text: "30 secondes, 1 minute ou 5 minutes. À la fin du compte à rebours, on compare le prix de fin au prix de départ.",
+    text: "3 secondes, 10 secondes, 30 secondes, 1 minute ou 5 minutes. À la fin du compte à rebours, on compare le prix de fin au prix de départ.",
   },
   {
     id: "guide-amount",

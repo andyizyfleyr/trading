@@ -17,14 +17,16 @@ export function isSymbol(v: unknown): v is SymbolId {
 }
 
 /** Durées de prédiction autorisées (en secondes). */
-export const DURATIONS = [30, 60, 300] as const;
+export const DURATIONS = [3, 10, 30, 60, 300] as const;
 export type DurationSec = (typeof DURATIONS)[number];
 
 export function isDuration(v: unknown): v is DurationSec {
-  return v === 30 || v === 60 || v === 300;
+  return v === 3 || v === 10 || v === 30 || v === 60 || v === 300;
 }
 
 export function durationLabel(sec: number): string {
+  if (sec === 3) return "3 s";
+  if (sec === 10) return "10 s";
   if (sec === 30) return "30 s";
   if (sec === 60) return "1 min";
   if (sec === 300) return "5 min";

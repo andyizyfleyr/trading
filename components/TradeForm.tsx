@@ -81,7 +81,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
             text="Le temps que dure ta prédiction. À la fin du compte à rebours, on compare le prix de fin au prix de départ."
           />
         </div>
-        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Choisir la durée">
+        <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Choisir la durée">
           {DURATIONS.map((d) => (
             <button
               key={d}

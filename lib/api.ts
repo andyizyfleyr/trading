@@ -7,6 +7,7 @@
 import type {
   ApiCandle,
   ApiLesson,
+  ApiStats,
   ApiTrade,
   ApiUser,
   LeaderboardEntry,
@@ -102,6 +103,8 @@ export const apiDeposit = (amount: number) =>
 
 export const apiWithdraw = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/withdraw", { method: "POST", body: { amount } });
+
+export const apiMyStats = () => request<{ stats: ApiStats }>("/api/me/stats");
 
 // --- Marché ---
 
