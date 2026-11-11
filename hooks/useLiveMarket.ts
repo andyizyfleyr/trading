@@ -60,7 +60,7 @@ export function useLiveMarket(symbol: string, interval: string) {
       }
     };
 
-    // Les actions et les OTC n'ont pas de flux Binance : sondage de l'API uniquement.
+    // Les actions et les jeux casino n'ont pas de flux Binance : sondage de l'API uniquement.
     if (isStock(symbol) || isOtc(symbol)) {
       startPoll();
       return () => {

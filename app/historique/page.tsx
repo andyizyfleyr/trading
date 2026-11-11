@@ -71,7 +71,7 @@ function TradeRow({ trade }: { trade: ApiTrade }) {
           </p>
           {isOtc(trade.symbol) && (
             <span className="shrink-0 rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
-              OTC
+              JEU
             </span>
           )}
         </div>

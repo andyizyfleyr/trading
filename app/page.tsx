@@ -201,7 +201,7 @@ export default function TraderPage() {
             <span className="font-medium text-doux">{current.name}</span>
             {current.kind === "otc" && (
               <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
-                OTC
+                JEU
               </span>
             )}
           </span>
@@ -301,12 +301,12 @@ export default function TraderPage() {
                   <span className="block text-sm text-doux">
                     {s.name}
                     {s.kind === "stock" ? " · Action" : ""}
-                    {s.kind === "otc" ? " · Simulé" : ""}
+                    {s.kind === "otc" ? " · Jeu de hasard" : ""}
                   </span>
                 </span>
                 {s.kind === "otc" && (
                   <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-xs font-extrabold text-action">
-                    OTC
+                    JEU
                   </span>
                 )}
                 {active && <CheckIcon className="h-5 w-5 shrink-0 text-hausse" />}
