@@ -10,7 +10,7 @@ import { isOtc, isStock, type Interval, type SymbolId } from "./symbols";
 /**
  * Prix du marché : route chaque actif vers sa vraie source
  * (Binance pour les cryptos, Yahoo Finance pour les actions,
- * moteur maison déterministe pour les actifs OTC).
+ * jeux casino maison (hasard déterministe)).
  * Mêmes signatures que lib/binance pour les routes API.
  */
 export class MarketError extends Error {

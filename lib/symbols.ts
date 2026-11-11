@@ -1,7 +1,8 @@
 /**
- * Actifs disponibles : vrais prix de marché, jamais de faux prix "OTC".
+ * Actifs disponibles :
  * - cryptos : prix Binance en direct ;
- * - actions : vrais cours de la Bourse américaine (Yahoo Finance).
+ * - actions : vrais cours de la Bourse américaine (Yahoo Finance) ;
+ * - jeux casino : prix simulés maison, 100 % hasard (badge JEU).
  */
 export const SYMBOLS = [
   { id: "BTCUSDT", base: "BTC", name: "Bitcoin", color: "#F7931A", kind: "crypto" },
@@ -17,9 +18,9 @@ export const SYMBOLS = [
   { id: "AAPL", base: "AAPL", name: "Apple", color: "#D1D5DB", kind: "stock" },
   { id: "TSLA", base: "TSLA", name: "Tesla", color: "#E31937", kind: "stock" },
   { id: "NVDA", base: "NVDA", name: "NVIDIA", color: "#76B900", kind: "stock" },
-  { id: "EURUSDOTC", base: "EUR/USD", name: "Euro / Dollar", color: "#60A5FA", kind: "otc" },
-  { id: "GBPUSDOTC", base: "GBP/USD", name: "Livre / Dollar", color: "#A78BFA", kind: "otc" },
-  { id: "USDJPYOTC", base: "USD/JPY", name: "Dollar / Yen", color: "#F472B6", kind: "otc" },
+  { id: "EURUSDOTC", base: "Lucky 7", name: "Le plus doux", color: "#FBBF24", kind: "otc" },
+  { id: "GBPUSDOTC", base: "Jackpot", name: "Le mouvementé", color: "#A78BFA", kind: "otc" },
+  { id: "USDJPYOTC", base: "Turbo", name: "Le plus nerveux", color: "#F472B6", kind: "otc" },
 ] as const;
 
 export type SymbolId = (typeof SYMBOLS)[number]["id"];
@@ -36,7 +37,7 @@ export function isStock(symbol: string): boolean {
   return SYMBOLS.find((s) => s.id === symbol)?.kind === "stock";
 }
 
-/** Vrai si l'actif est un actif maison OTC (prix simulés). */
+/** Vrai si l'actif est un jeu casino maison (100 % hasard). */
 export function isOtc(symbol: string): boolean {
   return SYMBOLS.find((s) => s.id === symbol)?.kind === "otc";
 }

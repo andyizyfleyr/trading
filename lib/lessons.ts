@@ -139,20 +139,24 @@ export const LESSONS: ApiLesson[] = [
   },
   {
     id: "otc",
-    title: "Les actifs OTC : des prix simulés",
-    summary: "Euro/dollar, livre/dollar, dollar/yen : disponibles jour et nuit.",
+    title: "Les jeux casino : 100 % hasard",
+    summary: "Lucky 7, Jackpot, Turbo : pour s'amuser, pas pour apprendre.",
     minutes: 2,
     blocks: [
       {
-        heading: "C'est quoi, OTC ?",
-        text: "Ce sont des actifs maison, reconnaissables à leur badge OTC. Leurs prix sont simulés par l'application : ils bougent jour et nuit, même le week-end quand la Bourse est fermée.",
+        heading: "Pas des vrais marchés",
+        text: "Lucky 7, Jackpot et Turbo sont des jeux maison, reconnaissables à leur badge JEU. Leurs prix sont inventés par l'application et n'ont aucun lien avec la Bourse ou les cryptos. Ils bougent jour et nuit, même le week-end.",
+      },
+      {
+        heading: "Trois tempéraments",
+        text: "Lucky 7 bouge doucement, Jackpot est mouvementé et Turbo est très nerveux. Plus ça bouge vite, plus les durées courtes (3 s, 10 s) sont imprévisibles : c'est du pur hasard, fait pour s'amuser.",
       },
       {
         heading: "Le jeu reste équitable",
-        text: "Le prix simulé suit une formule fixe : à la même seconde, tout le monde voit exactement le même prix, à l'ouverture comme à la clôture. Personne ne peut le changer au cas par cas. Les règles sont les mêmes : bonne prédiction = mise + 85 %.",
+        text: "Le prix suit une formule fixe : à la même seconde, tout le monde voit exactement le même prix, à l'ouverture comme à la clôture. Personne ne peut le changer au cas par cas. Les règles sont les mêmes : bonne prédiction = mise + 85 %.",
       },
     ],
-    takeaway: "Badge OTC = prix simulés, disponibles tout le temps, mêmes règles.",
+    takeaway: "Badge JEU = hasard pur, disponible tout le temps, mêmes règles.",
   },
 ];
 

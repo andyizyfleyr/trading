@@ -34,7 +34,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
             <span className="text-xs font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
             {isOtc(trade.symbol) && (
               <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
-                OTC
+                JEU
               </span>
             )}
           </div>
@@ -119,7 +119,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </p>
         <p className="mt-1 text-xs text-doux tabular-nums">
           {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)}
-          {isOtc(trade.symbol) ? " · OTC" : ""} · {durationLabel(trade.durationSec)}
+          {isOtc(trade.symbol) ? " · JEU" : ""} · {durationLabel(trade.durationSec)}
           <br />
           {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
         </p>

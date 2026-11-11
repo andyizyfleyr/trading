@@ -106,7 +106,7 @@ Format unique :
 | GET | `/api/lessons` | Leçons + progression |
 | POST | `/api/lessons/progress` | `{lessonId, done}` |
 
-Actifs : cryptos `BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, DOGEUSDT, ADAUSDT, AVAXUSDT, LINKUSDT, TRXUSDT` (Binance) + actions `AAPL, TSLA, NVDA` (Yahoo Finance) + OTC maison `EURUSDOTC, GBPUSDOTC, USDJPYOTC` (prix simulés déterministes).
+Actifs : cryptos `BTCUSDT, ...` (Binance, 10 paires) + actions `AAPL, TSLA, NVDA` (Yahoo Finance) + jeux casino `EURUSDOTC` (Lucky 7), `GBPUSDOTC` (Jackpot), `USDJPYOTC` (Turbo) : hasard pur, moteur déterministe.
 Intervalles : `1m, 5m, 15m`.
 
 ### Objet `trade`
