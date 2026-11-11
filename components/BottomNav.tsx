@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookIcon, ChartIcon, HistoryIcon, TrophyIcon } from "./Icons";
+import { BookIcon, ChartIcon, HistoryIcon, SignalIcon, TrophyIcon } from "./Icons";
 
 const TABS = [
   { href: "/", label: "Trader", Icon: ChartIcon },
   { href: "/historique", label: "Historique", Icon: HistoryIcon },
   { href: "/classement", label: "Classement", Icon: TrophyIcon },
   { href: "/cours", label: "Cours", Icon: BookIcon },
+  { href: "/predictions", label: "Signaux", Icon: SignalIcon },
 ];
 
 /** Barre du bas fixe, compacte : 4 onglets dans la zone du pouce. */
@@ -20,7 +21,7 @@ export function BottomNav() {
       aria-label="Navigation principale"
       className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ligne bg-fond/95 backdrop-blur lg:hidden"
     >
-      <div className="mx-auto grid max-w-xl grid-cols-4">
+      <div className="mx-auto grid max-w-xl grid-cols-5">
         {TABS.map(({ href, label, Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
