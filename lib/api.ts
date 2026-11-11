@@ -122,8 +122,25 @@ export const apiGetPrice = async (symbol: string): Promise<number> => {
 
 // --- Prédictions ---
 
-export const apiMyTrades = (status: "open" | "settled" | "all" = "all", limit = 50) =>
-  request<{ trades: ApiTrade[] }>(`/api/trades?status=${status}&limit=${limit}`);
+export const apiMyTrades = (
+  status: "open" | "scheduled" | "settled" | "all" = "all",
+  limit = 50
+) => request<{ trades: ApiTrade[] }>(`/api/trades?status=${status}&limit=${limit}`);
+
+export const apiScheduleTrade = (input: {
+  symbol: string;
+  direction: "UP" | "DOWN";
+  amount: number;
+  durationSec: number;
+  slot: number;
+}) =>
+  request<{ scheduled: ApiTrade; balance: number }>("/api/scheduled", {
+    method: "POST",
+    body: input,
+  });
+
+export const apiCancelScheduled = (id: number) =>
+  request<{ balance: number }>(`/api/scheduled/${id}`, { method: "DELETE" });
 
 export const apiOpenTrade = (input: {
   symbol: string;

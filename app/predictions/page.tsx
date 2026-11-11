@@ -222,7 +222,8 @@ export default function PredictionsPage() {
         </ol>
         <p className="mt-2 text-sm text-doux">
           En retard même d&apos;1 seconde ? Le coup est raté : attends le suivant. Astuce :
-          sur le trader, choisis ton heure dans « Quand » et ta mise partira toute seule.
+          sur le trader, choisis ton heure dans « Quand » et ta mise partira toute seule,
+          même si tu quittes l&apos;app.
         </p>
       </div>
 
