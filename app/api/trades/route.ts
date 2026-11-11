@@ -101,10 +101,15 @@ export async function POST(req: NextRequest) {
       return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
     }
 
-    // Prix serveur = prix Binance (jamais fourni par le client).
+    // Prix serveur (jamais fourni par le client). L'heure d'ouverture est
+    // prise aussitôt, dans la même seconde que le prix lu.
     let openPrice: number;
+    let openedAt: Date;
+    let closesAt: Date;
     try {
       openPrice = await getPrice(body.symbol);
+      openedAt = new Date();
+      closesAt = new Date(openedAt.getTime() + body.durationSec * 1000);
     } catch (err) {
       if (err instanceof MarketError) {
         return fail("PRIX_INDISPONIBLES", err.message, 503);
@@ -122,8 +127,6 @@ export async function POST(req: NextRequest) {
       return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
     }
 
-    const openedAt = new Date();
-    const closesAt = new Date(openedAt.getTime() + body.durationSec * 1000);
     const [created] = await db()
       .insert(trades)
       .values({
