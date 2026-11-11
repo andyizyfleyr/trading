@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { apiOpenTrade, ApiError } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiCancelScheduled, apiMyTrades, apiOpenTrade, apiScheduleTrade, ApiError } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS } from "@/lib/symbols";
-import { durationLabel } from "@/lib/symbols";
+import { durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
 import { Btn, Card, HelpTip } from "./ui";
 
@@ -24,9 +24,11 @@ interface Props {
   initialDuration?: number;
   /** Bouton conseillé + heure exacte pour miser (signal). */
   signal?: SignalHint | null;
+  /** Solde après programmation/annulation d'une mise. */
+  onBalance?: (balance: number) => void;
 }
 
-/** Mise programmée : le joueur a choisi l'heure, l'envoi part tout seul. */
+/** Mise programmée sur l'appareil (marchés réels : la page doit rester ouverte). */
 interface Pending {
   direction: "UP" | "DOWN";
   amount: number;
@@ -56,6 +58,11 @@ function fmtHM(slot: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Seconde pile d'ouverture d'une mise programmée. */
+function slotOf(t: ApiTrade): number {
+  return Math.floor(new Date(t.openedAt).getTime() / 1000);
+}
+
 function parseAmount(raw: string): number | null {
   const n = Number(raw.replace(",", ".").trim());
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
@@ -71,7 +78,7 @@ function slotFromTime(v: string): number | null {
 }
 
 /** Formulaire ultra-compact : durée + mise + heure + boutons, tout sur une vue. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal }: Props) {
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance }: Props) {
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? 60);
   const [amountStr, setAmountStr] = useState("50");
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
@@ -82,9 +89,27 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [customOpen, setCustomOpen] = useState(false);
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [serverPending, setServerPending] = useState<ApiTrade | null>(null);
+  const [scheduledList, setScheduledList] = useState<ApiTrade[]>([]);
   const [tick, setTick] = useState(() => Date.now());
   const [hidden, setHidden] = useState(false);
   const firedRef = useRef(false);
+
+  // Mises programmées sur le serveur (partent même appli fermée).
+  const refreshScheduled = useCallback(async () => {
+    try {
+      const { trades } = await apiMyTrades("scheduled", 50);
+      setScheduledList(trades);
+    } catch {
+      /* non connecté ou hors ligne : pas de bandeau */
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshScheduled();
+    const t = setInterval(refreshScheduled, 30000);
+    return () => clearInterval(t);
+  }, [refreshScheduled]);
 
   // Durée imposée par le signal (arrive après le premier affichage).
   useEffect(() => {
@@ -138,7 +163,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
-  // Écran allumé pendant l'attente (sinon les minuteurs ralentissent).
+  // Écran allumé pendant l'attente sur l'appareil (sinon les minuteurs ralentissent).
   useEffect(() => {
     if (!pending) return;
     let cancelled = false;
@@ -211,7 +236,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     setQuand(slot != null && slot * 1000 > Date.now() + (offsetMs ?? 0) ? String(slot) : BAD_TIME);
   };
 
-  // Jeu changé pendant l'attente : la programmation ne veut plus rien dire.
+  // Jeu changé pendant l'attente sur l'appareil : la programmation ne veut plus rien dire.
+  // (Les programmations serveur, elles, survivent : le serveur s'en occupe.)
   useEffect(() => {
     if (pending && pending.symbol !== symbol) {
       setPending(null);
@@ -225,6 +251,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
   const gain = amount != null && amount > 0 ? Math.round(amount * 0.85 * 100) / 100 : 0;
+
+  // Programmées à venir (les parties rejoignent « En cours » toutes seules).
+  const upcoming = scheduledList.filter((t) => new Date(t.openedAt).getTime() > Date.now());
 
   const place = async (
     direction: "UP" | "DOWN",
@@ -265,10 +294,14 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     }
   };
 
-  /** ACHAT/VENTE : immédiat avec « Maintenant », programmé sinon. */
-  const schedule = (direction: "UP" | "DOWN") => {
+  /**
+   * ACHAT/VENTE : immédiat avec « Maintenant », programmé sinon.
+   * Jeux casino → programmation serveur (part même appli fermée).
+   * Marchés réels → programmation sur l'appareil (page à garder ouverte).
+   */
+  const schedule = async (direction: "UP" | "DOWN") => {
     if (quand === "now") {
-      void place(direction);
+      await place(direction);
       return;
     }
     if (quand === BAD_TIME) {
@@ -301,11 +334,44 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError("Solde insuffisant pour cette mise.");
       return;
     }
+    if (isOtc(symbol)) {
+      setPlacing(direction);
+      try {
+        const res = await apiScheduleTrade({
+          symbol,
+          direction,
+          amount,
+          durationSec,
+          slot,
+        });
+        vibrate(20);
+        onBalance?.(res.balance);
+        setServerPending(res.scheduled);
+        void refreshScheduled();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "Programmation impossible pour le moment.");
+      } finally {
+        setPlacing(null);
+      }
+      return;
+    }
     firedRef.current = false;
     setPending({ direction, amount, durationSec, symbol, slot });
   };
 
-  // Envoi précis : dès que l'heure pile (+150 ms) arrive, la mise part.
+  const cancelScheduled = async (id: number) => {
+    setError(null);
+    try {
+      const res = await apiCancelScheduled(id);
+      onBalance?.(res.balance);
+      setServerPending((p) => (p?.id === id ? null : p));
+      await refreshScheduled();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Annulation impossible pour le moment.");
+    }
+  };
+
+  // Envoi précis sur l'appareil : dès que l'heure pile (+150 ms) arrive, la mise part.
   useEffect(() => {
     if (!pending || firedRef.current) return;
     if (tick + (offsetMs ?? 0) < pending.slot * 1000 + SHOT_DELAY_MS) return;
@@ -334,7 +400,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   return (
     <Card className="flex flex-col gap-1.5 p-2">
       {pending ? (
-        /* Mise programmée : attente de l'heure choisie */
+        /* Mise programmée sur l'appareil : attente de l'heure choisie */
         <div role="status" className="anim-in rounded-xl bg-action/15 px-3 py-2">
           <p className="text-center text-base font-extrabold">
             {pending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(pending.amount)} à{" "}
@@ -355,8 +421,59 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             Reste sur cette page jusqu&apos;au départ.
           </p>
         </div>
+      ) : serverPending ? (
+        /* Mise programmée sur le serveur : part même appli fermée */
+        <div role="status" className="anim-in rounded-xl bg-hausse/15 px-3 py-2">
+          <p className="text-center text-base font-extrabold text-hausse">Programmé ✓</p>
+          <p className="mt-0.5 text-center text-sm font-bold">
+            {serverPending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"}{" "}
+            {fmtMoney(serverPending.amount)} {symbolDisplay(serverPending.symbol)} à{" "}
+            <span className="tabular-nums">{fmtSlot(slotOf(serverPending))}</span>
+          </p>
+          <p className="mt-0.5 text-center text-xs text-doux">
+            Partira tout seul à l&apos;heure, même si tu quittes l&apos;app.
+          </p>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            <Btn variant="ghost" onClick={() => setServerPending(null)} className="min-h-[48px] w-full font-extrabold">
+              OK
+            </Btn>
+            <Btn variant="red" onClick={() => cancelScheduled(serverPending.id)} className="min-h-[48px] w-full font-extrabold">
+              Annuler
+            </Btn>
+          </div>
+          <p className="mt-1 text-center text-xs text-doux">Annuler = mise remboursée.</p>
+        </div>
       ) : (
         <>
+          {/* Mises programmées : partent toutes seules, annulables */}
+          {upcoming.length > 0 && (
+            <div className="rounded-xl bg-fond px-2.5 py-2">
+              <p className="text-sm font-extrabold">
+                Programmé{upcoming.length > 1 ? "es" : ""} ({upcoming.length})
+              </p>
+              <ul className="mt-1 flex flex-col gap-1">
+                {upcoming.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate font-bold tabular-nums">
+                      {t.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(t.amount)}{" "}
+                      <span className="font-medium text-doux">
+                        {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => cancelScheduled(t.id)}
+                      aria-label={`Annuler la mise programmée à ${fmtSlot(slotOf(t))} (remboursée)`}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ligne bg-carte text-base font-extrabold text-doux active:text-texte"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Durée */}
           <div id="guide-duration">
             <div className="mb-0.5 flex items-center gap-1 text-xs font-medium text-doux">
@@ -508,7 +625,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
           {chosenSlot != null && (
             <p className="text-center text-xs font-bold text-action">
-              Appuie sur ACHAT ou VENTE : la mise partira toute seule à {fmtSlot(chosenSlot)}.
+              Appuie sur ACHAT ou VENTE : la mise partira toute seule à {fmtSlot(chosenSlot)}
+              {isOtc(symbol) ? ", même si tu quittes l'app." : "."}
             </p>
           )}
           {chosenSlot == null && (quand === BAD_TIME || quandStale) && (

@@ -61,6 +61,26 @@ export default function TraderPage() {
   useEffect(() => {
     setSymbol(loadSymbol());
     setShowGuide(!hasSeenGuide());
+    // Signal venant de la page Signaux (?jeu=&duree=&sens=&slot=) :
+    // pré-remplit le jeu, la durée et le bouton conseillé.
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const jeu = q.get("jeu");
+      if (jeu && SYMBOLS.some((s) => s.id === jeu)) {
+        setSymbol(jeu);
+        window.localStorage.setItem(SYMBOL_KEY, jeu);
+      }
+      const duree = Number(q.get("duree"));
+      if (isDuration(duree)) setSignalDuration(duree);
+      const sens = q.get("sens");
+      const atMs = Number(q.get("slot")) * 1000;
+      const fresh = atMs > Date.now() - 10000 && atMs < Date.now() + 30 * 60000;
+      if ((sens === "up" || sens === "down") && Number.isFinite(atMs) && fresh) {
+        setSignal({ direction: sens === "up" ? "UP" : "DOWN", atMs });
+      }
+    } catch {
+      /* adresse illisible : trader normal */
+    }
   }, []);
 
   // Horloge pour le compte à rebours du bouton flottant.
@@ -235,6 +255,9 @@ export default function TraderPage() {
               symbol={symbol}
               online={online}
               onOpened={handleOpened}
+              initialDuration={signalDuration}
+              signal={signal}
+              onBalance={setBalance}
             />
           </div>
 

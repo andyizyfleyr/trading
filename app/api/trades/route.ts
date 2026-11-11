@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt, lte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { gte } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -13,7 +13,8 @@ import { isDuration, isSymbol, RULES } from "@/lib/symbols";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/trades?status=open|settled|all&limit=50 — Mes prédictions (protégé).
+ * GET /api/trades?status=open|scheduled|settled|all&limit=50 — Mes prédictions (protégé).
+ * « open » = parties (ouverture passée), « scheduled » = programmées (ouverture à venir).
  */
 export async function GET(req: NextRequest) {
   const userId = await requireUserId(req);
@@ -25,7 +26,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const conditions = [eq(trades.userId, userId)];
-    if (status === "open") conditions.push(eq(trades.status, "OPEN"));
+    const now = new Date();
+    if (status === "open")
+      conditions.push(eq(trades.status, "OPEN"), lte(trades.openedAt, now));
+    if (status === "scheduled")
+      conditions.push(eq(trades.status, "OPEN"), gt(trades.openedAt, now));
     if (status === "settled") conditions.push(eq(trades.status, "SETTLED"));
 
     const rows = await db()

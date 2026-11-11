@@ -100,7 +100,10 @@ Format unique :
 | GET | `/api/candles?symbol=BTCUSDT&interval=1m&limit=200` | Bougies `{time, open, high, low, close, volume}` |
 | GET | `/api/price?symbol=BTCUSDT` | Prix actuel (secours si WebSocket indisponible) |
 | POST | `/api/trades` | `{symbol, direction: UP\|DOWN, amount, durationSec: 3\|10\|30\|60\|300}` → `{trade, balance}` (201) |
-| GET | `/api/trades?status=open\|settled\|all&limit=50` | Mes prédictions |
+| GET | `/api/trades?status=open\|scheduled\|settled\|all&limit=50` | Mes prédictions (programmées = ouverture à venir) |
+| POST | `/api/scheduled` | Programmer une mise casino `{symbol, direction, amount, durationSec, slot}` (heure pile, ≤24h) → `{scheduled, balance}` (201) |
+| GET | `/api/scheduled` | Mes mises programmées |
+| DELETE | `/api/scheduled/[id]` | Annuler une mise programmée (remboursée) → `{balance}` |
 | POST | `/api/trades/settle` | Clôture ce qui est échu (`{ids?}` optionnel) → `{settled, pending, balance}` |
 | GET | `/api/leaderboard` | Top 20 des soldes + mon rang |
 | GET | `/api/lessons` | Leçons + progression |
