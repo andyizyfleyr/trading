@@ -1,0 +1,35 @@
+{
+  "name": "tradefacile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jeu éducatif de trading : prédire si un prix monte ou descend (argent fictif uniquement)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.19",
+    "bcryptjs": "^3.0.2",
+    "drizzle-orm": "^0.44.4",
+    "jose": "^5.10.0",
+    "lightweight-charts": "^4.2.3",
+    "next": "^14.2.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^20.16.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "drizzle-kit": "^0.31.4",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.3"
+  }
+}
