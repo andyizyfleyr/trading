@@ -60,7 +60,7 @@ Ouvrez http://localhost:3000 — créez un compte, vous commencez avec **10 000*
 | Règle | Valeur |
 |---|---|
 | Solde de départ | 10 000 |
-| Mise minimum / maximum | 10 / 10 % du solde |
+| Mise minimum / maximum | 10 / tout le solde |
 | Durées | 3 s, 10 s, 30 s, 1 min, 5 min |
 | Prix d'ouverture / clôture | Prix Binance lu par le serveur |
 | Bonne prédiction | Mise + 85 % de gain (mise × 1,85) |

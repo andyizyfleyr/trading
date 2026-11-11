@@ -68,7 +68,7 @@ function Header() {
           <Link
             href="/profil"
             aria-label="Mon profil"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white"
+            className="hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex"
           >
             {initial}
           </Link>

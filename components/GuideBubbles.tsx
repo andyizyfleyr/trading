@@ -22,7 +22,7 @@ const STEPS = [
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: "Tape un montant ou touche 10, 50, 100 ou Max (10 % du solde). Gain : mise + 85 %.",
+    text: "Tape un montant ou touche 10, 50, 100 ou Max (tout ton solde). Gain : mise + 85 %.",
   },
   {
     id: "guide-buttons",

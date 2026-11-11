@@ -28,10 +28,8 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const maxBet = useMemo(
-    () => Math.max(0, Math.floor(balance * 0.1 * 100) / 100),
-    [balance]
-  );
+  // Pas de plafond : on peut miser jusqu'à tout le solde.
+  const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
   const gain = amount != null && amount > 0 ? Math.round(amount * 0.85 * 100) / 100 : 0;
 
@@ -50,7 +48,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
       return;
     }
     if (amount > maxBet) {
-      setError(`Maximum ${fmtMoney(maxBet)} (10 % du solde).`);
+      setError("Solde insuffisant pour cette mise.");
       return;
     }
     setPlacing(direction);
@@ -107,7 +105,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
             Mise
             <HelpTip
               label="Mise"
-              text="La somme jouée. Minimum 10, maximum 10 % de ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
+              text="La somme jouée, de 10 jusqu'à tout ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
             />
           </span>
           <span className="tabular-nums">

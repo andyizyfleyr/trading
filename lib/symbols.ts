@@ -69,10 +69,8 @@ export function isInterval(v: unknown): v is Interval {
 export const RULES = {
   /** Solde de départ */
   START_BALANCE: 10000,
-  /** Mise minimum */
+  /** Mise minimum (pas de plafond : jusqu'à tout le solde) */
   MIN_BET: 10,
-  /** Mise maximum = 10 % du solde */
-  MAX_BET_RATIO: 0.1,
   /** Gain en cas de bonne prédiction : mise + 85 % */
   WIN_PAYOUT_RATIO: 0.85,
   /** Limite : 20 prédictions par minute et par utilisateur */
