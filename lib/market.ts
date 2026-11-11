@@ -3,12 +3,14 @@ import {
   getPrice as getCryptoPrice,
   type Candle,
 } from "./binance";
+import { getOtcCandles, getOtcPrice } from "./otc";
 import { getStockCandles, getStockPrice } from "./stocks";
-import { isStock, type Interval, type SymbolId } from "./symbols";
+import { isOtc, isStock, type Interval, type SymbolId } from "./symbols";
 
 /**
  * Prix du marché : route chaque actif vers sa vraie source
- * (Binance pour les cryptos, Yahoo Finance pour les actions).
+ * (Binance pour les cryptos, Yahoo Finance pour les actions,
+ * moteur maison déterministe pour les actifs OTC).
  * Mêmes signatures que lib/binance pour les routes API.
  */
 export class MarketError extends Error {
@@ -23,6 +25,7 @@ export type { Candle };
 /** Prix actuel d'un actif (prix serveur, utilisé pour ouvrir et clôturer). */
 export async function getPrice(symbol: SymbolId): Promise<number> {
   try {
+    if (isOtc(symbol)) return await getOtcPrice(symbol);
     return isStock(symbol) ? await getStockPrice(symbol) : await getCryptoPrice(symbol);
   } catch {
     throw new MarketError();
@@ -36,6 +39,7 @@ export async function getKlines(
   limit = 200
 ): Promise<Candle[]> {
   try {
+    if (isOtc(symbol)) return await getOtcCandles(symbol, interval, limit);
     return isStock(symbol)
       ? await getStockCandles(symbol, interval, limit)
       : await getCryptoKlines(symbol, interval, limit);

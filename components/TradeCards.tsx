@@ -1,8 +1,8 @@
 "use client";
 
 import type { ApiTrade } from "@/lib/types";
-import { fmtMoney, fmtPrice, fmtSigned, symbolBase } from "@/lib/format";
-import { durationLabel, symbolDisplay } from "@/lib/symbols";
+import { fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
+import { durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import { Btn, Card } from "./ui";
 import { CountdownRing } from "./CountdownRing";
 
@@ -30,8 +30,13 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
             >
               {isUp ? "ACHAT ▲" : "VENTE ▼"}
             </span>
-            <span className="text-sm font-bold">{symbolBase(trade.symbol)}</span>
+            <span className="text-sm font-bold">{symbolDisplay(trade.symbol)}</span>
             <span className="text-xs font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
+            {isOtc(trade.symbol) && (
+              <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+                OTC
+              </span>
+            )}
           </div>
           <div className="mt-1 grid grid-cols-3 gap-1 text-center tabular-nums">
             <div>
@@ -113,7 +118,8 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
           )}
         </p>
         <p className="mt-1 text-xs text-doux tabular-nums">
-          {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)} · {durationLabel(trade.durationSec)}
+          {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)}
+          {isOtc(trade.symbol) ? " · OTC" : ""} · {durationLabel(trade.durationSec)}
           <br />
           {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
         </p>

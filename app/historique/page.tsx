@@ -7,8 +7,8 @@ import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { HistoryIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
-import { fmtDateTime, fmtMoney, fmtPrice, symbolBase } from "@/lib/format";
-import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
+import { fmtDateTime, fmtMoney, fmtPrice } from "@/lib/format";
+import { SYMBOLS, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
 
 type Filter = "all" | "open" | "settled";
@@ -64,11 +64,16 @@ function TradeRow({ trade }: { trade: ApiTrade }) {
             {isUp ? "▲" : "▼"}
           </span>
           <p className="truncate text-sm font-bold">
-            {symbolBase(trade.symbol)}{" "}
+            {symbolDisplay(trade.symbol)}{" "}
             <span className="font-medium text-doux">
               · {durationLabel(trade.durationSec)} · {fmtDateTime(trade.openedAt)}
             </span>
           </p>
+          {isOtc(trade.symbol) && (
+            <span className="shrink-0 rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+              OTC
+            </span>
+          )}
         </div>
         <ResultBadge trade={trade} />
       </div>

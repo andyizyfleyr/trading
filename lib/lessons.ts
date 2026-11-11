@@ -137,6 +137,23 @@ export const LESSONS: ApiLesson[] = [
     ],
     takeaway: "Bourse ouverte = prix qui bouge. Bourse fermée = égalité probable, mise rendue.",
   },
+  {
+    id: "otc",
+    title: "Les actifs OTC : des prix simulés",
+    summary: "Euro/dollar, livre/dollar, dollar/yen : disponibles jour et nuit.",
+    minutes: 2,
+    blocks: [
+      {
+        heading: "C'est quoi, OTC ?",
+        text: "Ce sont des actifs maison, reconnaissables à leur badge OTC. Leurs prix sont simulés par l'application : ils bougent jour et nuit, même le week-end quand la Bourse est fermée.",
+      },
+      {
+        heading: "Le jeu reste équitable",
+        text: "Le prix simulé suit une formule fixe : à la même seconde, tout le monde voit exactement le même prix, à l'ouverture comme à la clôture. Personne ne peut le changer au cas par cas. Les règles sont les mêmes : bonne prédiction = mise + 85 %.",
+      },
+    ],
+    takeaway: "Badge OTC = prix simulés, disponibles tout le temps, mêmes règles.",
+  },
 ];
 
 export const LESSON_IDS = new Set(LESSONS.map((l) => l.id));

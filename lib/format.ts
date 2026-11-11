@@ -9,7 +9,7 @@ export function fmtMoney(n: number): string {
 /** Prix avec un nombre de décimales adapté à l'ordre de grandeur. */
 export function fmtPrice(p: number): string {
   const v = Number(p) || 0;
-  const d = v >= 100 ? 2 : v >= 1 ? 3 : 4;
+  const d = v >= 100 ? 2 : v >= 1 ? 4 : 5;
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: d,
     maximumFractionDigits: d,
