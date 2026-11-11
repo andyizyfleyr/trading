@@ -32,17 +32,29 @@ function fmtSlot(slotSec: number): string {
 }
 
 /**
+ * Compte à rebours « MM:SS ». Arrondi vers le haut : « 00:00 » ne s'affiche
+ * qu'au moment exact où le créneau arrive, jamais une seconde en avance.
+ */
+function fmtCountdown(remainingMs: number): string {
+  const totalSec = Math.max(0, Math.ceil(remainingMs / 1000));
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+  const ss = String(totalSec % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+/**
  * Page PUBLIQUE (sans compte) : signaux casino stables, un par heure de
  * prédiction. Chaque ligne dit quoi prédire si tu ouvres pile à l'heure
  * affichée. La liste n'est pas recalculée chaque seconde : elle avance
- * seulement de minute en minute.
+ * seulement de minute en minute. Un compte à rebours précis (synchronisé
+ * sur l'heure du serveur) indique quand ouvrir le prochain signal.
  */
 export default function PredictionsPage() {
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gameId, setGameId] = useState<string>(GAMES[0]?.id ?? "");
   const [duration, setDuration] = useState<DurationSec>(60);
-  const [tick, setTick] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
 
   const game = GAMES.find((g) => g.id === gameId) ?? GAMES[0];
 
@@ -69,21 +81,29 @@ export default function PredictionsPage() {
     return () => clearInterval(timer);
   }, [syncClock]);
 
-  // La liste avance de minute en minute, jamais chaque seconde.
+  // Horloge fluide pour le compte à rebours (10 fois par seconde pour que
+  // la seconde affichée bascule pile au bon moment). Les signaux, eux,
+  // restent stables : ils n'avancent que de minute en minute.
   useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 10000);
+    const timer = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(timer);
   }, []);
 
+  const serverNowMs = now + (offsetMs ?? 0);
+  const minuteKey = Math.floor(serverNowMs / 60000);
+
   const slots = useMemo(() => {
     if (offsetMs == null || !game) return [];
-    const serverNowSec = Math.floor((Date.now() + offsetMs) / 1000);
-    const first = Math.ceil(serverNowSec / 60) * 60;
+    const first = (minuteKey + 1) * 60;
     return Array.from({ length: SLOT_COUNT }, (_, i) => {
       const start = first + i * 60;
       return { start, ...verdict(game.id, start, duration) };
     });
-  }, [offsetMs, tick, gameId, duration, game]);
+  }, [offsetMs, minuteKey, gameId, duration, game]);
+
+  const next = slots[0];
+  const remainingMs = next ? Math.max(0, next.start * 1000 - serverNowMs) : 0;
+  const elapsedPct = Math.min(100, Math.max(0, ((60000 - remainingMs) / 60000) * 100));
 
   if (GAMES.length === 0) {
     return (
@@ -188,6 +208,26 @@ export default function PredictionsPage() {
             JEU
           </span>
         </div>
+        {next && (
+          <div className="border-b border-ligne bg-action/10 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-doux">
+                {remainingMs < 1000 ? "C'est maintenant !" : "Prochain signal dans"}
+              </p>
+              <p className="text-2xl font-extrabold tabular-nums" aria-label={`Temps restant : ${fmtCountdown(remainingMs)}`}>
+                {fmtCountdown(remainingMs)}
+              </p>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fond" aria-hidden="true">
+              <div className="h-full rounded-full bg-action" style={{ width: `${elapsedPct}%` }} />
+            </div>
+            <p className="mt-1 text-sm text-doux">
+              Ouvre à{" "}
+              <span className="font-extrabold tabular-nums text-texte">{fmtSlot(next.start)}</span>{" "}
+              précises · {next.v === "UP" ? "ACHAT ▲" : next.v === "DOWN" ? "VENTE ▼" : "ÉGALITÉ"}
+            </p>
+          </div>
+        )}
         <ul>
           {slots.map((s, i) => (
             <li
