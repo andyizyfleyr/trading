@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { otcPriceAt } from "@/lib/otc";
 import { DURATIONS, SYMBOLS, durationLabel, type DurationSec } from "@/lib/symbols";
-import { fmtPrice } from "@/lib/format";
 import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { SignalIcon } from "@/components/Icons";
 
@@ -13,14 +12,14 @@ const SLOT_COUNT = 20;
 
 type Verdict = "UP" | "DOWN" | "TIE";
 
-function verdict(
-  symbol: string,
-  fromSec: number,
-  durationSec: number
-): { v: Verdict; from: number; to: number } {
+function verdict(symbol: string, fromSec: number, durationSec: number): Verdict {
   const from = otcPriceAt(symbol, fromSec);
   const to = otcPriceAt(symbol, fromSec + durationSec);
-  return { v: to > from ? "UP" : to < from ? "DOWN" : "TIE", from, to };
+  return to > from ? "UP" : to < from ? "DOWN" : "TIE";
+}
+
+function verdictLabel(v: Verdict): string {
+  return v === "UP" ? "ACHAT ▲" : v === "DOWN" ? "VENTE ▼" : "PASSE";
 }
 
 /** Heure locale avec la seconde exacte : « 14:32:00 ». */
@@ -43,11 +42,9 @@ function fmtCountdown(remainingMs: number): string {
 }
 
 /**
- * Page PUBLIQUE (sans compte) : signaux casino stables, un par heure de
- * prédiction. Chaque ligne dit quoi prédire si tu ouvres pile à l'heure
- * affichée. La liste n'est pas recalculée chaque seconde : elle avance
- * seulement de minute en minute. Un compte à rebours précis (synchronisé
- * sur l'heure du serveur) indique quand ouvrir le prochain signal.
+ * Page PUBLIQUE (sans compte) : dit quoi miser et à quelle seconde exacte.
+ * Une seule consigne géante (le prochain coup jouable), 3 étapes simples,
+ * puis les choix (jeu, durée) et tous les coups à venir.
  */
 export default function PredictionsPage() {
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
@@ -97,12 +94,13 @@ export default function PredictionsPage() {
     const first = (minuteKey + 1) * 60;
     return Array.from({ length: SLOT_COUNT }, (_, i) => {
       const start = first + i * 60;
-      return { start, ...verdict(game.id, start, duration) };
+      return { start, v: verdict(game.id, start, duration) };
     });
   }, [offsetMs, minuteKey, gameId, duration, game]);
 
-  const next = slots[0];
-  const remainingMs = next ? Math.max(0, next.start * 1000 - serverNowMs) : 0;
+  // Le coup mis en avant : le premier où on peut gagner (on saute les « PASSE »).
+  const target = slots.find((s) => s.v !== "TIE") ?? slots[0];
+  const remainingMs = target ? Math.max(0, target.start * 1000 - serverNowMs) : 0;
   const elapsedPct = Math.min(100, Math.max(0, ((60000 - remainingMs) / 60000) * 100));
 
   if (GAMES.length === 0) {
@@ -119,7 +117,7 @@ export default function PredictionsPage() {
     return <ErrorState text={error} retry={syncClock} />;
   }
 
-  if (offsetMs == null || !game) {
+  if (offsetMs == null || !game || !target) {
     return (
       <div className="flex flex-col gap-2" aria-label="Chargement des signaux...">
         <Skeleton className="h-8 w-48" />
@@ -129,73 +127,21 @@ export default function PredictionsPage() {
     );
   }
 
+  const playable = target.v !== "TIE";
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-3">
+      <div>
         <h1 className="text-lg font-extrabold">Signaux casino</h1>
-        <Link href="/">
-          <Btn className="min-h-[44px] text-sm">Aller trader</Btn>
-        </Link>
-      </div>
-      <p className="text-sm text-doux">
-        Choisis ton jeu et ta durée. Chaque ligne te dit quoi prédire si tu ouvres
-        pile à l&apos;heure affichée.
-      </p>
-
-      <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Choisir le jeu">
-        {GAMES.map((g) => {
-          const selected = g.id === game.id;
-          return (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setGameId(g.id)}
-              aria-pressed={selected}
-              className={`flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-extrabold ${
-                selected
-                  ? "border-action bg-action/15 text-texte"
-                  : "border-ligne bg-carte text-doux"
-              }`}
-            >
-              <span
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{ backgroundColor: g.color }}
-                aria-hidden="true"
-              />
-              <span className="truncate">{g.base}</span>
-            </button>
-          );
-        })}
+        <p className="mt-0.5 text-sm text-doux">
+          On te dit à l&apos;avance s&apos;il faut appuyer sur ACHAT ou VENTE, et à
+          quelle seconde exacte.
+        </p>
       </div>
 
-      <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Choisir la durée">
-        {DURATIONS.map((d) => {
-          const selected = d === duration;
-          return (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setDuration(d)}
-              aria-pressed={selected}
-              className={`min-h-[44px] rounded-xl border text-sm font-extrabold tabular-nums ${
-                selected
-                  ? "border-action bg-action/15 text-texte"
-                  : "border-ligne bg-carte text-doux"
-              }`}
-            >
-              {durationLabel(d)}
-            </button>
-          );
-        })}
-      </div>
-
-      <p className="text-sm text-doux">
-        Ouvre ta prédiction pile à la seconde affichée (ex : 14:32:00). Même 1 seconde
-        de retard peut changer le résultat.
-      </p>
-
-      <div className="overflow-hidden rounded-2xl border border-ligne bg-carte">
-        <div className="flex items-center gap-2 border-b border-ligne px-3 py-2.5">
+      {/* LA consigne : quoi miser, et dans combien de temps */}
+      <div className="rounded-2xl border-2 border-action bg-carte p-3">
+        <div className="flex items-center gap-2">
           <span
             className="h-3.5 w-3.5 shrink-0 rounded-full"
             style={{ backgroundColor: game.color }}
@@ -208,61 +154,174 @@ export default function PredictionsPage() {
             JEU
           </span>
         </div>
-        {next && (
-          <div className="border-b border-ligne bg-action/10 px-3 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold text-doux">
-                {remainingMs < 1000 ? "C'est maintenant !" : "Prochain signal dans"}
-              </p>
-              <p className="text-2xl font-extrabold tabular-nums" aria-label={`Temps restant : ${fmtCountdown(remainingMs)}`}>
-                {fmtCountdown(remainingMs)}
-              </p>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fond" aria-hidden="true">
+
+        {playable ? (
+          <>
+            <p className="mt-2 text-center text-sm font-bold text-doux">
+              À{" "}
+              <span className="text-base font-extrabold tabular-nums text-texte">
+                {fmtSlot(target.start)}
+              </span>{" "}
+              précises, appuie sur :
+            </p>
+            <p
+              className={`mx-auto mt-1 w-fit rounded-2xl px-6 py-2 text-center text-3xl font-extrabold ${
+                target.v === "UP" ? "bg-hausse text-[#06240f]" : "bg-vente text-white"
+              }`}
+            >
+              {verdictLabel(target.v)}
+            </p>
+            <p className="mt-2 text-center text-sm font-bold text-doux">Mise dans</p>
+            <p
+              className="text-center text-5xl font-extrabold tabular-nums"
+              aria-label={`Temps restant avant de miser : ${fmtCountdown(remainingMs)}`}
+            >
+              {remainingMs < 1000 ? "GO !" : fmtCountdown(remainingMs)}
+            </p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-fond" aria-hidden="true">
               <div className="h-full rounded-full bg-action" style={{ width: `${elapsedPct}%` }} />
             </div>
-            <p className="mt-1 text-sm text-doux">
-              Ouvre à{" "}
-              <span className="font-extrabold tabular-nums text-texte">{fmtSlot(next.start)}</span>{" "}
-              précises · {next.v === "UP" ? "ACHAT ▲" : next.v === "DOWN" ? "VENTE ▼" : "ÉGALITÉ"}
-            </p>
-          </div>
-        )}
-        <ul>
-          {slots.map((s, i) => (
-            <li
-              key={s.start}
-              className={`flex items-center justify-between gap-2 px-3 py-2.5 ${
-                i > 0 ? "border-t border-ligne" : ""
-              } ${i === 0 ? "bg-action/10" : ""}`}
+            <Link
+              href={`/?jeu=${game.id}&duree=${duration}&sens=${target.v === "UP" ? "up" : "down"}&slot=${target.start}`}
+              className="mt-3 block"
             >
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="shrink-0 text-base font-extrabold tabular-nums">
-                  {fmtSlot(s.start)}
-                </span>
-                {i === 0 && (
-                  <span className="shrink-0 rounded-md bg-action px-1.5 py-0.5 text-xs font-extrabold text-white">
-                    PROCHAIN
-                  </span>
-                )}
-              </span>
-              <span className="hidden min-w-0 flex-1 truncate text-center text-xs tabular-nums text-doux min-[400px]:block">
-                {fmtPrice(s.from)} → {fmtPrice(s.to)}
-              </span>
+              <Btn className="min-h-[56px] w-full text-lg font-extrabold">
+                Préparer ma mise →
+              </Btn>
+            </Link>
+            <p className="mt-1.5 text-center text-xs text-doux">
+              Le jeu, la durée et le bouton sont déjà remplis sur l&apos;écran suivant.
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 py-4 text-center text-base font-bold text-doux">
+            Pas de coup jouable pour l&apos;instant : reviens dans une minute.
+          </p>
+        )}
+      </div>
+
+      {/* Comment ne pas louper le coup */}
+      <div className="rounded-2xl border border-ligne bg-carte p-3">
+        <p className="text-base font-extrabold">Comment ne pas louper le coup</p>
+        <ol className="mt-1.5 flex flex-col gap-1.5">
+          {[
+            "Appuie sur « Préparer ma mise » : tout est déjà rempli.",
+            "Choisis ta mise, puis attends que le décompte arrive à 00:00.",
+            "À 00:00 pile, appuie vite sur le bouton entouré de blanc.",
+          ].map((step, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm">
               <span
-                className={`shrink-0 rounded-lg px-2 py-1 text-sm font-extrabold ${
-                  s.v === "UP"
-                    ? "bg-hausse/15 text-hausse"
-                    : s.v === "DOWN"
-                      ? "bg-baisse/15 text-baisse"
-                      : "bg-action/15 text-action"
-                }`}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-action text-sm font-extrabold text-white"
+                aria-hidden="true"
               >
-                {s.v === "UP" ? "ACHAT ▲" : s.v === "DOWN" ? "VENTE ▼" : "ÉGALITÉ"}
+                {i + 1}
               </span>
+              <span className="pt-0.5 font-medium">{step}</span>
             </li>
           ))}
+        </ol>
+        <p className="mt-2 text-sm text-doux">
+          En retard même d&apos;1 seconde ? Le coup est raté : attends le suivant.
+        </p>
+      </div>
+
+      {/* Choix du jeu et de la durée */}
+      <div>
+        <p className="mb-1 text-sm font-extrabold">Quel jeu ?</p>
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Choisir le jeu">
+          {GAMES.map((g) => {
+            const selected = g.id === game.id;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setGameId(g.id)}
+                aria-pressed={selected}
+                className={`flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-extrabold ${
+                  selected
+                    ? "border-action bg-action/15 text-texte"
+                    : "border-ligne bg-carte text-doux"
+                }`}
+              >
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: g.color }}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{g.base}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-sm font-extrabold">Quelle durée ?</p>
+        <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Choisir la durée">
+          {DURATIONS.map((d) => {
+            const selected = d === duration;
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDuration(d)}
+                aria-pressed={selected}
+                className={`min-h-[44px] rounded-xl border text-sm font-extrabold tabular-nums ${
+                  selected
+                    ? "border-action bg-action/15 text-texte"
+                    : "border-ligne bg-carte text-doux"
+                }`}
+              >
+                {durationLabel(d)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tous les coups à venir */}
+      <div className="overflow-hidden rounded-2xl border border-ligne bg-carte">
+        <p className="border-b border-ligne px-3 py-2.5 text-base font-extrabold">
+          Les coups à venir
+        </p>
+        <ul>
+          {slots.map((s) => {
+            const isTarget = playable && s.start === target.start;
+            return (
+              <li
+                key={s.start}
+                className={`flex items-center justify-between gap-2 px-3 py-2.5 ${
+                  isTarget ? "bg-action/10" : ""
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="shrink-0 text-base font-extrabold tabular-nums">
+                    {fmtSlot(s.start)}
+                  </span>
+                  {isTarget && (
+                    <span className="shrink-0 rounded-md bg-action px-1.5 py-0.5 text-xs font-extrabold text-white">
+                      À JOUER
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={`shrink-0 rounded-lg px-2 py-1 text-sm font-extrabold ${
+                    s.v === "UP"
+                      ? "bg-hausse/15 text-hausse"
+                      : s.v === "DOWN"
+                        ? "bg-baisse/15 text-baisse"
+                        : "bg-fond text-doux"
+                  }`}
+                >
+                  {verdictLabel(s.v)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
+        <p className="border-t border-ligne px-3 py-2 text-sm text-doux">
+          « PASSE » = le prix ne bougera pas : garde ta mise pour le coup d&apos;après.
+        </p>
       </div>
     </div>
   );
