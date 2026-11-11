@@ -73,7 +73,7 @@ export const LESSONS: ApiLesson[] = [
     blocks: [
       {
         heading: "Ne misez jamais gros d'un coup",
-        text: "L'application limite chaque mise à 10 % du solde. C'est une protection : même après plusieurs prédictions ratées, il vous reste de quoi continuer à jouer et apprendre.",
+        text: "Vous pouvez miser jusqu'à tout votre solde, mais c'est risqué : une seule prédiction ratée et il ne reste presque plus rien. Misez une petite partie du solde pour pouvoir continuer à jouer et apprendre même après plusieurs ratés.",
       },
       {
         heading: "La mise minimum suffit pour apprendre",

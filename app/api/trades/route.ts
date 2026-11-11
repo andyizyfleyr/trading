@@ -95,15 +95,8 @@ export async function POST(req: NextRequest) {
     const user = userRows[0];
     if (!user) return UNAUTHORIZED();
 
+    // Pas de plafond : l'utilisateur mise librement jusqu'à tout son solde.
     const balance = round2(user.balance ?? 0);
-    const maxBet = Math.floor(balance * RULES.MAX_BET_RATIO * 100) / 100;
-    if (amount > maxBet) {
-      return fail(
-        "MISE_TROP_GRANDE",
-        `La mise maximum est de ${maxBet} (10 % de votre solde).`,
-        400
-      );
-    }
     if (amount > balance) {
       return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
     }
