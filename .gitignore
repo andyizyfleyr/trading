@@ -1,0 +1,24 @@
+# Dépendances
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+
+# Environnement (ne jamais commiter les vraies valeurs)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Drizzle (généré, optionnel)
+drizzle/meta/
+
+# Système
+.DS_Store
+*.pem
+.vercel

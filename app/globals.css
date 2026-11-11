@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-fond text-texte;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Zones sûres (encoches, gestes) */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Chargement : placeholder animé doux */
+.skeleton {
+  background: linear-gradient(100deg, #131a2e 40%, #1e2a44 50%, #131a2e 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Apparition discrète (150-250 ms, jamais de confettis) */
+.anim-in {
+  animation: anim-in 0.2s ease-out;
+}
+@keyframes anim-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Point "en direct" */
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Anneau du compte à rebours */
+.ring-anim {
+  transition:
+    stroke-dashoffset 0.2s linear,
+    stroke 0.2s ease;
+}
+
+/* Élément mis en avant pendant le premier trade guidé */
+.guide-spot {
+  position: relative;
+  z-index: 45;
+  outline: 2px solid #3b82f6;
+  outline-offset: 4px;
+  border-radius: 1rem;
+}
+
+/* Défilement horizontal des actifs sans barre visible */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Accessibilité : animations réduites (système ou réglage dans le profil) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+.calme *,
+.calme *::before,
+.calme *::after {
+  animation: none !important;
+  transition: none !important;
+}
