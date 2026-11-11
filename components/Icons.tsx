@@ -137,3 +137,10 @@ export const ChevronDownIcon = ({ className }: { className?: string }) => (
     <path d="m6 9 6 6 6-6" />
   </Svg>
 );
+
+export const SignalIcon = ({ className }: { className?: string }) => (
+  <Svg className={className}>
+    <path d="M3 17l6-6 4 4 8-8" />
+    <path d="M15 7h6v6" />
+  </Svg>
+);

@@ -13,6 +13,7 @@ import {
   ChartIcon,
   HistoryIcon,
   LogoutIcon,
+  SignalIcon,
   TrophyIcon,
   UserIcon,
 } from "./Icons";
@@ -22,6 +23,7 @@ const ITEMS = [
   { href: "/historique", label: "Historique", Icon: HistoryIcon },
   { href: "/classement", label: "Classement", Icon: TrophyIcon },
   { href: "/cours", label: "Cours", Icon: BookIcon },
+  { href: "/predictions", label: "Signaux", Icon: SignalIcon },
   { href: "/profil", label: "Profil", Icon: UserIcon },
 ];
 
