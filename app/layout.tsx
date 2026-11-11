@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { SwRegister } from "@/components/SwRegister";
+import { ZoomGuard } from "@/components/ZoomGuard";
 
 export const metadata: Metadata = {
   title: "TradeFacile — Prédis si le prix monte ou descend",
@@ -27,6 +28,8 @@ export const viewport: Viewport = {
   themeColor: "#0B1020",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

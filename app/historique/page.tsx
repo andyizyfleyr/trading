@@ -194,7 +194,7 @@ export default function HistoriquePage() {
             value={asset}
             onChange={(e) => setAsset(e.target.value)}
             aria-label="Filtrer par actif"
-            className="h-10 flex-1 rounded-xl border border-ligne bg-carte px-2 text-sm font-bold outline-none focus:border-action lg:max-w-xs"
+            className="h-10 flex-1 rounded-xl border border-ligne bg-carte px-2 text-base font-bold outline-none focus:border-action lg:max-w-xs"
           >
             <option value="all">Tous les actifs</option>
             {SYMBOLS.map((s) => (
