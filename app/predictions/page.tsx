@@ -5,6 +5,7 @@ import Link from "next/link";
 import { otcPriceAt } from "@/lib/otc";
 import { DURATIONS, SYMBOLS, durationLabel, type DurationSec } from "@/lib/symbols";
 import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { AutoPlay } from "@/components/AutoPlay";
 import { SignalIcon } from "@/components/Icons";
 
 const GAMES = SYMBOLS.filter((s) => s.kind === "otc");
@@ -200,9 +201,12 @@ export default function PredictionsPage() {
         )}
       </div>
 
+      {/* Jeu automatique */}
+      <AutoPlay gameId={game.id} gameBase={game.base} duration={duration} offsetMs={offsetMs} />
+
       {/* Comment ne pas louper le coup */}
       <div className="rounded-2xl border border-ligne bg-carte p-3">
-        <p className="text-base font-extrabold">Comment ne pas louper le coup</p>
+        <p className="text-base font-extrabold">Jouer à la main (sans l&apos;auto)</p>
         <ol className="mt-1.5 flex flex-col gap-1.5">
           {[
             "Appuie sur « Préparer ma mise » : tout est déjà rempli.",
