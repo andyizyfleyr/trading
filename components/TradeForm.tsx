@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { apiOpenTrade, ApiError } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
@@ -37,7 +36,6 @@ interface Pending {
 }
 
 const SHOT_DELAY_MS = 150; // on tire juste après la seconde pile (réseau)
-const SLOT_COUNT = 10;
 
 function formatRemain(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -62,7 +60,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signalNow, setSignalNow] = useState(() => Date.now());
-  const [quand, setQuand] = useState<string>("now");
+  const [customTime, setCustomTime] = useState(""); // « HH:MM » libre, vide = maintenant
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [tick, setTick] = useState(() => Date.now());
@@ -158,16 +156,15 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const signalLabel = signal?.direction === "DOWN" ? "VENTE ▼" : "ACHAT ▲";
 
   const serverNowMs = Date.now() + (offsetMs ?? 0);
-  const firstSlot = Math.ceil(serverNowMs / 60000) * 60;
-  const slotOptions = Array.from({ length: SLOT_COUNT }, (_, i) => firstSlot + i * 60);
-  const chosenSlot = quand === "now" ? null : Number(quand);
-
-  // L'heure choisie est passée (onglet resté ouvert) : on revient à « Maintenant ».
-  useEffect(() => {
-    if (quand !== "now" && Number(quand) * 1000 <= Date.now() + (offsetMs ?? 0)) {
-      setQuand("now");
-    }
-  });
+  // L'heure libre du joueur, aujourd'hui à la seconde pile. Nul si vide ou passée.
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(customTime);
+  let chosenSlot: number | null = null;
+  if (timeMatch) {
+    const day = new Date();
+    day.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+    const slot = Math.floor(day.getTime() / 1000);
+    if (slot * 1000 > serverNowMs) chosenSlot = slot;
+  }
 
   // Jeu changé pendant l'attente : la programmation ne veut plus rien dire.
   useEffect(() => {
@@ -225,8 +222,12 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
   /** ACHAT/VENTE : immédiat avec « Maintenant », programmé sinon. */
   const schedule = (direction: "UP" | "DOWN") => {
-    if (quand === "now" || chosenSlot == null) {
+    if (customTime === "") {
       void place(direction);
+      return;
+    }
+    if (chosenSlot == null) {
+      setError("Heure passée : choisis une heure à venir.");
       return;
     }
     setError(null);
@@ -247,8 +248,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     if (chosenSlot * 1000 <= Date.now() + (offsetMs ?? 0)) {
-      setError("Heure passée : choisis une autre heure.");
-      setQuand("now");
+      setError("Heure passée : choisis une heure à venir.");
       return;
     }
     firedRef.current = false;
@@ -376,29 +376,37 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          {/* Quand : le joueur choisit l'heure (caché pendant un signal guidé) */}
+          {/* Quand : heure libre choisie par le joueur (caché pendant un signal guidé) */}
           {!signalLive && (
             <div className="flex items-center gap-1.5">
               <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-doux">
                 Quand
                 <HelpTip
                   label="Quand"
-                  text="« Maintenant » mise aussitôt. Choisis une heure pour que ta mise parte toute seule à la seconde pile (reste sur cette page)."
+                  text="« Maintenant » mise aussitôt. Écris une heure (ex : 14:35) pour que ta mise parte toute seule à la seconde pile (reste sur cette page)."
                 />
               </span>
-              <select
-                value={quand}
-                onChange={(e) => setQuand(e.target.value)}
-                aria-label="Choisir l'heure de la mise"
-                className="h-10 min-w-0 flex-1 rounded-xl border border-ligne bg-fond px-2 text-base font-bold tabular-nums outline-none focus:border-action"
+              <button
+                type="button"
+                onClick={() => setCustomTime("")}
+                aria-pressed={customTime === ""}
+                className={`h-10 shrink-0 rounded-xl px-3 text-sm font-bold transition-colors duration-200 ${
+                  customTime === ""
+                    ? "bg-primary text-white"
+                    : "border border-ligne bg-fond text-doux active:text-texte"
+                }`}
               >
-                <option value="now">Maintenant</option>
-                {slotOptions.map((s) => (
-                  <option key={s} value={String(s)}>
-                    {fmtSlot(s)}
-                  </option>
-                ))}
-              </select>
+                Maintenant
+              </button>
+              <input
+                type="time"
+                value={customTime}
+                onChange={(e) => setCustomTime(e.target.value)}
+                aria-label="Heure choisie pour la mise (heures et minutes)"
+                className={`h-10 min-w-0 flex-1 rounded-xl border bg-fond px-2 text-base font-bold tabular-nums outline-none focus:border-action ${
+                  customTime !== "" ? "border-action text-texte" : "border-ligne text-doux"
+                }`}
+              />
             </div>
           )}
 
@@ -417,18 +425,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           )}
           {signal && !signalLive && (
             <div role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center">
-              <p className="text-sm font-bold text-baisse">
-                Trop tard : ce coup est passé.{" "}
-                <Link href="/predictions" className="underline">
-                  Voir le prochain signal
-                </Link>
-              </p>
+            <p className="text-sm font-bold text-baisse">
+              Trop tard : ce coup est passé. Choisis une autre heure dans « Quand ».
+            </p>
             </div>
           )}
 
-          {chosenSlot != null && (
+          {customTime !== "" && chosenSlot != null && (
             <p className="text-center text-xs font-bold text-action">
               Appuie sur ACHAT ou VENTE : la mise partira toute seule à {fmtSlot(chosenSlot)}.
+            </p>
+          )}
+          {customTime !== "" && chosenSlot == null && (
+            <p className="text-center text-xs font-bold text-baisse">
+              Heure passée : choisis une heure à venir.
             </p>
           )}
 
