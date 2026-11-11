@@ -26,9 +26,10 @@ export function CountdownRing({
   const secs = Math.ceil(remaining / 1000);
   const urgent = remaining <= 10_000;
 
-  const stroke = 8;
+  const stroke = size >= 76 ? 8 : 6;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
+  const big = size >= 76;
 
   const label =
     remaining <= 0
@@ -67,10 +68,10 @@ export function CountdownRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-extrabold tabular-nums leading-none">
+        <span className={`${big ? "text-lg" : "text-base"} font-extrabold tabular-nums leading-none`}>
           {remaining <= 0 ? "…" : secs >= 60 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : secs}
         </span>
-        <span className="text-xs font-semibold text-doux">{remaining <= 0 ? "résultat…" : secs >= 60 ? "min" : "sec"}</span>
+        <span className={`${big ? "text-xs" : "text-[10px]"} font-semibold text-doux`}>{remaining <= 0 ? "résultat…" : secs >= 60 ? "min" : "sec"}</span>
       </div>
     </div>
   );

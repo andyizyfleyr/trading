@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { RequireAuth } from "@/components/AppShell";
-import { Btn, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";
-import { HistoryIcon } from "@/components/Icons";
+import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { HistoryIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { fmtDateTime, fmtMoney, fmtPrice, symbolBase } from "@/lib/format";
@@ -22,7 +22,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 function ResultBadge({ trade }: { trade: ApiTrade }) {
   if (trade.status === "OPEN") {
     return (
-      <span className="rounded-lg bg-action/15 px-2.5 py-1 text-base font-extrabold text-action">
+      <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-sm font-extrabold tabular-nums text-action">
         En cours
       </span>
     );
@@ -30,72 +30,61 @@ function ResultBadge({ trade }: { trade: ApiTrade }) {
   if (trade.result === "WIN") {
     const net = (trade.payout ?? 0) - trade.amount;
     return (
-      <span className="rounded-lg bg-hausse/15 px-2.5 py-1 text-base font-extrabold text-hausse">
+      <span className="shrink-0 rounded-lg bg-hausse/15 px-2 py-1 text-sm font-extrabold tabular-nums text-hausse">
         ▲ +{fmtMoney(net)}
       </span>
     );
   }
   if (trade.result === "LOSS") {
     return (
-      <span className="rounded-lg bg-baisse/15 px-2.5 py-1 text-base font-extrabold text-baisse">
+      <span className="shrink-0 rounded-lg bg-baisse/15 px-2 py-1 text-sm font-extrabold tabular-nums text-baisse">
         ▼ -{fmtMoney(trade.amount)}
       </span>
     );
   }
   return (
-    <span className="rounded-lg bg-action/15 px-2.5 py-1 text-base font-extrabold text-action">
-      Mise rendue
+    <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-sm font-extrabold text-action">
+      Rendue
     </span>
   );
 }
 
+/** Ligne compacte : une prédiction tient en deux lignes. */
 function TradeRow({ trade }: { trade: ApiTrade }) {
   const isUp = trade.direction === "UP";
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="rounded-xl border border-ligne bg-carte p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <span
-            className={`rounded-lg px-2.5 py-1 text-base font-extrabold ${
+            className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-extrabold ${
               isUp ? "bg-hausse/15 text-hausse" : "bg-baisse/15 text-baisse"
             }`}
           >
-            {isUp ? "ACHAT ▲" : "VENTE ▼"}
+            {isUp ? "▲" : "▼"}
           </span>
-          <span className="text-base font-bold">{symbolBase(trade.symbol)}/USDT</span>
+          <p className="truncate text-sm font-bold">
+            {symbolBase(trade.symbol)}{" "}
+            <span className="font-medium text-doux">
+              · {durationLabel(trade.durationSec)} · {fmtDateTime(trade.openedAt)}
+            </span>
+          </p>
         </div>
         <ResultBadge trade={trade} />
       </div>
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-base tabular-nums">
-        <div className="flex justify-between gap-2">
-          <dt className="text-doux">Mise</dt>
-          <dd className="font-bold">{fmtMoney(trade.amount)}</dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-doux">Durée</dt>
-          <dd className="font-bold">{durationLabel(trade.durationSec)}</dd>
-        </div>
-        <div className="col-span-2 flex justify-between gap-2">
-          <dt className="text-doux">Prix</dt>
-          <dd className="font-bold">
-            {fmtPrice(trade.openPrice)} →{" "}
-            {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
-          </dd>
-        </div>
-      </dl>
-      <p className="mt-1 text-sm text-doux">
-        {trade.status === "OPEN" ? (
+      <p className="mt-0.5 truncate text-xs tabular-nums text-doux">
+        Mise {fmtMoney(trade.amount)} · {fmtPrice(trade.openPrice)} →{" "}
+        {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
+        {trade.status === "OPEN" && (
           <>
-            Se termine à {fmtDateTime(trade.closesAt)} ·{" "}
+            {" · "}
             <Link href="/" className="font-semibold text-action underline">
-              Voir le compte à rebours
+              Voir
             </Link>
           </>
-        ) : (
-          fmtDateTime(trade.openedAt)
         )}
       </p>
-    </Card>
+    </div>
   );
 }
 
@@ -136,22 +125,27 @@ export default function HistoriquePage() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-extrabold">Historique</h1>
-          <Btn variant="ghost" onClick={load} className="min-h-[48px] px-4" aria-label="Actualiser">
-            Actualiser
-          </Btn>
+          <h1 className="text-lg font-extrabold">Historique</h1>
+          <button
+            type="button"
+            onClick={load}
+            aria-label="Actualiser"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-ligne bg-carte text-doux active:text-texte"
+          >
+            <RefreshIcon className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Filtrer l'historique">
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Filtrer l'historique">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
               aria-pressed={filter === f.id}
-              className={`min-h-[48px] rounded-xl text-base font-bold transition-colors duration-200 ${
+              className={`min-h-[40px] rounded-xl text-sm font-bold transition-colors duration-200 ${
                 filter === f.id
                   ? "bg-action text-white"
                   : "border border-ligne bg-carte text-doux active:text-texte"
@@ -164,26 +158,21 @@ export default function HistoriquePage() {
 
         {loading ? (
           <>
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
           </>
         ) : error ? (
           <ErrorState text={error} retry={load} />
         ) : visible.length === 0 ? (
           <EmptyState
-            icon={<HistoryIcon className="h-10 w-10" />}
-            title={
-              filter === "open"
-                ? "Aucune prédiction en cours"
-                : filter === "settled"
-                  ? "Aucune prédiction terminée"
-                  : "Aucune prédiction pour l'instant"
-            }
-            text="Fais ta première prédiction : choisis un actif et prédis si son prix monte ou descend."
+            icon={<HistoryIcon className="h-8 w-8" />}
+            title="Rien ici pour l'instant"
+            text="Tes prédictions apparaîtront ici."
             action={
               <Link href="/">
-                <Btn>Faire une prédiction</Btn>
+                <Btn className="min-h-[44px] text-sm">Aller trader</Btn>
               </Link>
             }
           />

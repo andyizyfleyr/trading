@@ -54,6 +54,34 @@ body {
   }
 }
 
+/* Panneau coulissant depuis le bas */
+.sheet-in {
+  animation: sheet-in 0.22s ease-out;
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0.5;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Fondu du fond derrière les panneaux */
+.anim-fade {
+  animation: anim-fade 0.2s ease-out;
+}
+@keyframes anim-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Point "en direct" */
 .pulse-dot {
   animation: pulse-dot 1.6s ease-in-out infinite;

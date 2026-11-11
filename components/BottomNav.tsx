@@ -11,7 +11,7 @@ const TABS = [
   { href: "/cours", label: "Cours", Icon: BookIcon },
 ];
 
-/** Barre du bas fixe : 4 onglets, zone du pouce, 48 px minimum. */
+/** Barre du bas fixe, compacte : 4 onglets dans la zone du pouce. */
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -28,14 +28,14 @@ export function BottomNav() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[60px] flex-col items-center justify-center gap-0.5 text-sm font-semibold transition-colors duration-200 ${
+              className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors duration-200 ${
                 active ? "text-white" : "text-doux active:text-texte"
               }`}
             >
-              <Icon className="h-6 w-6" />
+              <Icon className="h-5 w-5" />
               <span>{label}</span>
               <span
-                className={`h-1 w-8 rounded-full transition-colors duration-200 ${
+                className={`h-1 w-6 rounded-full transition-colors duration-200 ${
                   active ? "bg-action" : "bg-transparent"
                 }`}
               />

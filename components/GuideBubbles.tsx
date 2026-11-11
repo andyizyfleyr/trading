@@ -7,12 +7,12 @@ const STEPS = [
   {
     id: "guide-symbol",
     title: "1. Choisis un actif",
-    text: "Bitcoin, Ethereum… Touche un nom pour changer de graphique. Les prix affichés sont les vrais prix du marché.",
+    text: "Touche « BTC/USDT » pour ouvrir la liste : Bitcoin, Ethereum… Les prix sont réels.",
   },
   {
     id: "guide-chart",
     title: "2. Lis le graphique",
-    text: "Bougie verte ▲ : le prix a monté. Bougie rouge ▼ : il a baissé. Touche le « ? » pour revoir l'explication.",
+    text: "Bougie verte ▲ : le prix a monté. Bougie rouge ▼ : il a baissé. Touche « ? » pour revoir l'explication.",
   },
   {
     id: "guide-duration",
@@ -22,12 +22,12 @@ const STEPS = [
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: "Minimum 10, maximum 10 % de ton solde. Une bonne prédiction rapporte la mise + 85 %.",
+    text: "Tape un montant ou touche 10, 50, 100 ou Max (10 % du solde). Gain : mise + 85 %.",
   },
   {
     id: "guide-buttons",
     title: "5. Prédis la direction",
-    text: "ACHAT ▲ si tu penses que le prix va monter, VENTE ▼ s'il va descendre. Bonne chance !",
+    text: "ACHAT ▲ si ça monte, VENTE ▼ si ça descend. Tes prédictions apparaissent dans le bouton « En cours ».",
   },
 ];
 

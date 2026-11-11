@@ -45,28 +45,28 @@ function Header() {
 
   return (
     <header className="safe-top sticky top-0 z-40 border-b border-ligne bg-fond/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-xl items-center justify-between gap-2 px-4">
-        <Link href="/" className="flex items-center gap-2" aria-label="Accueil Trader">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-carte text-base font-extrabold">
+      <div className="mx-auto flex h-12 max-w-xl items-center justify-between gap-2 px-4">
+        <Link href="/" className="flex items-center gap-1.5" aria-label="Accueil Trader">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-carte text-sm font-extrabold">
             <span className="text-hausse">▲</span>
             <span className="text-baisse">▼</span>
           </span>
-          <span className="text-lg font-extrabold tracking-tight">TradeFacile</span>
+          <span className="text-base font-extrabold tracking-tight">TradeFacile</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Link
             href="/profil"
-            className="flex min-h-[48px] items-center gap-1.5 rounded-xl border border-ligne bg-carte px-3 text-base font-bold tabular-nums"
+            className="flex min-h-[40px] items-center gap-1.5 rounded-xl border border-ligne bg-carte px-2.5 text-sm font-bold tabular-nums"
             aria-label={`Mon solde : ${user ? fmtMoney(user.balance) : "..."}. Aller au profil.`}
           >
-            <WalletIcon className="h-5 w-5 text-action" />
+            <WalletIcon className="h-4 w-4 text-action" />
             {user ? fmtMoney(user.balance) : "…"}
           </Link>
           <Link
             href="/profil"
             aria-label="Mon profil"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-action text-lg font-extrabold text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-action text-base font-extrabold text-white"
           >
             {initial}
           </Link>
@@ -82,7 +82,7 @@ function OfflineBanner() {
   return (
     <div
       role="alert"
-      className="sticky top-14 z-30 flex items-center justify-center gap-2 bg-baisse/90 px-4 py-2 text-center text-base font-semibold text-white"
+      className="sticky top-12 z-30 flex items-center justify-center gap-2 bg-baisse/90 px-4 py-1.5 text-center text-sm font-semibold text-white"
     >
       <WifiOffIcon className="h-5 w-5" />
       Reconnexion… vos prédictions en cours sont gardées.

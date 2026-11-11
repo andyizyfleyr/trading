@@ -125,3 +125,15 @@ export const BackIcon = ({ className }: { className?: string }) => (
     <path d="m15 18-6-6 6-6" />
   </Svg>
 );
+
+export const XIcon = ({ className }: { className?: string }) => (
+  <Svg className={className}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </Svg>
+);
+
+export const ChevronDownIcon = ({ className }: { className?: string }) => (
+  <Svg className={className}>
+    <path d="m6 9 6 6 6-6" />
+  </Svg>
+);

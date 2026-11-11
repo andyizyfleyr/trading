@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RequireAuth } from "@/components/AppShell";
-import { Btn, Card, HelpTip } from "@/components/ui";
+import { BottomSheet, Btn } from "@/components/ui";
 import { LogoutIcon, MinusIcon, PlusIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiDeposit, apiReset, apiWithdraw, ApiError } from "@/lib/api";
@@ -17,6 +17,7 @@ export default function ProfilPage() {
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sheet, setSheet] = useState<"deposit" | "withdraw" | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [calm, setCalm] = useState(false);
 
@@ -46,6 +47,7 @@ export default function ProfilPage() {
       const { user: updated } = await fn();
       setBalance(updated.balance);
       vibrate(15);
+      setSheet(null);
       setMessage({ kind: "ok", text: okText });
     } catch (err) {
       setMessage({
@@ -66,27 +68,26 @@ export default function ProfilPage() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-3">
-        <h1 className="text-xl font-extrabold">Profil</h1>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-lg font-extrabold">Profil</h1>
 
         {/* Identité + solde */}
-        <Card className="flex items-center gap-3">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-action text-2xl font-extrabold text-white">
+        <div className="flex items-center gap-2.5 rounded-xl border border-ligne bg-carte p-2.5">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-action text-lg font-extrabold text-white">
             {initial}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold">{user?.email}</p>
-            <p className="text-sm text-doux">Solde disponible</p>
-            <p className="text-2xl font-extrabold tabular-nums">
+            <p className="truncate text-sm font-bold">{user?.email}</p>
+            <p className="text-xl font-extrabold tabular-nums">
               {user ? fmtMoney(user.balance) : "…"}
             </p>
           </div>
-        </Card>
+        </div>
 
         {message && (
           <p
             role="status"
-            className={`anim-in rounded-xl px-3 py-2 text-center text-base font-medium ${
+            className={`anim-in rounded-xl px-3 py-1.5 text-center text-sm font-medium ${
               message.kind === "ok" ? "bg-hausse/10 text-hausse" : "bg-baisse/10 text-baisse"
             }`}
           >
@@ -94,115 +95,106 @@ export default function ProfilPage() {
           </p>
         )}
 
-        {/* Dépôt fictif : ajout par incrément */}
-        <Card className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-base font-bold">
-            Ajouter au solde
-            <HelpTip
-              label="Ajouter au solde"
-              text="Ajoute des fonds d'entraînement à ton solde. Aucun paiement réel : c'est juste pour continuer à jouer et apprendre."
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[1000, 5000, 10000].map((v) => (
-              <Btn
-                key={v}
-                variant="card"
-                disabled={busy}
-                onClick={() => run(() => apiDeposit(v), `+${fmtMoney(v)} ajoutés au solde.`)}
-                className="flex items-center justify-center gap-1 tabular-nums"
-              >
-                <PlusIcon className="h-5 w-5 text-hausse" />
-                {fmtMoney(v)}
-              </Btn>
-            ))}
-          </div>
-          <p className="text-sm text-doux">Aucun paiement réel, jamais.</p>
-        </Card>
-
-        {/* Retrait fictif : retrait par décrément */}
-        <Card className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-base font-bold">
-            Retirer du solde
-            <HelpTip
-              label="Retirer du solde"
-              text="Retire des fonds d'entraînement de ton solde, par exemple pour te fixer une limite de jeu."
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[1000, 5000].map((v) => (
-              <Btn
-                key={v}
-                variant="card"
-                disabled={busy}
-                onClick={() => run(() => apiWithdraw(v), `-${fmtMoney(v)} retirés du solde.`)}
-                className="flex items-center justify-center gap-1 tabular-nums"
-              >
-                <MinusIcon className="h-5 w-5 text-baisse" />
-                {fmtMoney(v)}
-              </Btn>
-            ))}
-          </div>
-        </Card>
+        {/* Ajouter / Retirer : ouvrent un panneau */}
+        <div className="grid grid-cols-2 gap-2">
+          <Btn variant="card" onClick={() => setSheet("deposit")} className="flex min-h-[52px] items-center justify-center gap-1.5 text-base">
+            <PlusIcon className="h-5 w-5 text-hausse" />
+            Ajouter
+          </Btn>
+          <Btn variant="card" onClick={() => setSheet("withdraw")} className="flex min-h-[52px] items-center justify-center gap-1.5 text-base">
+            <MinusIcon className="h-5 w-5 text-baisse" />
+            Retirer
+          </Btn>
+        </div>
 
         {/* Recommencer */}
-        <Card className="flex flex-col gap-2">
-          <p className="text-base font-bold">Recommencer à zéro</p>
-          <p className="text-base text-doux">Remet ton solde à 10 000.</p>
-          <Btn
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              if (!confirmReset) {
-                setConfirmReset(true);
-                return;
-              }
-              setConfirmReset(false);
-              run(() => apiReset(), "Solde remis à 10 000.");
-            }}
-            className={`flex items-center justify-center gap-2 ${confirmReset ? "border-baisse text-baisse" : ""}`}
-          >
-            <RefreshIcon className="h-5 w-5" />
-            {confirmReset ? "Touche encore pour confirmer" : "Remettre à 10 000"}
-          </Btn>
-        </Card>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            if (!confirmReset) {
+              setConfirmReset(true);
+              return;
+            }
+            setConfirmReset(false);
+            run(() => apiReset(), "Solde remis à 10 000.");
+          }}
+          className={`flex min-h-[48px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors duration-200 disabled:opacity-50 ${
+            confirmReset
+              ? "border-baisse text-baisse"
+              : "border-ligne bg-carte text-texte active:bg-ligne"
+          }`}
+        >
+          <RefreshIcon className="h-4 w-4" />
+          {confirmReset ? "Toucher encore pour confirmer" : "Recommencer à 10 000"}
+        </button>
 
         {/* Préférences */}
-        <Card className="flex flex-col gap-3">
-          <p className="text-base font-bold">Préférences</p>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={calm}
-            onClick={toggleCalm}
-            className="flex min-h-[48px] items-center justify-between gap-3 text-left"
+        <button
+          type="button"
+          role="switch"
+          aria-checked={calm}
+          onClick={toggleCalm}
+          className="flex min-h-[52px] items-center justify-between gap-3 rounded-xl border border-ligne bg-carte px-3 text-left"
+        >
+          <span className="text-sm font-medium">Réduire les animations</span>
+          <span
+            className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors duration-200 ${
+              calm ? "justify-end bg-hausse" : "justify-start bg-ligne"
+            }`}
           >
-            <span>
-              <span className="block text-base font-medium">Réduire les animations</span>
-              <span className="block text-sm text-doux">Pour un affichage plus calme</span>
-            </span>
-            <span
-              className={`flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition-colors duration-200 ${
-                calm ? "justify-end bg-hausse" : "justify-start bg-ligne"
-              }`}
-            >
-              <span className="h-6 w-6 rounded-full bg-white" />
-            </span>
-          </button>
-        </Card>
+            <span className="h-5 w-5 rounded-full bg-white" />
+          </span>
+        </button>
 
         {/* Déconnexion */}
         <Btn
           variant="ghost"
           onClick={handleLogout}
-          className="flex items-center justify-center gap-2 border-baisse/50 text-baisse"
+          className="flex min-h-[48px] items-center justify-center gap-2 border-baisse/50 text-sm text-baisse"
         >
-          <LogoutIcon className="h-5 w-5" />
+          <LogoutIcon className="h-4 w-4" />
           Se déconnecter
         </Btn>
-
-        <p className="pb-2 text-center text-sm text-doux">TradeFacile v1.0 · Jeu éducatif</p>
       </div>
+
+      {/* Panneau : ajouter au solde (aucun paiement réel) */}
+      <BottomSheet open={sheet === "deposit"} onClose={() => setSheet(null)} title="Ajouter au solde">
+        <div className="flex flex-col gap-2 pb-2">
+          {[1000, 5000, 10000].map((v) => (
+            <Btn
+              key={v}
+              variant="card"
+              disabled={busy}
+              onClick={() => run(() => apiDeposit(v), `+${fmtMoney(v)} ajoutés.`)}
+              className="flex items-center justify-center gap-1.5 tabular-nums"
+            >
+              <PlusIcon className="h-5 w-5 text-hausse" />
+              {fmtMoney(v)}
+            </Btn>
+          ))}
+          <p className="text-center text-xs text-doux">Fonds d&apos;entraînement. Aucun paiement réel, jamais.</p>
+        </div>
+      </BottomSheet>
+
+      {/* Panneau : retirer du solde */}
+      <BottomSheet open={sheet === "withdraw"} onClose={() => setSheet(null)} title="Retirer du solde">
+        <div className="flex flex-col gap-2 pb-2">
+          {[1000, 5000].map((v) => (
+            <Btn
+              key={v}
+              variant="card"
+              disabled={busy}
+              onClick={() => run(() => apiWithdraw(v), `-${fmtMoney(v)} retirés.`)}
+              className="flex items-center justify-center gap-1.5 tabular-nums"
+            >
+              <MinusIcon className="h-5 w-5 text-baisse" />
+              {fmtMoney(v)}
+            </Btn>
+          ))}
+          <p className="text-center text-xs text-doux">Pour te fixer une limite de jeu.</p>
+        </div>
+      </BottomSheet>
     </RequireAuth>
   );
 }

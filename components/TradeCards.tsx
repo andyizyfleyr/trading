@@ -6,7 +6,7 @@ import { durationLabel } from "@/lib/symbols";
 import { Btn, Card } from "./ui";
 import { CountdownRing } from "./CountdownRing";
 
-/* ---------- Prédiction en cours ---------- */
+/* ---------- Prédiction en cours (compacte, pour panneau) ---------- */
 
 export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: number | null }) {
   const isUp = trade.direction === "UP";
@@ -18,34 +18,34 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
         : price < trade.openPrice;
 
   return (
-    <Card className="anim-in p-3">
-      <div className="flex items-center gap-3">
-        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={68} />
+    <Card className="anim-in p-2.5">
+      <div className="flex items-center gap-2.5">
+        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={60} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
             <span
-              className={`rounded-lg px-2 py-0.5 text-base font-extrabold ${
+              className={`rounded-lg px-2 py-0.5 text-sm font-extrabold ${
                 isUp ? "bg-hausse/15 text-hausse" : "bg-baisse/15 text-baisse"
               }`}
             >
               {isUp ? "ACHAT ▲" : "VENTE ▼"}
             </span>
-            <span className="text-base font-bold">{symbolBase(trade.symbol)}</span>
-            <span className="text-sm font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
+            <span className="text-sm font-bold">{symbolBase(trade.symbol)}</span>
+            <span className="text-xs font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
           </div>
-          <dl className="mt-1 space-y-0.5 text-base tabular-nums">
-            <div className="flex justify-between gap-2">
-              <dt className="text-doux">Mise</dt>
-              <dd className="font-bold">{fmtMoney(trade.amount)}</dd>
+          <div className="mt-1 grid grid-cols-3 gap-1 text-center tabular-nums">
+            <div>
+              <p className="text-[11px] leading-tight text-doux">Mise</p>
+              <p className="text-sm font-bold leading-tight">{fmtMoney(trade.amount)}</p>
             </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-doux">Prix d&apos;ouverture</dt>
-              <dd className="font-bold">{fmtPrice(trade.openPrice)}</dd>
+            <div>
+              <p className="text-[11px] leading-tight text-doux">Départ</p>
+              <p className="text-sm font-bold leading-tight">{fmtPrice(trade.openPrice)}</p>
             </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-doux">Prix actuel</dt>
-              <dd
-                className={`font-bold ${
+            <div>
+              <p className="text-[11px] leading-tight text-doux">Actuel</p>
+              <p
+                className={`text-sm font-bold leading-tight ${
                   winning == null ? "" : winning ? "text-hausse" : "text-baisse"
                 }`}
               >
@@ -57,9 +57,9 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
                     {fmtPrice(price)}
                   </>
                 )}
-              </dd>
+              </p>
             </div>
-          </dl>
+          </div>
         </div>
       </div>
     </Card>
@@ -82,7 +82,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
       ? { text: "text-hausse", bg: "bg-hausse/15", arrow: "▲" }
       : trade.result === "LOSS"
         ? { text: "text-baisse", bg: "bg-baisse/15", arrow: "▼" }
-        : { text: "text-action", bg: "bg-action/15", arrow: "±" };
+        : { text: "text-action", bg: "bg-action/15", arrow: "" };
 
   const title =
     trade.result === "WIN"
@@ -95,11 +95,11 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
     <Card className={`anim-in ${tone.bg} border-transparent`}>
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-base font-semibold">{title}</p>
-        <p className={`text-4xl font-extrabold tabular-nums ${tone.text}`}>
+        <p className={`text-3xl font-extrabold tabular-nums ${tone.text}`}>
           {tone.arrow ? `${tone.arrow} ` : ""}
           {fmtSigned(net)}
         </p>
-        <p className="text-base tabular-nums">
+        <p className="text-sm tabular-nums">
           {trade.result === "WIN" && (
             <span className="font-bold">
               {fmtMoney(net)} gagnés <span className="text-doux">(mise + 85 %)</span>
@@ -112,7 +112,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
             <span className="font-bold">{fmtMoney(trade.amount)} rendus</span>
           )}
         </p>
-        <p className="mt-1 text-sm text-doux tabular-nums">
+        <p className="mt-1 text-xs text-doux tabular-nums">
           {isUp ? "ACHAT" : "VENTE"} · {symbolBase(trade.symbol)}/USDT · {durationLabel(trade.durationSec)}
           <br />
           {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}

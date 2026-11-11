@@ -21,7 +21,7 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
-/** Formulaire compact : tient avec le graphique sur une seule vue. */
+/** Formulaire ultra-compact : 2 lignes + boutons, tout sur une vue. */
 export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   const [durationSec, setDurationSec] = useState<number>(60);
   const [amountStr, setAmountStr] = useState("50");
@@ -38,7 +38,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   const place = async (direction: "UP" | "DOWN") => {
     setError(null);
     if (!online) {
-      setError("Hors ligne : reconnectez-vous pour jouer. Vos prédictions en cours sont gardées.");
+      setError("Hors ligne : reconnectez-vous pour jouer.");
       return;
     }
     if (amount == null || amount <= 0) {
@@ -50,7 +50,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
       return;
     }
     if (amount > maxBet) {
-      setError(`La mise maximum est de ${fmtMoney(maxBet)} (10 % de votre solde).`);
+      setError(`Maximum ${fmtMoney(maxBet)} (10 % du solde).`);
       return;
     }
     setPlacing(direction);
@@ -71,17 +71,17 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
   };
 
   return (
-    <Card className="flex flex-col gap-2 p-3">
+    <Card className="flex flex-col gap-2 p-2.5">
       {/* Durée */}
       <div id="guide-duration">
-        <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-doux">
+        <div className="mb-1 flex items-center gap-1 text-xs font-medium text-doux">
           Durée
           <HelpTip
             label="Durée"
             text="Le temps que dure ta prédiction. À la fin du compte à rebours, on compare le prix de fin au prix de départ."
           />
         </div>
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Choisir la durée">
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Choisir la durée">
           {DURATIONS.map((d) => (
             <button
               key={d}
@@ -100,23 +100,28 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
         </div>
       </div>
 
-      {/* Mise : montant + raccourcis sur une seule ligne */}
+      {/* Mise : montant + raccourcis sur une ligne */}
       <div id="guide-amount">
-        <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-doux">
-          Mise
-          <HelpTip
-            label="Mise"
-            text="La somme jouée sur cette prédiction. Minimum 10, maximum 10 % de ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
-          />
+        <div className="mb-1 flex items-center justify-between gap-1 text-xs font-medium text-doux">
+          <span className="flex items-center gap-1">
+            Mise
+            <HelpTip
+              label="Mise"
+              text="La somme jouée. Minimum 10, maximum 10 % de ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
+            />
+          </span>
+          <span className="tabular-nums">
+            Gain <span className="font-bold text-hausse">+{fmtMoney(gain)}</span>
+          </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <input
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
             inputMode="decimal"
             autoComplete="off"
             aria-label="Montant de la mise"
-            className="h-11 w-24 shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-lg font-extrabold tabular-nums outline-none focus:border-action"
+            className="h-11 w-[84px] shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-lg font-extrabold tabular-nums outline-none focus:border-action"
           />
           <div className="grid flex-1 grid-cols-4 gap-1.5" role="group" aria-label="Mises rapides">
             {[10, 50, 100].map((v) => (
@@ -124,7 +129,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
                 key={v}
                 type="button"
                 onClick={() => setAmountStr(String(v))}
-                className="min-h-[44px] rounded-xl border border-ligne bg-fond text-base font-bold tabular-nums active:bg-ligne"
+                className="min-h-[44px] rounded-xl border border-ligne bg-fond text-sm font-bold tabular-nums active:bg-ligne"
               >
                 {v}
               </button>
@@ -139,15 +144,10 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
             </button>
           </div>
         </div>
-        <p className="mt-1 text-center text-sm tabular-nums">
-          <span className="text-doux">Gain possible </span>
-          <span className="font-bold text-hausse">+{fmtMoney(gain)}</span>
-          <span className="text-doux"> · Max {fmtMoney(maxBet)}</span>
-        </p>
       </div>
 
       {/* Prédiction */}
-      <div id="guide-buttons" className="grid grid-cols-2 gap-2">
+      <div id="guide-buttons" className="grid grid-cols-2 gap-1.5">
         <Btn
           variant="green"
           onClick={() => place("UP")}
@@ -169,7 +169,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
       </div>
 
       {error && (
-        <p role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center text-base font-medium text-baisse">
+        <p role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-1.5 text-center text-sm font-medium text-baisse">
           {error}
         </p>
       )}

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
-import { Btn, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";
-import { TrophyIcon } from "@/components/Icons";
+import { EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { RefreshIcon, TrophyIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiLeaderboard, ApiError } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
@@ -20,7 +20,7 @@ function RankBadge({ rank }: { rank: number }) {
           : "bg-fond text-doux";
   return (
     <span
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-extrabold tabular-nums ${style}`}
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold tabular-nums ${style}`}
     >
       {rank}
     </span>
@@ -54,68 +54,67 @@ export default function ClassementPage() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-extrabold">Classement</h1>
-          <Btn variant="ghost" onClick={load} className="min-h-[48px] px-4">
-            Actualiser
-          </Btn>
+          <h1 className="text-lg font-extrabold">Classement</h1>
+          <button
+            type="button"
+            onClick={load}
+            aria-label="Actualiser"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-ligne bg-carte text-doux active:text-texte"
+          >
+            <RefreshIcon className="h-5 w-5" />
+          </button>
         </div>
 
         {loading ? (
           <>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
           </>
         ) : error ? (
           <ErrorState text={error} retry={load} />
         ) : entries.length === 0 ? (
           <EmptyState
-            icon={<TrophyIcon className="h-10 w-10" />}
+            icon={<TrophyIcon className="h-8 w-8" />}
             title="Pas encore de classement"
-            text="Sois le premier à faire une prédiction pour apparaître ici."
+            text="Fais une prédiction pour apparaître ici."
           />
         ) : (
           <>
             {/* Ma position */}
             {me && (
-              <Card className="border-action">
-                <div className="flex items-center gap-3">
-                  <RankBadge rank={me.rank} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-extrabold">
-                      Toi <span className="font-medium text-doux">({user?.email})</span>
-                    </p>
-                    <p className="text-sm text-doux">Ton rang : {me.rank}</p>
-                  </div>
-                  <p className="text-lg font-extrabold tabular-nums">{fmtMoney(me.balance)}</p>
+              <div className="flex items-center gap-2.5 rounded-xl border border-action bg-carte p-2.5">
+                <RankBadge rank={me.rank} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-extrabold">
+                    Toi <span className="font-medium text-doux">· rang {me.rank}</span>
+                  </p>
+                  <p className="truncate text-xs text-doux">{user?.email}</p>
                 </div>
-              </Card>
+                <p className="text-base font-extrabold tabular-nums">{fmtMoney(me.balance)}</p>
+              </div>
             )}
 
-            <h2 className="text-lg font-extrabold">Les 20 meilleurs soldes</h2>
-            <Card className="flex flex-col gap-1 p-2">
+            <div className="flex flex-col gap-0.5 rounded-xl border border-ligne bg-carte p-1.5">
               {entries.map((e) => (
                 <div
                   key={e.userId}
-                  className={`flex items-center gap-3 rounded-xl px-2 py-2 ${
+                  className={`flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 ${
                     e.isMe ? "bg-action/15" : ""
                   }`}
                 >
                   <RankBadge rank={e.rank} />
-                  <p className="min-w-0 flex-1 truncate text-base font-bold">
+                  <p className="min-w-0 flex-1 truncate text-sm font-bold">
                     {e.isMe ? "Toi" : e.label}
                   </p>
-                  <p className="text-base font-extrabold tabular-nums">{fmtMoney(e.balance)}</p>
+                  <p className="text-sm font-extrabold tabular-nums">{fmtMoney(e.balance)}</p>
                 </div>
               ))}
-            </Card>
-            <p className="pb-2 text-center text-sm text-doux">
-              Le classement compare les soldes. Prédis juste et gère bien tes mises pour monter.
-            </p>
+            </div>
           </>
         )}
       </div>

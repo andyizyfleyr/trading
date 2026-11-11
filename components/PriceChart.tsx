@@ -237,7 +237,7 @@ export function PriceChart({
             />
             {live ? "EN DIRECT" : "PRIX"}
           </span>
-          <span className="text-xl font-extrabold tabular-nums">
+          <span className="text-lg font-extrabold tabular-nums">
             {price != null ? (
               <>
                 <span className={up == null ? "" : up ? "text-hausse" : "text-baisse"}>

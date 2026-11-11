@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
-import { Btn, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { BookIcon, CheckIcon } from "@/components/Icons";
 import { apiLessonProgress, apiLessons, ApiError } from "@/lib/api";
 import type { ApiLesson } from "@/lib/types";
@@ -25,55 +25,55 @@ function LessonCard({
   saving: boolean;
 }) {
   return (
-    <Card className={open ? "border-action" : ""}>
+    <div className={`rounded-xl border bg-carte p-2.5 ${open ? "border-action" : "border-ligne"}`}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex min-h-[48px] w-full items-center gap-3 text-left"
+        className="flex min-h-[44px] w-full items-center gap-2.5 text-left"
       >
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-extrabold ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
             done ? "bg-hausse text-[#06240f]" : "bg-fond text-doux"
           }`}
         >
-          {done ? <CheckIcon className="h-5 w-5" /> : index + 1}
+          {done ? <CheckIcon className="h-4 w-4" /> : index + 1}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-extrabold">{lesson.title}</span>
-          <span className="block truncate text-sm text-doux">
-            {lesson.summary} · {lesson.minutes} min
+          <span className="block truncate text-sm font-extrabold">{lesson.title}</span>
+          <span className="block truncate text-xs text-doux">
+            {lesson.minutes} min{done ? " · terminée" : ""}
           </span>
         </span>
-        <span className={`text-xl text-doux transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true">
+        <span className={`text-lg leading-none text-doux transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true">
           ▾
         </span>
       </button>
 
       {open && (
-        <div className="anim-in mt-3 flex flex-col gap-3 border-t border-ligne pt-3">
+        <div className="anim-in mt-2 flex flex-col gap-2 border-t border-ligne pt-2">
           {lesson.blocks.map((b, i) => (
             <div key={i}>
-              {b.heading && <p className="text-base font-bold">{b.heading}</p>}
-              <p className="text-base text-texte">{b.text}</p>
+              {b.heading && <p className="text-sm font-bold">{b.heading}</p>}
+              <p className="text-[15px] leading-snug">{b.text}</p>
             </div>
           ))}
-          <p className="rounded-xl bg-action/10 px-3 py-2 text-base">
+          <p className="rounded-xl bg-action/10 px-2.5 py-1.5 text-sm">
             <span className="font-bold">À retenir : </span>
             {lesson.takeaway}
           </p>
           {done ? (
-            <p className="flex items-center gap-2 text-base font-bold text-hausse">
-              <CheckIcon className="h-5 w-5" /> Leçon terminée
+            <p className="flex items-center gap-1.5 text-sm font-bold text-hausse">
+              <CheckIcon className="h-4 w-4" /> Terminée
             </p>
           ) : (
-            <Btn onClick={onDone} disabled={saving}>
+            <Btn onClick={onDone} disabled={saving} className="min-h-[44px] text-sm">
               {saving ? "…" : "Marquer comme terminée"}
             </Btn>
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -122,34 +122,34 @@ export default function CoursPage() {
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-3">
-        <h1 className="text-xl font-extrabold">Cours</h1>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-lg font-extrabold">Cours</h1>
 
         {loading ? (
           <>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
           </>
         ) : error ? (
           <ErrorState text={error} retry={load} />
         ) : lessons.length === 0 ? (
           <EmptyState
-            icon={<BookIcon className="h-10 w-10" />}
+            icon={<BookIcon className="h-8 w-8" />}
             title="Aucune leçon pour l'instant"
-            text="Reviens bientôt : de nouveaux cours arrivent."
+            text="Reviens bientôt."
           />
         ) : (
           <>
-            <Card>
-              <div className="flex items-center justify-between gap-2 text-base">
-                <p className="font-bold">Ta progression</p>
+            <div className="rounded-xl border border-ligne bg-carte p-2.5">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <p className="font-bold">Progression</p>
                 <p className="font-extrabold tabular-nums">
                   {doneCount}/{lessons.length}
                 </p>
               </div>
               <div
-                className="mt-2 h-3 overflow-hidden rounded-full bg-fond"
+                className="mt-1.5 h-2 overflow-hidden rounded-full bg-fond"
                 role="progressbar"
                 aria-valuenow={pct}
                 aria-valuemin={0}
@@ -158,7 +158,7 @@ export default function CoursPage() {
               >
                 <div className="h-full rounded-full bg-hausse transition-all duration-200" style={{ width: `${pct}%` }} />
               </div>
-            </Card>
+            </div>
 
             {lessons.map((lesson, i) => (
               <LessonCard
