@@ -29,6 +29,15 @@ export default function ProfilPage() {
     }
   }, []);
 
+  // La confirmation « Recommencer » s'annule au bout de 5 secondes :
+  // sans cela, un second toucher accidentel, même bien plus tard,
+  // remettrait le solde à 10 000 par surprise.
+  useEffect(() => {
+    if (!confirmReset) return;
+    const t = setTimeout(() => setConfirmReset(false), 5000);
+    return () => clearTimeout(t);
+  }, [confirmReset]);
+
   const toggleCalm = () => {
     const next = !calm;
     setCalm(next);
