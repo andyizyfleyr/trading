@@ -102,7 +102,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
 
       {/* Mise : montant + raccourcis sur une ligne */}
       <div id="guide-amount">
-        <div className="mb-1 flex items-center justify-between gap-1 text-xs font-medium text-doux">
+        <div className="mb-0.5 flex items-center justify-between gap-1 text-[11px] font-medium text-doux">
           <span className="flex items-center gap-1">
             Mise
             <HelpTip
@@ -121,7 +121,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
             inputMode="decimal"
             autoComplete="off"
             aria-label="Montant de la mise"
-            className="h-11 w-[84px] shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-lg font-extrabold tabular-nums outline-none focus:border-action"
+            className="h-10 w-[76px] shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-base font-extrabold tabular-nums outline-none focus:border-action"
           />
           <div className="grid flex-1 grid-cols-4 gap-1.5" role="group" aria-label="Mises rapides">
             {[10, 50, 100].map((v) => (
@@ -129,7 +129,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
                 key={v}
                 type="button"
                 onClick={() => setAmountStr(String(v))}
-                className="min-h-[44px] rounded-xl border border-ligne bg-fond text-sm font-bold tabular-nums active:bg-ligne"
+                className="h-10 rounded-xl border border-ligne bg-fond text-sm font-bold tabular-nums active:bg-ligne"
               >
                 {v}
               </button>
@@ -137,7 +137,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
             <button
               type="button"
               onClick={() => setAmountStr(String(maxBet))}
-              className="min-h-[44px] rounded-xl border border-ligne bg-fond text-sm font-bold active:bg-ligne"
+              className="h-10 rounded-xl border border-ligne bg-fond text-sm font-bold active:bg-ligne"
               aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
             >
               Max

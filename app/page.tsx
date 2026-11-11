@@ -11,7 +11,8 @@ import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
-import { SYMBOLS, type Interval } from "@/lib/symbols";
+import { fmtMoney, fmtPrice } from "@/lib/format";
+import { SYMBOLS } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -44,7 +45,6 @@ function formatRemain(ms: number): string {
 export default function TraderPage() {
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>("BTCUSDT");
-  const [timeInterval, setTimeInterval] = useState<Interval>("1m");
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -52,7 +52,7 @@ export default function TraderPage() {
   const [showGuide, setShowGuide] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  const { price, tickCandle, live, online } = useLiveMarket(symbol, timeInterval);
+  const { price, tickCandle, online } = useLiveMarket(symbol, "1m");
   const settlingRef = useRef(false);
 
   useEffect(() => {
@@ -142,13 +142,16 @@ export default function TraderPage() {
     sortedOpen.length === 0
       ? 0
       : Math.max(0, +new Date(sortedOpen[0].closesAt) - now);
+  const totalStaked = sortedOpen.reduce((s, t) => s + t.amount, 0);
+  // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
+  const encoursVisible = tradesOpen && sortedOpen.length > 0;
   const current = SYMBOLS.find((s) => s.id === symbol) ?? SYMBOLS[0];
 
   return (
     <RequireAuth>
       {/* Vue unique : 100 % de la hauteur dispo, aucun scroll de page. */}
       <div className="-mb-[6.5rem] flex h-[calc(100dvh-7.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 overflow-hidden">
-        {/* Sélecteur d'actif (liste déroulante) */}
+        {/* Sélecteur d'actif (liste déroulante) + prix en direct */}
         <button
           id="guide-symbol"
           type="button"
@@ -165,7 +168,12 @@ export default function TraderPage() {
             {current.base}/USDT
             <span className="font-medium text-doux">{current.name}</span>
           </span>
-          <ChevronDownIcon className="h-5 w-5 text-doux" />
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm font-bold tabular-nums text-doux">
+              {price != null ? fmtPrice(price) : "…"}
+            </span>
+            <ChevronDownIcon className="h-5 w-5 text-doux" />
+          </span>
         </button>
 
         {/* Graphique en bougies : prend toute la place restante */}
@@ -190,7 +198,7 @@ export default function TraderPage() {
       </div>
 
       {/* Bouton flottant : prédictions en cours (masqué si aucune) */}
-      {openTrades.length > 0 && !tradesOpen && results.length === 0 && (
+      {openTrades.length > 0 && !encoursVisible && results.length === 0 && (
         <button
           type="button"
           onClick={() => setTradesOpen(true)}
@@ -235,22 +243,27 @@ export default function TraderPage() {
 
       {/* Panneau : prédictions en cours */}
       <BottomSheet
-        open={tradesOpen}
+        open={encoursVisible}
         onClose={() => setTradesOpen(false)}
         title={`En cours (${openTrades.length})`}
       >
         <div className="flex flex-col gap-2 pb-2">
-          {sortedOpen.length === 0 ? (
-            <p className="py-4 text-center text-sm text-doux">Tout est terminé.</p>
-          ) : (
-            sortedOpen.map((trade) => (
-              <ActiveTradeCard
-                key={trade.id}
-                trade={trade}
-                price={trade.symbol === symbol ? price : null}
-              />
-            ))
-          )}
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-fond px-3 py-2 text-sm">
+            <span className="font-bold tabular-nums">
+              {sortedOpen.length} prédiction{sortedOpen.length > 1 ? "s" : ""}
+            </span>
+            <span className="tabular-nums text-doux">Mises {fmtMoney(totalStaked)}</span>
+            <span className="font-bold tabular-nums text-action">
+              Fin dans {formatRemain(nearestMs)}
+            </span>
+          </div>
+          {sortedOpen.map((trade) => (
+            <ActiveTradeCard
+              key={trade.id}
+              trade={trade}
+              price={trade.symbol === symbol ? price : null}
+            />
+          ))}
         </div>
       </BottomSheet>
 
