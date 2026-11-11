@@ -106,7 +106,7 @@ Format unique :
 | GET | `/api/lessons` | Leçons + progression |
 | POST | `/api/lessons/progress` | `{lessonId, done}` |
 
-Actifs : cryptos `BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, DOGEUSDT, ADAUSDT, AVAXUSDT, LINKUSDT, TRXUSDT` (Binance) + actions `AAPL, TSLA, NVDA` (Yahoo Finance).
+Actifs : cryptos `BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, DOGEUSDT, ADAUSDT, AVAXUSDT, LINKUSDT, TRXUSDT` (Binance) + actions `AAPL, TSLA, NVDA` (Yahoo Finance) + OTC maison `EURUSDOTC, GBPUSDOTC, USDJPYOTC` (prix simulés déterministes).
 Intervalles : `1m, 5m, 15m`.
 
 ### Objet `trade`

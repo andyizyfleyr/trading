@@ -17,6 +17,9 @@ export const SYMBOLS = [
   { id: "AAPL", base: "AAPL", name: "Apple", color: "#D1D5DB", kind: "stock" },
   { id: "TSLA", base: "TSLA", name: "Tesla", color: "#E31937", kind: "stock" },
   { id: "NVDA", base: "NVDA", name: "NVIDIA", color: "#76B900", kind: "stock" },
+  { id: "EURUSDOTC", base: "EUR/USD", name: "Euro / Dollar", color: "#60A5FA", kind: "otc" },
+  { id: "GBPUSDOTC", base: "GBP/USD", name: "Livre / Dollar", color: "#A78BFA", kind: "otc" },
+  { id: "USDJPYOTC", base: "USD/JPY", name: "Dollar / Yen", color: "#F472B6", kind: "otc" },
 ] as const;
 
 export type SymbolId = (typeof SYMBOLS)[number]["id"];
@@ -33,11 +36,16 @@ export function isStock(symbol: string): boolean {
   return SYMBOLS.find((s) => s.id === symbol)?.kind === "stock";
 }
 
-/** Nom affiché : "BTC/USDT" pour les cryptos, "AAPL" pour les actions. */
+/** Vrai si l'actif est un actif maison OTC (prix simulés). */
+export function isOtc(symbol: string): boolean {
+  return SYMBOLS.find((s) => s.id === symbol)?.kind === "otc";
+}
+
+/** Nom affiché : "BTC/USDT" pour les cryptos, "AAPL" et "EUR/USD" tels quels. */
 export function symbolDisplay(symbol: string): string {
   const found = SYMBOLS.find((s) => s.id === symbol);
   if (!found) return symbol;
-  return found.kind === "stock" ? found.base : `${found.base}/USDT`;
+  return found.kind === "crypto" ? `${found.base}/USDT` : found.base;
 }
 
 /** Durées de prédiction autorisées (en secondes). */

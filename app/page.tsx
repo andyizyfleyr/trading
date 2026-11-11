@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
-import { SYMBOLS, isStock, symbolDisplay } from "@/lib/symbols";
+import { SYMBOLS, isOtc, isStock, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -199,6 +199,11 @@ export default function TraderPage() {
             />
             {symbolDisplay(current.id)}
             <span className="font-medium text-doux">{current.name}</span>
+            {current.kind === "otc" && (
+              <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+                OTC
+              </span>
+            )}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="text-sm font-bold tabular-nums text-doux">
@@ -214,7 +219,7 @@ export default function TraderPage() {
             symbol={symbol}
             interval="1m"
             tickCandle={tickCandle}
-            livePrice={isStock(symbol) ? price : null}
+            livePrice={isStock(symbol) || isOtc(symbol) ? price : null}
             priceLines={priceLines}
           />
         </div>
@@ -296,8 +301,14 @@ export default function TraderPage() {
                   <span className="block text-sm text-doux">
                     {s.name}
                     {s.kind === "stock" ? " · Action" : ""}
+                    {s.kind === "otc" ? " · Simulé" : ""}
                   </span>
                 </span>
+                {s.kind === "otc" && (
+                  <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-xs font-extrabold text-action">
+                    OTC
+                  </span>
+                )}
                 {active && <CheckIcon className="h-5 w-5 shrink-0 text-hausse" />}
               </button>
             );
