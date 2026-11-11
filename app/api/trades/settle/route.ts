@@ -6,7 +6,8 @@ import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiTrade } from "@/lib/trade-shape";
 import { getPrice } from "@/lib/market";
-import { RULES } from "@/lib/symbols";
+import { otcPriceAt } from "@/lib/otc";
+import { isOtc, RULES } from "@/lib/symbols";
 import type { TradeResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,9 @@ function judge(direction: string, openPrice: number, closePrice: number): TradeR
 /**
  * POST /api/trades/settle — Clôture mes prédictions arrivées à échéance (protégé).
  * Corps optionnel : { "ids": [1, 2] } pour ne clôturer que certaines prédictions.
- * Prix de clôture = prix Binance lu côté serveur.
+ * Prix de clôture = prix lu côté serveur à l'instant de la clôture,
+ * sauf pour les jeux casino : prix exact rejoué à la seconde de fin
+ * (la clôture peut arriver en retard, le résultat reste juste).
  * - Bonne prédiction : mise + 85 % de gain (mise × 1,85 rendue au solde)
  * - Mauvaise prédiction : rien rendu
  * - Égalité : mise rendue
@@ -62,8 +65,9 @@ export async function POST(req: NextRequest) {
       return ok({ settled: [], pending: 0, balance: round2(me[0]?.balance ?? 0) });
     }
 
-    // Un seul appel prix par actif.
-    const symbols = Array.from(new Set(expired.map((t) => t.symbol)));
+    // Un seul appel prix par actif (les jeux casino rejouent leur prix exact,
+    // pas besoin de les lire).
+    const symbols = Array.from(new Set(expired.map((t) => t.symbol))).filter((s) => !isOtc(s));
     const prices = new Map<string, number>();
     await Promise.all(
       symbols.map(async (symbol) => {
@@ -80,7 +84,12 @@ export async function POST(req: NextRequest) {
     let pending = 0;
 
     for (const trade of expired) {
-      const closePrice = prices.get(trade.symbol);
+      // Jeux casino : le prix change chaque seconde et la clôture arrive
+      // souvent en retard → on rejoue le prix exact de la seconde de fin.
+      // Marchés réels : prix lu à l'instant de la clôture.
+      const closePrice = isOtc(trade.symbol)
+        ? otcPriceAt(trade.symbol, Math.floor(new Date(trade.closesAt).getTime() / 1000))
+        : prices.get(trade.symbol);
       if (closePrice == null || !Number.isFinite(closePrice) || closePrice <= 0) {
         pending += 1;
         continue;
