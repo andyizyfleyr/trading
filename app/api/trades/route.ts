@@ -7,7 +7,7 @@ import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiTrade } from "@/lib/trade-shape";
-import { getPrice, BinanceError } from "@/lib/binance";
+import { getPrice, MarketError } from "@/lib/market";
 import { isDuration, isSymbol, RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     try {
       openPrice = await getPrice(body.symbol);
     } catch (err) {
-      if (err instanceof BinanceError) {
+      if (err instanceof MarketError) {
         return fail("PRIX_INDISPONIBLES", err.message, 503);
       }
       return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503);

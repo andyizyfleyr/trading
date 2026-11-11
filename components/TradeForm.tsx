@@ -74,7 +74,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
     <Card className="flex flex-col gap-1.5 p-2">
       {/* Durée */}
       <div id="guide-duration">
-        <div className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-doux">
+        <div className="mb-0.5 flex items-center gap-1 text-xs font-medium text-doux">
           Durée
           <HelpTip
             label="Durée"
@@ -90,7 +90,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
               aria-pressed={durationSec === d}
               className={`h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
                 durationSec === d
-                  ? "bg-action text-white"
+                  ? "bg-primary text-white"
                   : "border border-ligne bg-fond text-doux active:text-texte"
               }`}
             >
@@ -102,7 +102,7 @@ export function TradeForm({ balance, symbol, online, onOpened }: Props) {
 
       {/* Mise : montant + raccourcis sur une ligne */}
       <div id="guide-amount">
-        <div className="mb-0.5 flex items-center justify-between gap-1 text-[11px] font-medium text-doux">
+        <div className="mb-0.5 flex items-center justify-between gap-1 text-xs font-medium text-doux">
           <span className="flex items-center gap-1">
             Mise
             <HelpTip

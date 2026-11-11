@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiGetPrice } from "@/lib/api";
+import { isStock } from "@/lib/symbols";
 import { useOnline } from "./useOnline";
 import type { ApiCandle } from "@/lib/types";
 
@@ -58,6 +59,15 @@ export function useLiveMarket(symbol: string, interval: string) {
         pollTimer = null;
       }
     };
+
+    // Les actions n'ont pas de flux Binance : sondage de l'API uniquement.
+    if (isStock(symbol)) {
+      startPoll();
+      return () => {
+        stopped = true;
+        stopPoll();
+      };
+    }
 
     try {
       ws = new WebSocket(

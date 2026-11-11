@@ -8,7 +8,7 @@ import { HistoryIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { fmtDateTime, fmtMoney, fmtPrice, symbolBase } from "@/lib/format";
-import { durationLabel } from "@/lib/symbols";
+import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
 
 type Filter = "all" | "open" | "settled";
@@ -91,6 +91,7 @@ function TradeRow({ trade }: { trade: ApiTrade }) {
 export default function HistoriquePage() {
   const { setBalance } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
+  const [asset, setAsset] = useState<string>("all");
   const [trades, setTrades] = useState<ApiTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,23 +120,84 @@ export default function HistoriquePage() {
     load();
   }, [load]);
 
-  const visible = trades.filter((t) =>
-    filter === "all" ? true : filter === "open" ? t.status === "OPEN" : t.status === "SETTLED"
+  const visible = trades.filter(
+    (t) =>
+      (filter === "all" ? true : filter === "open" ? t.status === "OPEN" : t.status === "SETTLED") &&
+      (asset === "all" || t.symbol === asset)
   );
+
+  // Exporte les prédictions affichées en CSV (ouvre dans Excel).
+  const exportCsv = () => {
+    const header = "date;actif;direction;duree;mise;depart;arrivee;resultat;gain_perte";
+    const lines = visible.map((t) => {
+      const pnl =
+        t.result === "WIN"
+          ? (t.payout ?? 0) - t.amount
+          : t.result === "LOSS"
+            ? -t.amount
+            : 0;
+      return [
+        fmtDateTime(t.openedAt),
+        symbolDisplay(t.symbol),
+        t.direction === "UP" ? "ACHAT" : "VENTE",
+        durationLabel(t.durationSec),
+        String(t.amount).replace(".", ","),
+        String(t.openPrice).replace(".", ","),
+        t.closePrice != null ? String(t.closePrice).replace(".", ",") : "",
+        t.status === "OPEN" ? "EN COURS" : (t.result ?? ""),
+        String(Math.round(pnl * 100) / 100).replace(".", ","),
+      ].join(";");
+    });
+    const blob = new Blob(["\uFEFF" + [header, ...lines].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tradefacile-historique.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <RequireAuth>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-lg font-extrabold">Historique</h1>
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Actualiser"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-ligne bg-carte text-doux active:text-texte"
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={visible.length === 0}
+              className="flex min-h-[40px] items-center rounded-xl border border-ligne bg-carte px-3 text-sm font-bold text-doux active:text-texte disabled:opacity-50"
+            >
+              Exporter
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              aria-label="Actualiser"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-ligne bg-carte text-doux active:text-texte"
+            >
+              <RefreshIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-1.5">
+          <select
+            value={asset}
+            onChange={(e) => setAsset(e.target.value)}
+            aria-label="Filtrer par actif"
+            className="h-10 flex-1 rounded-xl border border-ligne bg-carte px-2 text-sm font-bold outline-none focus:border-action lg:max-w-xs"
           >
-            <RefreshIcon className="h-5 w-5" />
-          </button>
+            <option value="all">Tous les actifs</option>
+            {SYMBOLS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {symbolDisplay(s.id)}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-3 gap-1.5 lg:max-w-md" role="group" aria-label="Filtrer l'historique">
@@ -147,7 +209,7 @@ export default function HistoriquePage() {
               aria-pressed={filter === f.id}
               className={`min-h-[40px] rounded-xl text-sm font-bold transition-colors duration-200 ${
                 filter === f.id
-                  ? "bg-action text-white"
+                  ? "bg-primary text-white"
                   : "border border-ligne bg-carte text-doux active:text-texte"
               }`}
             >

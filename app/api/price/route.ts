@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrice, BinanceError } from "@/lib/binance";
+import { getPrice, MarketError } from "@/lib/market";
 import { isSymbol } from "@/lib/symbols";
 import { fail } from "@/lib/respond";
 
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     cache.set(symbol, { at: Date.now(), price });
     return NextResponse.json({ data: { symbol, price, time: Date.now() } });
   } catch (err) {
-    if (err instanceof BinanceError) {
+    if (err instanceof MarketError) {
       return fail("PRIX_INDISPONIBLES", err.message, 503);
     }
     return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponible.", 503);

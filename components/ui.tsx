@@ -9,9 +9,9 @@ import { XIcon } from "./Icons";
 type BtnVariant = "primary" | "green" | "red" | "ghost" | "card";
 
 const btnStyles: Record<BtnVariant, string> = {
-  primary: "bg-action text-white active:bg-blue-600",
+  primary: "bg-primary text-white active:bg-blue-700",
   green: "bg-hausse text-[#06240f] active:bg-green-400",
-  red: "bg-baisse text-white active:bg-red-500",
+  red: "bg-vente text-white active:bg-red-700",
   ghost: "bg-transparent text-texte border border-ligne active:bg-carte",
   card: "bg-carte text-texte border border-ligne active:bg-ligne",
 };

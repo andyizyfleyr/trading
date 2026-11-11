@@ -82,7 +82,7 @@ export default function ProfilPage() {
 
         {/* Identité + solde */}
         <div className="flex items-center gap-2.5 rounded-xl border border-ligne bg-carte p-2.5 lg:col-span-2">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-action text-lg font-extrabold text-white">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-extrabold text-white">
             {initial}
           </span>
           <div className="min-w-0 flex-1">

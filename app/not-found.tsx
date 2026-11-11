@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-base text-doux">Cette page n&apos;existe pas ou a été déplacée.</p>
       <Link
         href="/"
-        className="mt-2 flex min-h-[48px] items-center rounded-xl bg-action px-6 text-base font-semibold text-white"
+        className="mt-2 flex min-h-[48px] items-center rounded-xl bg-primary px-6 text-base font-semibold text-white"
       >
         Retour à l&apos;accueil
       </Link>

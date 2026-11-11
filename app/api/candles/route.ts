@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKlines, BinanceError } from "@/lib/binance";
+import { getKlines, MarketError } from "@/lib/market";
 import { isInterval, isSymbol } from "@/lib/symbols";
 import { fail } from "@/lib/respond";
 
@@ -11,7 +11,7 @@ const TTL_MS = 5_000;
 
 /**
  * GET /api/candles?symbol=BTCUSDT&interval=1m&limit=200 — Bougies (protégé).
- * Vrais prix Binance. Réponse : { "data": { "symbol", "interval", "candles": [...] } }
+ * Vrais prix du marché. Réponse : { "data": { "symbol", "interval", "candles": [...] } }
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       { headers: { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=10" } }
     );
   } catch (err) {
-    if (err instanceof BinanceError) {
+    if (err instanceof MarketError) {
       return fail("PRIX_INDISPONIBLES", err.message, 503);
     }
     return fail("PRIX_INDISPONIBLES", "Graphique temporairement indisponible.", 503);
