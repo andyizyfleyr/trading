@@ -17,6 +17,8 @@ interface Props {
   interval: Interval;
   /** Bougie en formation reçue en direct. */
   tickCandle: ApiCandle | null;
+  /** Dernier prix connu : anime la dernière bougie (actions, sans flux temps réel). */
+  livePrice: number | null;
   priceLines: ChartPriceLine[];
 }
 
@@ -31,12 +33,12 @@ function toBar(c: ApiCandle) {
 }
 
 /** Graphique en bougies (TradingView Lightweight Charts, chargé à la demande). */
-export function PriceChart({ symbol, interval, tickCandle, priceLines }: Props) {
+export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
-  const lastBarRef = useRef<{ time: number } | null>(null);
+  const lastBarRef = useRef<ReturnType<typeof toBar> | null>(null);
   const pendingRef = useRef<ReturnType<typeof toBar>[] | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -149,12 +151,37 @@ export function PriceChart({ symbol, interval, tickCandle, priceLines }: Props) 
     // Ignore les ticks antérieurs à la dernière bougie chargée.
     if (last && tickCandle.time < last.time) return;
     try {
-      series.update(toBar(tickCandle));
-      lastBarRef.current = { time: tickCandle.time };
+      const bar = toBar(tickCandle);
+      series.update(bar);
+      lastBarRef.current = bar;
     } catch {
       /* tick ignoré */
     }
   }, [tickCandle]);
+
+  // Dernier prix (actions) : fait bouger la clôture de la bougie en cours.
+  useEffect(() => {
+    const series = seriesRef.current;
+    const last = lastBarRef.current;
+    if (!series || !last || livePrice == null || !Number.isFinite(livePrice) || livePrice <= 0) {
+      return;
+    }
+    // Ignore les prix aberrants (ne doivent jamais déformer le graphique).
+    if (livePrice > last.close * 2 || livePrice < last.close * 0.5) return;
+    try {
+      const bar = {
+        time: last.time,
+        open: last.open,
+        high: Math.max(last.high, livePrice),
+        low: Math.min(last.low, livePrice),
+        close: livePrice,
+      };
+      series.update(bar);
+      lastBarRef.current = bar;
+    } catch {
+      /* tick ignoré */
+    }
+  }, [livePrice]);
 
   // Lignes de prix d'ouverture des prédictions en cours.
   useEffect(() => {

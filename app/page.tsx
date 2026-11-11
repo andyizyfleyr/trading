@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
-import { SYMBOLS, symbolDisplay } from "@/lib/symbols";
+import { SYMBOLS, isStock, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -214,6 +214,7 @@ export default function TraderPage() {
             symbol={symbol}
             interval="1m"
             tickCandle={tickCandle}
+            livePrice={isStock(symbol) ? price : null}
             priceLines={priceLines}
           />
         </div>

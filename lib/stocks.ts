@@ -66,6 +66,48 @@ async function fetchChart(symbol: string, interval: Interval): Promise<YahooChar
   throw lastError instanceof Error ? lastError : new StockError();
 }
 
+/**
+ * Nettoie les bougies Yahoo : le flux contient parfois de fausses impressions
+ * (une bougie à un prix absurde) qui écrasent l'échelle du graphique.
+ * Sont supprimées : les bougies corrompues (prix absents, négatifs ou
+ * incohérents), les doublons, et celles qui s'écartent de plus de moitié
+ * de la clôture médiane (aucun vrai mouvement n'est aussi violent).
+ */
+export function cleanCandles(raw: Candle[]): Candle[] {
+  const sane: Candle[] = [];
+  const seen = new Set<number>();
+  for (const c of raw) {
+    if (
+      !Number.isFinite(c.time) ||
+      c.time <= 0 ||
+      !Number.isFinite(c.open) ||
+      !Number.isFinite(c.high) ||
+      !Number.isFinite(c.low) ||
+      !Number.isFinite(c.close) ||
+      c.open <= 0 ||
+      c.high <= 0 ||
+      c.low <= 0 ||
+      c.close <= 0 ||
+      c.high < c.low ||
+      c.high < c.open ||
+      c.high < c.close ||
+      c.low > c.open ||
+      c.low > c.close ||
+      seen.has(c.time)
+    ) {
+      continue;
+    }
+    seen.add(c.time);
+    sane.push(c);
+  }
+  if (sane.length >= 5) {
+    const closes = sane.map((c) => c.close).sort((a, b) => a - b);
+    const median = closes[Math.floor(closes.length / 2)];
+    return sane.filter((c) => c.high <= median * 2 && c.low >= median * 0.5);
+  }
+  return sane;
+}
+
 /** Dernier cours réel d'une action (ou la clôture si la Bourse est fermée). */
 export async function getStockPrice(symbol: string): Promise<number> {
   try {
@@ -101,26 +143,18 @@ export async function getStockCandles(
   const quote = result?.indicators?.quote?.[0];
   if (!quote) throw new StockError();
 
-  const candles: Candle[] = [];
+  const raw: Candle[] = [];
   for (let i = 0; i < times.length; i++) {
-    const c: Candle = {
+    raw.push({
       time: Number(times[i]),
       open: Number(quote.open?.[i]),
       high: Number(quote.high?.[i]),
       low: Number(quote.low?.[i]),
       close: Number(quote.close?.[i]),
       volume: Number(quote.volume?.[i] ?? 0),
-    };
-    if (
-      Number.isFinite(c.time) &&
-      Number.isFinite(c.open) &&
-      Number.isFinite(c.high) &&
-      Number.isFinite(c.low) &&
-      Number.isFinite(c.close)
-    ) {
-      candles.push(c);
-    }
+    });
   }
+  const candles = cleanCandles(raw);
   if (candles.length === 0) throw new StockError();
   return candles.slice(-safeLimit);
 }
