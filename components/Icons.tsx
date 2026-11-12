@@ -144,10 +144,3 @@ export const SignalIcon = ({ className }: { className?: string }) => (
     <path d="M15 7h6v6" />
   </Svg>
 );
-
-export const ClockIcon = ({ className }: { className?: string }) => (
-  <Svg className={className}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7v5l3 2" />
-  </Svg>
-);

@@ -69,13 +69,15 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
-/** « HH:MM » tapée → seconde pile d'aujourd'hui (nulle si mal écrite). */
+/** « HH:MM » → prochaine occurrence (aujourd'hui, ou demain si l'heure est passée). */
 function slotFromTime(v: string): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(v);
   if (!m) return null;
   const day = new Date();
   day.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return Math.floor(day.getTime() / 1000);
+  let slot = Math.floor(day.getTime() / 1000);
+  if (slot * 1000 <= Date.now()) slot += 24 * 3600; // heure passée → demain
+  return slot;
 }
 
 /** Formulaire ultra-compact : durée + mise + heure + boutons, tout sur une vue. */
@@ -312,7 +314,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError(
         typedPassed
           ? "Heure passée : choisis une heure à venir."
-          : "Finis d'écrire l'heure (ex : 14:35)."
+          : "Choisis une heure à venir dans la liste."
       );
       return;
     }
@@ -552,7 +554,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          {/* Quand : un appui sur l'heure, ou « Autre » pour l'écrire (caché pendant un signal guidé) */}
+          {/* Quand : un appui sur l'heure, ou « Autre » pour la choisir (caché pendant un signal guidé) */}
           {!signalLive && (
             <div>
               <div className="mb-0.5 flex items-center gap-1 text-xs font-medium text-doux">
@@ -627,7 +629,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               {quand === BAD_TIME
                 ? typedPassed
                   ? "Heure passée : choisis une heure à venir."
-                  : "Finis d'écrire l'heure (ex : 14:35)."
+                  : "Choisis une heure à venir dans la liste."
                 : "Heure passée : choisis une autre heure."}
             </p>
           )}
@@ -666,7 +668,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </p>
       )}
 
-      {/* Panneau : choisir son heure (colonnes à faire défiler) */}
+      {/* Panneau : choisir son heure (liste des prochaines heures) */}
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure" hideTitle>
         <div className="flex flex-col gap-2 pb-2">
           <TimePickerPanel
