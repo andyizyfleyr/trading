@@ -164,7 +164,7 @@ export default function HistoriquePage() {
       [
         symbolDisplay(t.symbol),
         durationLabel(t.durationSec),
-        t.direction === "UP" ? "achat" : "vente",
+        t.direction === "UP" ? "hausse" : "baisse",
         String(t.amount),
         String(t.openPrice),
         t.closePrice != null ? String(t.closePrice) : "",

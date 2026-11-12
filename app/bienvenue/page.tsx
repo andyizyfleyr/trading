@@ -65,7 +65,7 @@ function SlideArt({ variant }: { variant: number }) {
 const SLIDES = [
   {
     title: "Prédis si le prix monte ou descend",
-    text: "Regarde le graphique en bougies, choisis une durée et une mise, puis touche ACHAT ▲ ou VENTE ▼.",
+    text: "Regarde le graphique en bougies, choisis une durée et une mise, puis touche HAUSSE ▲ ou BAISSE ▼.",
   },
   {
     title: "3 jeux, 100 % hasard",

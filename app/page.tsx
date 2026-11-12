@@ -4,18 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
 import { CandleChart, type ChartToast } from "@/components/CandleChart";
-import { TradeForm, type ReplayOrder, type SignalHint } from "@/components/TradeForm";
+import { ScheduledTrades, TradeForm, type ReplayOrder, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
 import { CheckIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
-import { apiMyTrades, apiSettle } from "@/lib/api";
+import { apiCancelScheduled, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import {
   DEFAULT_INTERVAL,
   FLOAT_TICK_MS,
   RESULTS_SHOWN,
+  SCHEDULED_REFRESH_MS,
   SETTLE_TICK_MS,
   SIGNAL_FRESH_FUTURE_MS,
   SIGNAL_FRESH_PAST_MS,
@@ -48,6 +49,7 @@ export default function TraderPage() {
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>(() => loadSymbol());
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
+  const [scheduled, setScheduled] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [assetOpen, setAssetOpen] = useState(false);
   const [tradesOpen, setTradesOpen] = useState(false);
@@ -171,6 +173,36 @@ export default function TraderPage() {
     return () => clearInterval(t);
   }, [loadOpen]);
 
+  // Mises programmées sur le serveur (partent même appli fermée) :
+  // affichées dans le panneau « En cours ».
+  const loadScheduled = useCallback(async () => {
+    try {
+      const { trades } = await apiMyTrades("scheduled", TRADES_PAGE_LIMIT);
+      setScheduled(trades);
+    } catch {
+      /* non connecté ou hors ligne : on garde la liste connue */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadScheduled();
+    const t = setInterval(loadScheduled, SCHEDULED_REFRESH_MS);
+    return () => clearInterval(t);
+  }, [loadScheduled]);
+
+  const cancelScheduled = useCallback(
+    async (id: number) => {
+      try {
+        const res = await apiCancelScheduled(id);
+        setBalance(res.balance);
+        loadScheduled();
+      } catch (err) {
+        say(err instanceof ApiError ? err.message : "Annulation impossible pour le moment.", null);
+      }
+    },
+    [loadScheduled, setBalance, say]
+  );
+
   // Clôture automatique à la fin de chaque compte à rebours.
   useEffect(() => {
     const t = setInterval(async () => {
@@ -223,7 +255,7 @@ export default function TraderPage() {
       setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
       say(
-        `${trade.direction === "UP" ? "Achat" : "Vente"} ${fmtMoney(trade.amount)} · ${trade.durationSec} s`,
+        `${trade.direction === "UP" ? "Hausse" : "Baisse"} ${fmtMoney(trade.amount)} · ${trade.durationSec} s`,
         null
       );
     },
@@ -231,6 +263,8 @@ export default function TraderPage() {
   );
 
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
+  // Programmées encore à venir (l'horloge locale les fait basculer vers « En cours »).
+  const scheduledUp = scheduled.filter((t) => new Date(t.openedAt).getTime() > now);
   const nearestMs =
     sortedOpen.length === 0
       ? 0
@@ -239,7 +273,8 @@ export default function TraderPage() {
   const isDesktop = useIsDesktop();
   // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
   // Sur desktop, « En cours » est affiché dans la colonne de droite, pas en panneau.
-  const encoursVisible = tradesOpen && sortedOpen.length > 0 && !isDesktop;
+  const encoursVisible =
+    tradesOpen && (sortedOpen.length > 0 || scheduledUp.length > 0) && !isDesktop;
 
   return (
     <RequireAuth>
@@ -282,32 +317,41 @@ export default function TraderPage() {
               onBalance={setBalance}
               replay={replay}
               progSlot={progSlot}
+              onScheduledChange={() => {
+                void loadScheduled();
+                setTradesOpen(true); // Montre aussitôt la mise programmée.
+              }}
               onPickAsset={() => setAssetOpen(true)}
             />
           </div>
 
           {/* En cours affiché directement sur desktop (panneau sur mobile). */}
-          {sortedOpen.length > 0 && (
+          {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
             <div className={TRADER.onlyDesktop}>
               <div className={TRADER.openPanel}>
-                <div className={TRADER.openHead}>
-                  <p className={TRADER.openTitle}>
-                    En cours ({sortedOpen.length})
-                  </p>
-                  <p className={TRADER.openSoon}>
-                    Fin dans {fmtRemainShort(nearestMs)}
-                  </p>
-                </div>
-                <p className={TRADER.openStaked}>
-                  Mises {fmtMoney(totalStaked)}
-                </p>
-                {sortedOpen.map((trade) => (
-                  <ActiveTradeCard
-                    key={trade.id}
-                    trade={trade}
-                    price={trade.symbol === symbol ? price : null}
-                  />
-                ))}
+                {sortedOpen.length > 0 && (
+                  <>
+                    <div className={TRADER.openHead}>
+                      <p className={TRADER.openTitle}>
+                        En cours ({sortedOpen.length})
+                      </p>
+                      <p className={TRADER.openSoon}>
+                        Fin dans {fmtRemainShort(nearestMs)}
+                      </p>
+                    </div>
+                    <p className={TRADER.openStaked}>
+                      Mises {fmtMoney(totalStaked)}
+                    </p>
+                    {sortedOpen.map((trade) => (
+                      <ActiveTradeCard
+                        key={trade.id}
+                        trade={trade}
+                        price={trade.symbol === symbol ? price : null}
+                      />
+                    ))}
+                  </>
+                )}
+                <ScheduledTrades trades={scheduledUp} onCancel={cancelScheduled} />
               </div>
             </div>
           )}
@@ -347,19 +391,27 @@ export default function TraderPage() {
         </div>
       </BottomSheet>
 
-      {/* Panneau : prédictions en cours (compact : résumé dans l'en-tête) */}
+      {/* Panneau : prédictions en cours + programmées (résumé dans l'en-tête) */}
       <BottomSheet
         open={encoursVisible}
         onClose={() => setTradesOpen(false)}
-        title={`En cours (${openTrades.length})`}
+        title={
+          sortedOpen.length > 0
+            ? `En cours (${openTrades.length})`
+            : `Programmé(es) (${scheduledUp.length})`
+        }
         header={
           <div className={ENCOURS.head}>
             <h2 className={ENCOURS.title}>En cours</h2>
-            <span className={ENCOURS.badge}>{sortedOpen.length}</span>
-            <p className={ENCOURS.sum}>
-              Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
-              <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
-            </p>
+            {sortedOpen.length > 0 && (
+              <>
+                <span className={ENCOURS.badge}>{sortedOpen.length}</span>
+                <p className={ENCOURS.sum}>
+                  Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
+                  <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
+                </p>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setTradesOpen(false)}
@@ -372,16 +424,16 @@ export default function TraderPage() {
         }
       >
         <div className={ENCOURS.list}>
-          {sortedOpen.length === 0 ? (
+          {sortedOpen.map((trade) => (
+            <ActiveTradeCard
+              key={trade.id}
+              trade={trade}
+              price={trade.symbol === symbol ? price : null}
+            />
+          ))}
+          <ScheduledTrades trades={scheduledUp} onCancel={cancelScheduled} />
+          {sortedOpen.length === 0 && scheduledUp.length === 0 && (
             <p className={ENCOURS.empty}>Aucun trade en cours</p>
-          ) : (
-            sortedOpen.map((trade) => (
-              <ActiveTradeCard
-                key={trade.id}
-                trade={trade}
-                price={trade.symbol === symbol ? price : null}
-              />
-            ))
           )}
         </div>
       </BottomSheet>

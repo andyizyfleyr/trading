@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
   }
   if (body.direction !== "UP" && body.direction !== "DOWN") {
-    return fail("DIRECTION_INVALIDE", "Choisissez ACHAT (ça monte) ou VENTE (ça descend).", 400);
+    return fail("DIRECTION_INVALIDE", "Choisissez HAUSSE (ça monte) ou BAISSE (ça descend).", 400);
   }
   if (!isDuration(body.durationSec)) {
     return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
