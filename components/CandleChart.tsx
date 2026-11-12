@@ -117,18 +117,22 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       const data = shownRef.current;
       if (data.length === 0) return;
       const remain = endsRef.current;
+      const tip = data[data.length - 1];
       const sig = [
         data.length,
-        data[data.length - 1].time,
-        data[data.length - 1].close,
+        tip.time,
+        tip.open,
+        tip.high,
+        tip.low,
+        tip.close,
         remain == null ? "-" : Math.floor(remain / 1000),
         box.clientWidth,
         box.clientHeight,
       ].join("|");
       if (sig === drawnRef.current) return;
-      drawnRef.current = sig;
       const ctx = cv.getContext("2d");
       if (!ctx) return;
+      drawnRef.current = sig;
       const r = box.getBoundingClientRect();
       const d = window.devicePixelRatio || 1;
       // Changer width/height efface tout : seulement si la taille a bougé.

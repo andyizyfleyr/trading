@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -12,8 +12,13 @@ import { RULES } from "@/lib/symbols";
 import { Btn, Field } from "@/components/ui";
 
 export default function InscriptionPage() {
-  const { register } = useAuth();
+  const { register, user, loading } = useAuth();
   const router = useRouter();
+
+  // Déjà connecté : pas besoin de recréer un compte.
+  useEffect(() => {
+    if (!loading && user) router.replace(ROUTES.trader);
+  }, [loading, user, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

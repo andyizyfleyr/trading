@@ -48,6 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
+  // Retour du réseau : on revalide la session gardée (sans cela, un
+  // utilisateur banni vers la connexion par une micro-coupure devrait
+  // retaper son mot de passe alors que son token est toujours bon).
+  useEffect(() => {
+    const onOnline = () => {
+      if (getToken()) refresh();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refresh]);
+
   const login = useCallback(async (email: string, password: string) => {
     const { token, user: me } = await apiLogin(email, password);
     setToken(token);

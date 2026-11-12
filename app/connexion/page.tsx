@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -10,10 +10,15 @@ import { AUTH, FORM, TRADER } from "@/lib/design";
 import { Btn, Field } from "@/components/ui";
 
 function ConnexionForm() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get(NEXT_PARAM) || ROUTES.trader;
+
+  // Déjà connecté (session revalidée après une coupure) : on repart.
+  useEffect(() => {
+    if (!loading && user) router.replace(next);
+  }, [loading, user, router, next]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
