@@ -96,7 +96,7 @@ export function BottomSheet({
   /** En-tête sur mesure (remplace le titre + bouton fermer par défaut). */
   header?: ReactNode;
 }) {
-  // Panneaux empilés (Minuteur + « Choisir l'heure ») : un compteur, sinon
+  // Panneaux empilés (Durée/Départ + « Choisir l'heure ») : un compteur, sinon
   // la fermeture du panneau du dessus rend le scroll alors que l'autre
   // est encore ouvert.
   useEffect(() => {
