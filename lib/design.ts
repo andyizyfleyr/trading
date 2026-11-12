@@ -218,17 +218,13 @@ export const ORDER = {
   debDots: "min-w-0 flex-1 border-b-2 border-dotted border-doux/60",
   debVal: "shrink-0 text-[13px] font-bold tabular-nums text-hausse",
   netNote: "mt-0.5 text-right text-[11px] leading-tight text-doux",
+  secTitle: "mb-1 text-sm font-extrabold",
   goRow: "grid grid-cols-2 gap-2",
   go: "flex h-[52px] items-center justify-between rounded-[10px] px-4 text-[15px] font-extrabold text-white transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   buy: "bg-hausse",
   sell: "bg-vente",
   arrowDot: "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/25",
   arrowIcon: "h-4 w-4 text-white",
-  tabs: "grid shrink-0 grid-cols-2 gap-2",
-  tabOn:
-    "flex h-11 items-center justify-center rounded-lg bg-primary text-[13px] font-extrabold tracking-wide text-white",
-  tabOff:
-    "flex h-11 items-center justify-center rounded-lg bg-onglet text-[13px] font-extrabold tracking-wide text-doux",
   grid: "grid grid-cols-3 gap-2",
   cellOn:
     "flex h-12 items-center justify-center rounded-lg bg-primary text-sm font-bold tabular-nums text-white",

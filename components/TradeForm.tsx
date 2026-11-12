@@ -160,7 +160,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [quand, setQuand] = useState<string>("now"); // "now" | secondes | BAD_TIME
   const [customTime, setCustomTime] = useState("");
   const [durSheetOpen, setDurSheetOpen] = useState(false);
-  const [durTab, setDurTab] = useState<"min" | "time">("min");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draftTime, setDraftTime] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
@@ -287,16 +286,16 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     setQuand(String(s));
     setCustomTime("");
   };
+  // Le panneau ne se referme plus tout seul : durée + départ se règlent
+  // en un seul passage (avant : chaque choix fermait, il fallait rouvrir).
   const pickTimeSlot = (s: number) => {
     pickSlot(s);
-    setDurSheetOpen(false);
   };
   const openTimeSheet = () => {
     setDraftTime(customTime);
     setSheetOpen(true);
   };
   const openDurSheet = () => {
-    setDurTab(effectiveSlot != null ? "time" : "min");
     setDurSheetOpen(true);
   };
   const onCustomTime = (v: string) => {
@@ -742,39 +741,17 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </p>
       )}
 
-      {/* Panneau : Durée (combien de temps) ou Départ (à quelle heure) */}
+      {/* Panneau unique : durée + départ au même endroit (fini les onglets) */}
       <BottomSheet open={durSheetOpen} onClose={() => setDurSheetOpen(false)} title="Durée ou départ" hideTitle>
         <div className={SHEET.list2}>
-          <div className={ORDER.tabs} role="tablist" aria-label="Durée ou départ">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={durTab === "min"}
-              onClick={() => setDurTab("min")}
-              className={durTab === "min" ? ORDER.tabOn : ORDER.tabOff}
-            >
-              DURÉE
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={durTab === "time"}
-              onClick={() => setDurTab("time")}
-              className={durTab === "time" ? ORDER.tabOn : ORDER.tabOff}
-            >
-              DÉPART
-            </button>
-          </div>
-          {durTab === "min" ? (
+          <div>
+            <p className={ORDER.secTitle}>Durée</p>
             <div className={ORDER.grid} role="group" aria-label="Choisir la durée">
               {DURATIONS.map((d) => (
                 <button
                   key={d}
                   type="button"
-                  onClick={() => {
-                    setDurationSec(d);
-                    setDurSheetOpen(false);
-                  }}
+                  onClick={() => setDurationSec(d)}
                   aria-pressed={durationSec === d}
                   className={durationSec === d ? ORDER.cellOn : ORDER.cellOff}
                 >
@@ -782,14 +759,13 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 </button>
               ))}
             </div>
-          ) : (
+          </div>
+          <div>
+            <p className={ORDER.secTitle}>Départ</p>
             <div className={ORDER.grid} role="group" aria-label="Choisir l'heure de la mise">
               <button
                 type="button"
-                onClick={() => {
-                  pickNow();
-                  setDurSheetOpen(false);
-                }}
+                onClick={pickNow}
                 aria-pressed={quand === "now"}
                 className={quand === "now" ? ORDER.cellOn : ORDER.cellOff}
               >
@@ -816,7 +792,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 Autre
               </button>
             </div>
-          )}
+          </div>
         </div>
       </BottomSheet>
 
