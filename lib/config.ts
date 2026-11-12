@@ -99,13 +99,14 @@ export const NEXT_PARAM = "next";
 /** Longueur minimum du mot de passe (client + serveur). */
 export const PASSWORD_MIN = 6;
 
-/** Export CSV de l'historique (point-virgule, ouvre dans Excel). */
+/** Export de l'historique : copié dans le presse-papiers (maquette). */
 export const CSV = {
-  sep: ";",
-  bom: "﻿",
-  file: "tradefacile-historique.csv",
-  header: "date;actif;direction;duree;mise;depart;arrivee;resultat;gain_perte",
+  sep: ",",
+  header: "jeu,duree,sens,mise,depart,arrivee,resultat,heure",
 } as const;
+
+/** Retour visuel « Copié ✓ » après un export. */
+export const COPIED_MS = 1500;
 
 /** Point de rupture desktop = `lg` de Tailwind (barre latérale). */
 export const BREAKPOINT_LG = 1024;

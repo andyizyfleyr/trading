@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
 import { CandleChart, type ChartToast } from "@/components/CandleChart";
-import { TradeForm, type SignalHint } from "@/components/TradeForm";
+import { TradeForm, type ReplayOrder, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
 import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
@@ -55,6 +55,7 @@ export default function TraderPage() {
   const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
   const [signal, setSignal] = useState<SignalHint | null>(null);
   const [toast, setToast] = useState<ChartToast | null>(null);
+  const [replay, setReplay] = useState<ReplayOrder | null>(null);
 
   const { price, tickCandle, online } = useLiveMarket(symbol, DEFAULT_INTERVAL);
   const settlingRef = useRef(false);
@@ -280,6 +281,7 @@ export default function TraderPage() {
               initialDuration={signalDuration}
               signal={signal}
               onBalance={setBalance}
+              replay={replay}
             />
           </div>
 
@@ -383,11 +385,27 @@ export default function TraderPage() {
         </div>
       </BottomSheet>
 
-      {/* Panneau : résultat, un à la fois */}
+      {/* Panneau : résultat, un à la fois (maquette : solde + Rejouer) */}
       <BottomSheet
         open={results.length > 0}
         onClose={() => setResults((prev) => prev.slice(1))}
         title="Résultat"
+        header={
+          <div className={ENCOURS.head}>
+            <h2 className={ENCOURS.title}>Résultat</h2>
+            <p className={ENCOURS.sum}>
+              Solde <b className={ENCOURS.sumB}>{fmtMoney(user?.balance ?? 0)}</b>
+            </p>
+            <button
+              type="button"
+              onClick={() => setResults((prev) => prev.slice(1))}
+              aria-label="Fermer"
+              className={ENCOURS.close}
+            >
+              ✕
+            </button>
+          </div>
+        }
       >
         <div className={SHEET.list2}>
           {results.length > 1 && (
@@ -397,7 +415,21 @@ export default function TraderPage() {
             </p>
           )}
           {results[0] && (
-            <ResultCard trade={results[0]} onReplay={() => setResults((prev) => prev.slice(1))} />
+            <ResultCard
+              trade={results[0]}
+              onReplay={() => {
+                const t = results[0];
+                setResults((prev) => prev.slice(1));
+                if (t.symbol !== symbol) pickSymbol(t.symbol);
+                setReplay({
+                  direction: t.direction,
+                  amount: t.amount,
+                  durationSec: t.durationSec,
+                  symbol: t.symbol,
+                  nonce: Date.now(),
+                });
+              }}
+            />
           )}
         </div>
       </BottomSheet>

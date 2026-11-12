@@ -2,9 +2,8 @@
 
 import type { ApiTrade } from "@/lib/types";
 import { fmtGain, fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
-import { RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
-import { BTN, CARD, ENCOURS, RESULT, RING, TRADE } from "@/lib/design";
-import { Btn } from "./ui";
+import { RULES, durationLabel, symbolDisplay } from "@/lib/symbols";
+import { ENCOURS, RESULT, RING } from "@/lib/design";
 import { CountdownRing } from "./CountdownRing";
 
 /* ---------- Prédiction en cours (compacte, 2 lignes + trait vert/rouge) ---------- */
@@ -64,61 +63,55 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
 
 export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () => void }) {
   const isUp = trade.direction === "UP";
-  const net =
-    trade.result === "WIN"
-      ? (trade.payout ?? 0) - trade.amount
-      : trade.result === "LOSS"
-        ? -trade.amount
-        : 0;
+  const won = trade.result === "WIN";
+  const lost = trade.result === "LOSS";
+  const net = won ? (trade.payout ?? 0) - trade.amount : 0;
+  const move = trade.closePrice == null ? null : trade.closePrice - trade.openPrice;
 
-  const tone =
-    trade.result === "WIN"
-      ? { text: RESULT.winText, bg: RESULT.winBg, arrow: "▲" }
-      : trade.result === "LOSS"
-        ? { text: RESULT.lossText, bg: RESULT.lossBg, arrow: "▼" }
-        : { text: RESULT.tieText, bg: RESULT.tieBg, arrow: "" };
-
-  const title =
-    trade.result === "WIN"
-      ? "Bonne prédiction !"
-      : trade.result === "LOSS"
-        ? "Prédiction ratée"
-        : "Égalité : mise rendue";
+  const title = won ? "Prédiction gagnée" : lost ? "Prédiction ratée" : "Égalité : mise rendue";
+  const amount = won ? `+${fmtGain(net)}` : lost ? `−${fmtMoney(trade.amount)}` : fmtSigned(0);
+  const moveArrow = move == null || move === 0 ? "" : move > 0 ? "▲ " : "▼ ";
 
   return (
-    <div className={`${CARD.result} ${tone.bg}`}>
-      <div className={RESULT.col}>
-        <p className={TRADE.resultTitle}>{title}</p>
-        <p className={`${TRADE.resultNet} ${tone.text}`}>
-          {tone.arrow ? `${tone.arrow} ` : ""}
-          {fmtSigned(net)}
+    <>
+      <div className={`${RESULT.box} ${won ? RESULT.boxWin : lost ? RESULT.boxLoss : RESULT.boxTie}`}>
+        <div className={RESULT.top}>
+          <span
+            className={`${RESULT.icon} ${won ? RESULT.iconWin : lost ? RESULT.iconLoss : RESULT.iconTie}`}
+            aria-hidden="true"
+          >
+            {won ? "✓" : lost ? "✕" : "="}
+          </span>
+          <p className={RESULT.title}>
+            {title}
+            <small className={RESULT.sub}>
+              {isUp ? "ACHAT ▲" : "VENTE ▼"} · {symbolDisplay(trade.symbol)} ·{" "}
+              {durationLabel(trade.durationSec)}
+            </small>
+          </p>
+          <p className={`${RESULT.amt} ${won ? RESULT.amtWin : lost ? RESULT.amtLoss : RESULT.amtTie}`}>
+            {amount}
+          </p>
+        </div>
+        <p className={RESULT.move}>
+          <span>
+            Départ <b className={RESULT.moveB}>{fmtPrice(trade.openPrice)}</b>
+          </span>
+          <span aria-hidden="true">→</span>
+          <span>
+            Arrivée{" "}
+            <b className={RESULT.moveB}>
+              {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
+            </b>
+          </span>
+          <span className={RESULT.moveFar}>
+            {move == null ? "…" : `${moveArrow}${fmtPrice(Math.abs(move))}`}
+          </span>
         </p>
-        <p className={TRADE.resultLine}>
-          {trade.result === "WIN" && (
-            <span className={TRADE.resultWin}>
-              {fmtMoney(net)} gagnés{" "}
-              <span className={TRADE.resultMuted}>
-                (mise + {Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %)
-              </span>
-            </span>
-          )}
-          {trade.result === "LOSS" && (
-            <span className={TRADE.resultWin}>-{fmtMoney(trade.amount)}</span>
-          )}
-          {trade.result === "TIE" && (
-            <span className={TRADE.resultWin}>{fmtMoney(trade.amount)} rendus</span>
-          )}
-        </p>
-        <p className={TRADE.resultMeta}>
-          {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)}
-          {isOtc(trade.symbol) ? " · JEU" : ""} · {durationLabel(trade.durationSec)}
-          <br />
-          {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
-        </p>
-        <Btn onClick={onReplay} className={`${BTN.block} ${RESULT.btn}`} variant="primary">
-          Rejouer
-        </Btn>
       </div>
-    </div>
+      <button type="button" onClick={onReplay} className={RESULT.again}>
+        Rejouer · {fmtMoney(trade.amount)} {isUp ? "▲" : "▼"}
+      </button>
+    </>
   );
 }

@@ -77,6 +77,23 @@ export function fmtRemainShort(ms: number): string {
   return `${s}s`;
 }
 
+/** Étiquette de jour : « Aujourd'hui », « Hier » ou « 12 nov. » (groupes d'historique). */
+export function fmtDay(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    const diff = Math.round((midnight.getTime() - day.getTime()) / 86400000);
+    if (diff <= 0) return "Aujourd'hui";
+    if (diff === 1) return "Hier";
+    return d.toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
 /** Heure locale avec la seconde exacte : « 14:32:00 ». */
 export function fmtSlot(slotSec: number): string {
   const d = new Date(slotSec * 1000);
