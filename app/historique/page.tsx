@@ -193,10 +193,10 @@ export default function HistoriquePage() {
           <select
             value={asset}
             onChange={(e) => setAsset(e.target.value)}
-            aria-label="Filtrer par actif"
+            aria-label="Filtrer par jeu"
             className="h-10 flex-1 rounded-xl border border-ligne bg-carte px-2 text-base font-bold outline-none focus:border-action lg:max-w-xs"
           >
-            <option value="all">Tous les actifs</option>
+            <option value="all">Tous les jeux</option>
             {SYMBOLS.map((s) => (
               <option key={s.id} value={s.id}>
                 {symbolDisplay(s.id)}

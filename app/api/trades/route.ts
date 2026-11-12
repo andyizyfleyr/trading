@@ -48,10 +48,10 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/trades — Ouvrir une prédiction (protégé).
- * Corps : { "symbol": "BTCUSDT", "direction": "UP"|"DOWN",
+ * Corps : { "symbol": "EURUSDOTC", "direction": "UP"|"DOWN",
  *           "amount": 100, "durationSec": 3|10|30|60|300 }
  * Le client n'envoie jamais ni prix ni résultat : le prix d'ouverture
- * est le prix Binance lu côté serveur, la mise est retirée du solde.
+ * est le prix du jeu rejoué côté serveur, la mise est retirée du solde.
  */
 export async function POST(req: NextRequest) {
   const userId = await requireUserId(req);
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!isSymbol(body.symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un actif proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
   }
   if (body.direction !== "UP" && body.direction !== "DOWN") {
     return fail("DIRECTION_INVALIDE", "Choisissez ACHAT (ça monte) ou VENTE (ça descend).", 400);

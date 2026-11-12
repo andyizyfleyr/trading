@@ -6,8 +6,8 @@ import { Btn } from "./ui";
 const STEPS = [
   {
     id: "guide-symbol",
-    title: "1. Choisis un actif",
-    text: "Touche « BTC/USDT » pour ouvrir la liste : cryptos, actions et jeux casino (Lucky 7, Jackpot, Turbo — 100 % hasard, badge JEU).",
+    title: "1. Choisis un jeu",
+    text: "Touche « Lucky 7 » pour ouvrir la liste des 3 jeux : Lucky 7, Jackpot et Turbo (badge JEU).",
   },
   {
     id: "guide-chart",

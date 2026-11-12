@@ -1,8 +1,8 @@
 # TradeFacile — Jeu éducatif de prédiction de prix
 
 Application web **mobile first** (Next.js App Router + TypeScript + Tailwind) : le joueur
-prédit si le prix d'un actif **monte** (ACHAT ▲) ou **descend** (VENTE ▼) pendant une durée
-donnée, avec un graphique en bougies et de **vrais prix Binance en direct**.
+prédit si le prix d'un jeu **monte** (ACHAT ▲) ou **descend** (VENTE ▼) pendant une durée
+donnée, avec un graphique en bougies et les **prix des jeux en direct**.
 
 - PWA installable (manifest + service worker + icônes)
 - Base Neon (PostgreSQL) via Drizzle ORM
@@ -62,7 +62,7 @@ Ouvrez http://localhost:3000 — créez un compte, vous commencez avec **10 000*
 | Solde de départ | 10 000 |
 | Mise minimum / maximum | 10 / tout le solde |
 | Durées | 3 s, 10 s, 30 s, 1 min, 5 min |
-| Prix d'ouverture / clôture | Prix Binance lu par le serveur |
+| Prix d'ouverture / clôture | Prix du jeu rejoué par le serveur à la seconde pile |
 | Bonne prédiction | Mise + 85 % de gain (mise × 1,85) |
 | Mauvaise prédiction | Rien rendu |
 | Égalité | Mise rendue |
@@ -97,11 +97,11 @@ Format unique :
 | POST | `/api/me/deposit` | `{amount}` 100–50 000, ajout au solde |
 | POST | `/api/me/withdraw` | `{amount}` ≥ 100, retrait du solde |
 | GET | `/api/me/stats` | Victoires, défaites, taux de réussite, gains nets, rang |
-| GET | `/api/candles?symbol=BTCUSDT&interval=1m&limit=200` | Bougies `{time, open, high, low, close, volume}` |
-| GET | `/api/price?symbol=BTCUSDT` | Prix actuel (secours si WebSocket indisponible) |
+| GET | `/api/candles?symbol=EURUSDOTC&interval=1m&limit=200` | Bougies `{time, open, high, low, close, volume}` |
+| GET | `/api/price?symbol=EURUSDOTC` | Prix actuel (sondage régulier) |
 | POST | `/api/trades` | `{symbol, direction: UP\|DOWN, amount, durationSec: 3\|10\|30\|60\|300}` → `{trade, balance}` (201) |
 | GET | `/api/trades?status=open\|scheduled\|settled\|all&limit=50` | Mes prédictions (programmées = ouverture à venir) |
-| POST | `/api/scheduled` | Programmer une mise casino `{symbol, direction, amount, durationSec, slot}` (heure pile, ≤24h) → `{scheduled, balance}` (201) |
+| POST | `/api/scheduled` | Programmer une mise `{symbol, direction, amount, durationSec, slot}` (heure pile, ≤24h) → `{scheduled, balance}` (201) |
 | GET | `/api/scheduled` | Mes mises programmées |
 | DELETE | `/api/scheduled/[id]` | Annuler une mise programmée (remboursée) → `{balance}` |
 | POST | `/api/trades/settle` | Clôture ce qui est échu (`{ids?}` optionnel) → `{settled, pending, balance}` |
@@ -109,15 +109,15 @@ Format unique :
 | GET | `/api/lessons` | Leçons + progression |
 | POST | `/api/lessons/progress` | `{lessonId, done}` |
 
-Actifs : cryptos `BTCUSDT, ...` (Binance, 10 paires) + actions `AAPL, TSLA, NVDA` (Yahoo Finance) + jeux casino `EURUSDOTC` (Lucky 7), `GBPUSDOTC` (Jackpot), `USDJPYOTC` (Turbo) : hasard pur, moteur déterministe.
+Jeux : `EURUSDOTC` (Lucky 7), `GBPUSDOTC` (Jackpot), `USDJPYOTC` (Turbo) : hasard pur, moteur déterministe.
 Intervalles : `1m, 5m, 15m`.
 
 ### Objet `trade`
 
 ```jsonc
 {
-  "id": 1, "symbol": "BTCUSDT", "direction": "UP", "amount": 100,
-  "openPrice": 67123.4, "closePrice": null, "durationSec": 60,
+  "id": 1, "symbol": "EURUSDOTC", "direction": "UP", "amount": 100,
+  "openPrice": 7.812, "closePrice": null, "durationSec": 60,
   "status": "OPEN", "result": null, "payout": null,
   "openedAt": "2026-…", "closesAt": "2026-…"
 }
@@ -135,8 +135,8 @@ app/
   connexion/ inscription/ bienvenue/   Auth + onboarding (3 écrans)
   api/                Routes API JSON (voir tableau ci-dessus)
 components/           PriceChart, TradeForm, TradeCards, BottomNav…
-hooks/               useLiveMarket (WebSocket Binance + secours), useOnline
-lib/                 db, schema, auth (JWT/bcrypt), binance, api client…
+hooks/               useLiveMarket (sondage /api/price), useOnline
+lib/                 db, schema, auth (JWT/bcrypt), otc (prix des jeux), api client…
 public/              manifest PWA, service worker, icônes
 drizzle/0001_init.sql Schéma SQL de référence
 ```
@@ -154,8 +154,7 @@ drizzle/0001_init.sql Schéma SQL de référence
 
 - **Mobile first 360 px** : barre du bas (Trader, Historique, Classement, Cours),
   profil via l'avatar, boutons ≥ 48 px, chiffres tabulaires, français simple.
-- **Temps réel** : WebSocket Binance sur le graphique, avec secours automatique
-  par sondage de `/api/price` si le WebSocket est bloqué.
+- **Temps réel** : prix des jeux actualisé par sondage régulier de `/api/price`.
 - **Hors ligne** : bannière « Reconnexion… », prédictions en cours conservées
   (heures de fin serveur) et clôturées au retour de la connexion.
 - **Éthique** : pas de pression artificielle, pas de confettis, pas de séries

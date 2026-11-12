@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { apiGetPrice } from "@/lib/api";
-import { isOtc, isStock } from "@/lib/symbols";
+import { isOtc } from "@/lib/symbols";
 import { useOnline } from "./useOnline";
 import type { ApiCandle } from "@/lib/types";
 
 /**
- * Prix en direct : WebSocket Binance (bougie 1m/5m/15m en formation),
- * avec secours par sondage de /api/price si le WebSocket échoue
- * (réseaux qui bloquent Binance, coupures, etc.).
+ * Prix des jeux en direct : sondage de /api/price toutes les 4 secondes.
+ * (Le WebSocket ci-dessous ne sert plus : aucun jeu n'a de flux temps réel.)
  */
 export function useLiveMarket(symbol: string, interval: string) {
   const [price, setPrice] = useState<number | null>(null);
@@ -60,8 +59,8 @@ export function useLiveMarket(symbol: string, interval: string) {
       }
     };
 
-    // Les actions et les jeux casino n'ont pas de flux Binance : sondage de l'API uniquement.
-    if (isStock(symbol) || isOtc(symbol)) {
+    // Les jeux n'ont pas de flux temps réel : sondage de l'API uniquement.
+    if (isOtc(symbol)) {
       startPoll();
       return () => {
         stopped = true;

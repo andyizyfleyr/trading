@@ -134,7 +134,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     const sync = async () => {
       const t0 = Date.now();
       try {
-        const res = await fetch("/api/price?symbol=BTCUSDT", { cache: "no-store" });
+        const res = await fetch("/api/price?symbol=EURUSDOTC", { cache: "no-store" });
         const json = (await res.json()) as { data?: { time?: unknown } };
         const serverTime = Number(json?.data?.time);
         if (!stopped && Number.isFinite(serverTime)) {

@@ -121,31 +121,14 @@ export const LESSONS: ApiLesson[] = [
     takeaway: "Ici, on joue pour apprendre. Le score ne mesure pas votre valeur.",
   },
   {
-    id: "actions",
-    title: "Les actions : la Bourse dort la nuit",
-    summary: "Apple, Tesla, NVIDIA : pareil que les cryptos, sauf les horaires.",
-    minutes: 2,
-    blocks: [
-      {
-        heading: "La Bourse ouvre et ferme",
-        text: "Les cryptos bougent jour et nuit, mais la Bourse américaine n'ouvre qu'en semaine, l'après-midi heure d'Europe. Le soir et le week-end, le prix affiché est le dernier cours réel : la clôture.",
-      },
-      {
-        heading: "Que se passe-t-il si je joue Bourse fermée ?",
-        text: "Le prix ne bouge plus, donc le prix de fin est souvent égal au prix de départ : c'est une égalité et votre mise vous est rendue. Pour vibrer, jouez les actions quand la Bourse est ouverte.",
-      },
-    ],
-    takeaway: "Bourse ouverte = prix qui bouge. Bourse fermée = égalité probable, mise rendue.",
-  },
-  {
     id: "otc",
     title: "Les jeux casino : 100 % hasard",
-    summary: "Lucky 7, Jackpot, Turbo : pour s'amuser, pas pour apprendre.",
+    summary: "Lucky 7, Jackpot, Turbo : 100 % hasard, pour s'amuser.",
     minutes: 2,
     blocks: [
       {
         heading: "Pas des vrais marchés",
-        text: "Lucky 7, Jackpot et Turbo sont des jeux maison, reconnaissables à leur badge JEU. Leurs prix sont inventés par l'application et n'ont aucun lien avec la Bourse ou les cryptos. Ils bougent jour et nuit, même le week-end.",
+        text: "Lucky 7, Jackpot et Turbo sont des jeux maison, reconnaissables à leur badge JEU. Leurs prix sont inventés par l'application. Ils bougent jour et nuit, même le week-end.",
       },
       {
         heading: "Trois tempéraments",
