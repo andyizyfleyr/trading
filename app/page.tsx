@@ -27,7 +27,7 @@ import {
   VIBRATE,
 } from "@/lib/config";
 import { ENCOURS, SHEET, STACK, TRADER } from "@/lib/design";
-import { fmtMoney, fmtPrice, fmtRemainShort } from "@/lib/format";
+import { fmtMoney, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
@@ -233,16 +233,8 @@ export default function TraderPage() {
               aria-hidden="true"
             />
             {symbolDisplay(current.id)}
-            {current.kind === "otc" && (
-              <span className={TRADER.tag}>
-                JEU
-              </span>
-            )}
           </span>
           <span className={TRADER.assetRight}>
-            <span className={TRADER.assetPrice}>
-              {price != null ? fmtPrice(price) : "…"}
-            </span>
             <ChevronDownIcon className={TRADER.chevron} />
           </span>
         </button>
