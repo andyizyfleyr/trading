@@ -114,6 +114,7 @@ export const SHELL = {
   loadBox: "mx-auto flex max-w-[520px] flex-col lg:max-w-3xl gap-3 p-4",
   loadBig: "skeleton h-40 rounded-xl",
   loadSmall: "skeleton h-24 rounded-xl",
+  offline: "shrink-0 bg-vente px-3 py-1.5 text-center text-xs font-bold text-white",
 } as const;
 
 export const HEADER = {
@@ -132,7 +133,7 @@ export const HEADER = {
 
 export const NAV = {
   bar: "safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ligne bg-carte/95 backdrop-blur lg:hidden",
-  grid: "mx-auto grid max-w-[520px] grid-cols-2",
+  grid: "mx-auto grid max-w-[520px] grid-cols-3",
   tab: "relative flex min-h-[46px] flex-col items-center justify-center gap-0.5 text-[10px] font-bold uppercase tracking-wide transition-colors duration-200",
   on: "text-texte",
   off: "text-doux",
@@ -161,7 +162,7 @@ export const TRADER = {
   waitNote: "mt-1 text-center text-[11px] text-doux",
   soonBox: "rounded-xl bg-fond px-2.5 py-2",
   soonTitle: "text-sm font-extrabold",
-  soonList: "mt-1 flex flex-col gap-1",
+  soonList: "mt-1 flex max-h-44 flex-col gap-1 overflow-y-auto pr-0.5",
   soonRow: "flex items-center justify-between gap-2 text-[13px]",
   soonMain: "min-w-0 truncate font-bold tabular-nums",
   soonSub: "font-medium text-doux",
@@ -215,6 +216,7 @@ export const ORDER = {
   debLabel: "shrink-0 text-[13px] text-doux",
   debDots: "min-w-0 flex-1 border-b-2 border-dotted border-doux/60",
   debVal: "shrink-0 text-[13px] font-bold tabular-nums text-hausse",
+  netNote: "mt-0.5 text-right text-[11px] leading-tight text-doux",
   goRow: "grid grid-cols-2 gap-2",
   go: "flex h-[52px] items-center justify-between rounded-[10px] px-4 text-[15px] font-extrabold text-white transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   buy: "bg-hausse",
@@ -421,6 +423,7 @@ export const HISTORY = {
   hrightLoss: "text-[#E55D4F]",
   hrightRun: "text-action",
   empty: "px-2 py-[14px] text-center text-xs text-doux",
+  capped: "text-center text-[11px] text-doux",
   skel: "h-16",
 } as const;
 

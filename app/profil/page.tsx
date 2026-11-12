@@ -139,6 +139,9 @@ export default function ProfilPage() {
           <RefreshIcon className={ICON.md} />
           {confirmReset ? "Toucher encore pour confirmer" : `Recommencer à ${fmtMoney(RULES.START_BALANCE)}`}
         </button>
+        <p className={PROFILE.sheetNote}>
+          Seul le solde repart à {fmtMoney(RULES.START_BALANCE)} : ton historique est conservé.
+        </p>
 
         {/* Préférences */}
         <button

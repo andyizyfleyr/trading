@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { TIME_SLOT_COUNT, TIME_SLOT_MARGIN_SEC, TIME_SLOT_STEP_MIN } from "@/lib/config";
+import { TIME_SLOT_BOOK_MARGIN_MS, TIME_SLOT_COUNT, TIME_SLOT_STEP_MIN } from "@/lib/config";
 import { BTN, ORDER, STACK } from "@/lib/design";
 import { fmtHM } from "@/lib/format";
 import { Btn } from "./ui";
@@ -32,20 +32,22 @@ function isNextDay(slot: number, fromMs: number): boolean {
 /**
  * Liste des prochaines heures : on touche une heure, on valide.
  * `value` = « HH:MM » ou « » (vide = rien choisi).
+ * `nowMs` = heure serveur (même heure que la grille TEMPS, marge 8 s aussi).
  */
 export function TimePickerPanel({
   value,
+  nowMs,
   onChange,
   onConfirm,
 }: {
   value: string;
+  nowMs: number;
   onChange: (v: string) => void;
   onConfirm: () => void;
 }) {
   const { list, selected } = useMemo(() => {
-    const nowMs = Date.now();
     const step = TIME_SLOT_STEP_MIN * 60;
-    const first = Math.ceil((nowMs + TIME_SLOT_MARGIN_SEC * 1000) / (step * 1000)) * step;
+    const first = Math.ceil((nowMs + TIME_SLOT_BOOK_MARGIN_MS) / (step * 1000)) * step;
     const slots = Array.from({ length: TIME_SLOT_COUNT }, (_, i) => first + i * step);
     // Choix précédent hors liste (panneau rouvert) : on le garde, trié avec les autres.
     const preset = parseHM(value);
@@ -57,7 +59,7 @@ export function TimePickerPanel({
     return { list: slots, selected: sel };
   }, [value]);
 
-  const selectedTomorrow = selected != null && isNextDay(selected, Date.now());
+  const selectedTomorrow = selected != null && isNextDay(selected, nowMs);
 
   // Retoucher l'heure choisie = la désélectionner.
   const toggle = (slot: number) => onChange(slot === selected ? "" : fmtHM(slot));

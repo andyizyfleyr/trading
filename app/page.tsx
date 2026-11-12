@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
 import { CandleChart, type ChartToast } from "@/components/CandleChart";
@@ -11,6 +11,8 @@ import { CheckIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
+import { useLivePrices } from "@/hooks/useLivePrices";
+import { useServerOffset } from "@/hooks/useServerOffset";
 import { apiCancelScheduled, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import {
   DEFAULT_INTERVAL,
@@ -30,7 +32,7 @@ import {
 } from "@/lib/config";
 import { ENCOURS, SHEET, TRADER } from "@/lib/design";
 import { fmtMoney, fmtRemainShort } from "@/lib/format";
-import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
+import { SYMBOLS, isDuration, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -108,17 +110,22 @@ export default function TraderPage() {
     return () => clearInterval(t);
   }, []);
 
+  // Même heure serveur partout (pas l'horloge du téléphone, parfois fausse).
+  const offsetMs = useServerOffset();
+  const serverNow = now + (offsetMs ?? 0);
+
   // Signal raté : on l'efface après un délai (sinon « Trop tard » reste affiché).
+  // Heure serveur partagée : effacé au même moment sur tous les écrans.
   useEffect(() => {
     if (!signal) return;
-    const wait = signal.atMs + SIGNAL_LATE_MS - Date.now();
+    const wait = signal.atMs + SIGNAL_LATE_MS - (Date.now() + (offsetMs ?? 0));
     if (wait <= 0) {
       setSignal(null);
       return;
     }
     const t = setTimeout(() => setSignal(null), wait);
     return () => clearTimeout(t);
-  }, [signal]);
+  }, [signal, offsetMs]);
 
   const pickSymbol = (id: string) => {
     setSymbol(id);
@@ -263,13 +270,32 @@ export default function TraderPage() {
   );
 
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
-  // Programmées encore à venir (l'horloge locale les fait basculer vers « En cours »).
-  const scheduledUp = scheduled.filter((t) => new Date(t.openedAt).getTime() > now);
+  // Programmées encore à venir (l'horloge serveur les fait basculer vers « En cours »).
+  const scheduledUp = scheduled.filter((t) => new Date(t.openedAt).getTime() > serverNow);
   const nearestMs =
     sortedOpen.length === 0
       ? 0
-      : Math.max(0, +new Date(sortedOpen[0].closesAt) - now);
+      : Math.max(0, +new Date(sortedOpen[0].closesAt) - serverNow);
+  // Prochain départ programmé (pour l'en-tête « En cours »).
+  const nextSchedMs =
+    scheduledUp.length === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(...scheduledUp.map((t) => new Date(t.openedAt).getTime())) - serverNow
+        );
   const totalStaked = sortedOpen.reduce((s, t) => s + t.amount, 0);
+  // Mises programmées : promises au départ, comptées à part.
+  const scheduledStaked = scheduledUp.reduce((s, t) => s + t.amount, 0);
+  // Prix des autres jeux (trades ouverts ailleurs que sur le jeu affiché).
+  const otherSymbols = useMemo(
+    () => [...new Set(sortedOpen.map((t) => t.symbol))].filter((s) => s !== symbol),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openTrades, symbol]
+  );
+  const otherPrices = useLivePrices(otherSymbols);
+  const priceOf = (t: ApiTrade) =>
+    t.symbol === symbol ? price : (otherPrices[t.symbol] ?? null);
   const isDesktop = useIsDesktop();
   // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
   // Sur desktop, « En cours » est affiché dans la colonne de droite, pas en panneau.
@@ -286,7 +312,7 @@ export default function TraderPage() {
             symbol={symbol}
             interval={DEFAULT_INTERVAL}
             tickCandle={tickCandle}
-            livePrice={isOtc(symbol) ? price : null}
+            livePrice={price}
             toast={toast}
             endsInMs={sortedOpen.length > 0 ? nearestMs : null}
           />
@@ -329,24 +355,32 @@ export default function TraderPage() {
           {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
             <div className={TRADER.onlyDesktop}>
               <div className={TRADER.openPanel}>
-                {sortedOpen.length > 0 && (
+                {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
                   <>
                     <div className={TRADER.openHead}>
                       <p className={TRADER.openTitle}>
-                        En cours ({sortedOpen.length})
+                        {sortedOpen.length > 0
+                          ? `En cours (${sortedOpen.length})`
+                          : `Programmé(es) (${scheduledUp.length})`}
                       </p>
                       <p className={TRADER.openSoon}>
-                        Fin dans {fmtRemainShort(nearestMs)}
+                        {sortedOpen.length > 0
+                          ? `Fin dans ${fmtRemainShort(nearestMs)}`
+                          : `Départ dans ${fmtRemainShort(nextSchedMs)}`}
                       </p>
                     </div>
                     <p className={TRADER.openStaked}>
-                      Mises {fmtMoney(totalStaked)}
+                      {sortedOpen.length > 0 && <>Mises {fmtMoney(totalStaked)}</>}
+                      {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
+                      {scheduledUp.length > 0 && (
+                        <>Programmé(es) {fmtMoney(scheduledStaked)}</>
+                      )}
                     </p>
                     {sortedOpen.map((trade) => (
                       <ActiveTradeCard
                         key={trade.id}
                         trade={trade}
-                        price={trade.symbol === symbol ? price : null}
+                        price={priceOf(trade)}
                       />
                     ))}
                   </>
@@ -402,13 +436,34 @@ export default function TraderPage() {
         }
         header={
           <div className={ENCOURS.head}>
-            <h2 className={ENCOURS.title}>En cours</h2>
-            {sortedOpen.length > 0 && (
+            <h2 className={ENCOURS.title}>
+              {sortedOpen.length > 0 ? "En cours" : "Programmé(es)"}
+            </h2>
+            {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
               <>
-                <span className={ENCOURS.badge}>{sortedOpen.length}</span>
+                <span className={ENCOURS.badge}>
+                  {sortedOpen.length > 0 ? sortedOpen.length : scheduledUp.length}
+                </span>
                 <p className={ENCOURS.sum}>
-                  Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
-                  <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
+                  {sortedOpen.length > 0 && (
+                    <>
+                      Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
+                      <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
+                    </>
+                  )}
+                  {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
+                  {scheduledUp.length > 0 && (
+                    <>
+                      Programmé(es){" "}
+                      <b className={ENCOURS.sumB}>{fmtMoney(scheduledStaked)}</b>
+                      {sortedOpen.length === 0 && (
+                        <>
+                          {" "}· Départ dans{" "}
+                          <b className={ENCOURS.sumB}>{fmtRemainShort(nextSchedMs)}</b>
+                        </>
+                      )}
+                    </>
+                  )}
                 </p>
               </>
             )}
@@ -428,7 +483,7 @@ export default function TraderPage() {
             <ActiveTradeCard
               key={trade.id}
               trade={trade}
-              price={trade.symbol === symbol ? price : null}
+              price={priceOf(trade)}
             />
           ))}
           <ScheduledTrades trades={scheduledUp} onCancel={cancelScheduled} />

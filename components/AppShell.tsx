@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useOnline } from "@/hooks/useOnline";
 import { apiSettle } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
 import { CLOCK_SYNC_MS, NEXT_PARAM, ROUTES } from "@/lib/config";
@@ -134,12 +135,28 @@ function BalanceSync() {
   return null;
 }
 
+/** Bandeau « Hors ligne » sur toutes les pages (sinon les boutons semblent morts). */
+function OfflineBanner() {
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <p role="alert" className={SHELL.offline}>
+      Hors ligne : reconnecte-toi, tes actions sont en pause.
+    </p>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const bare = CHROMELESS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (bare) {
-    return <div className={SHELL.bare}>{children}</div>;
+    return (
+      <div className={SHELL.bare}>
+        <OfflineBanner />
+        {children}
+      </div>
+    );
   }
 
   return (
@@ -147,6 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <BalanceSync />
       <Sidebar />
       <Header />
+      <OfflineBanner />
       <main className={SHELL.main}>{children}</main>
       <BottomNav />
     </div>

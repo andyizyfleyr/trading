@@ -10,10 +10,12 @@ import { AUTH, FORM, TRADER } from "@/lib/design";
 import { Btn, Field } from "@/components/ui";
 
 function ConnexionForm() {
-  const { login, user, loading } = useAuth();
+  const { login, user, loading, sessionExpired } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get(NEXT_PARAM) || ROUTES.trader;
+  // Session expirée (30 jours) : on le dit au lieu d'expulser en silence.
+  const expired = sessionExpired || searchParams.get("expired") === "1";
 
   // Déjà connecté (session revalidée après une coupure) : on repart.
   useEffect(() => {
@@ -50,7 +52,11 @@ function ConnexionForm() {
       </div>
 
       <h1 className={AUTH.title}>Bon retour !</h1>
-      <p className={AUTH.sub}>Connecte-toi pour continuer à jouer.</p>
+      <p className={AUTH.sub}>
+        {expired
+          ? "Ta session a expiré après 30 jours : reconnecte-toi pour continuer."
+          : "Connecte-toi pour continuer à jouer."}
+      </p>
 
       <form onSubmit={submit} className={AUTH.form}>
         <Field label="E-mail">
@@ -91,6 +97,11 @@ function ConnexionForm() {
         Pas encore de compte ?{" "}
         <Link href={ROUTES.signup} className={AUTH.link}>
           Créer un compte
+        </Link>
+      </p>
+      <p className={AUTH.foot}>
+        <Link href={ROUTES.welcome} className={AUTH.link}>
+          Découvrir l&apos;app en 3 écrans
         </Link>
       </p>
     </div>

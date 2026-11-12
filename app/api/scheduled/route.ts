@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
       .select({ n: count() })
       .from(trades)
       .where(and(eq(trades.userId, userId), eq(trades.status, "OPEN"), gt(trades.openedAt, new Date())));
-    if ((programmed[0]?.n ?? 0) >= 50) {
+    if ((programmed[0]?.n ?? 0) >= RULES.MAX_SCHEDULED) {
       return fail(
         "LIMITE_ATTEINTE",
-        "50 mises programmées maximum. Annulez-en une pour continuer.",
+        `${RULES.MAX_SCHEDULED} mises programmées maximum. Annulez-en une pour continuer.`,
         429
       );
     }

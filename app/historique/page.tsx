@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
 import { ErrorState, Skeleton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
-import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
+import { useServerOffset } from "@/hooks/useServerOffset";
+import { apiMyStats, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_RETRY_MS, SETTLE_TICK_MS } from "@/lib/config";
 import { HISTORY, STACK } from "@/lib/design";
-import { fmtDay, fmtGain, fmtMoney, fmtPrice, fmtRemainShort, fmtTime } from "@/lib/format";
-import { RULES, SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
-import type { ApiTrade } from "@/lib/types";
+import { fmtDateTime, fmtDay, fmtGain, fmtGamePrice, fmtMoney, fmtRemainShort, fmtTime } from "@/lib/format";
+import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
+import type { ApiStats, ApiTrade } from "@/lib/types";
 
 type Filter = "all" | "open" | "settled";
 
@@ -45,8 +46,8 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
       <div className={HISTORY.hmid}>
         {symbolDisplay(trade.symbol)} <span className={HISTORY.hsub}>· {durationLabel(trade.durationSec)}</span>
         <p className={HISTORY.hmeta}>
-          Mise {fmtMoney(trade.amount)} · {fmtPrice(trade.openPrice)} →{" "}
-          {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
+          Mise {fmtMoney(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
+          {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
         </p>
       </div>
       <p
@@ -64,12 +65,16 @@ export default function HistoriquePage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [asset, setAsset] = useState<string>("all");
   const [trades, setTrades] = useState<ApiTrade[]>([]);
+  const [stats, setStats] = useState<ApiStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [exportLabel, setExportLabel] = useState("Exporter");
   const loadingRef = useRef(false);
   const exportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Même heure serveur partout (sinon « Fin dans » et clôtures décalées).
+  const offsetMs = useServerOffset();
+  const serverNow = now + (offsetMs ?? 0);
 
   const load = useCallback(async () => {
     if (loadingRef.current) return;
@@ -86,13 +91,20 @@ export default function HistoriquePage() {
       }
       const { trades: list } = await apiMyTrades("all", HISTORY_LIMIT);
       setTrades(list);
+      // Statistiques réelles (tous les trades, jamais tronquées).
+      try {
+        const { stats: full } = await apiMyStats(asset === "all" ? undefined : asset);
+        setStats(full);
+      } catch {
+        setStats(null); // secours : stats calculées sur les lignes affichées
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Historique indisponible.");
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [setBalance]);
+  }, [setBalance, asset]);
 
   useEffect(() => {
     load();
@@ -116,11 +128,11 @@ export default function HistoriquePage() {
     const due = trades.filter(
       (t) =>
         t.status === "OPEN" &&
-        new Date(t.closesAt).getTime() <= now &&
-        (retryRef.current.get(t.id) ?? 0) <= now
+        new Date(t.closesAt).getTime() <= serverNow &&
+        (retryRef.current.get(t.id) ?? 0) <= serverNow
     );
     if (due.length === 0) return;
-    due.forEach((t) => retryRef.current.set(t.id, now + SETTLE_RETRY_MS));
+    due.forEach((t) => retryRef.current.set(t.id, serverNow + SETTLE_RETRY_MS));
     let cancelled = false;
     (async () => {
       try {
@@ -133,7 +145,7 @@ export default function HistoriquePage() {
     return () => {
       cancelled = true;
     };
-  }, [now, trades, load]);
+  }, [serverNow, trades, load]);
 
   useEffect(() => {
     return () => {
@@ -149,13 +161,18 @@ export default function HistoriquePage() {
     )
     .sort((a, b) => +new Date(b.openedAt) - +new Date(a.openedAt));
 
-  // Statistiques sur les terminées (filtre jeu uniquement, maquette).
+  // Statistiques réelles (tous les trades) ; à défaut, calculées sur les lignes affichées.
   const finished = trades.filter((t) => t.status === "SETTLED" && (asset === "all" || t.symbol === asset));
-  const wins = finished.filter((t) => t.result === "WIN").length;
-  const net = finished.reduce(
-    (s, t) => s + (t.result === "WIN" ? t.amount * RULES.WIN_PAYOUT_RATIO : t.result === "LOSS" ? -t.amount : 0),
-    0
-  );
+  const localWins = finished.filter((t) => t.result === "WIN").length;
+  const wonAmount = finished
+    .filter((t) => t.result === "WIN")
+    .reduce((s, t) => s + ((t.payout ?? 0) - t.amount), 0);
+  const lostAmount = finished
+    .filter((t) => t.result === "LOSS")
+    .reduce((s, t) => s + ((t.payout ?? 0) - t.amount), 0);
+  const settledCount = stats?.settled ?? finished.length;
+  const winRate = stats ? stats.winRate : finished.length === 0 ? 0 : Math.round((localWins / finished.length) * 100);
+  const net = stats?.pnl ?? Math.round((wonAmount + lostAmount) * 100) / 100;
 
   // Exporte les terminées en CSV dans le presse-papiers (maquette).
   const exportCsv = async () => {
@@ -169,7 +186,7 @@ export default function HistoriquePage() {
         String(t.openPrice),
         t.closePrice != null ? String(t.closePrice) : "",
         t.result === "WIN" ? "gagne" : t.result === "LOSS" ? "perdu" : "nul",
-        fmtTime(t.openedAt),
+        fmtDateTime(t.openedAt),
       ].join(CSV.sep)
     );
     try {
@@ -211,13 +228,11 @@ export default function HistoriquePage() {
 
         <div className={HISTORY.stats}>
           <div className={HISTORY.stat}>
-            <b className={HISTORY.statNum}>{finished.length}</b>
+            <b className={HISTORY.statNum}>{settledCount}</b>
             <span className={HISTORY.statLabel}>Trades</span>
           </div>
           <div className={HISTORY.stat}>
-            <b className={HISTORY.statNum}>
-              {finished.length === 0 ? 0 : Math.round((wins / finished.length) * 100)} %
-            </b>
+            <b className={HISTORY.statNum}>{winRate} %</b>
             <span className={HISTORY.statLabel}>Réussite</span>
           </div>
           <div className={HISTORY.stat}>
@@ -274,10 +289,15 @@ export default function HistoriquePage() {
               <div key={g.day} className={HISTORY.grid}>
                 <p className={HISTORY.group}>{g.day}</p>
                 {g.rows.map((trade) => (
-                  <TradeRow key={trade.id} trade={trade} now={now} />
+                  <TradeRow key={trade.id} trade={trade} now={serverNow} />
                 ))}
               </div>
             ))}
+            {trades.length >= HISTORY_LIMIT && (
+              <p className={HISTORY.capped}>
+                Les {HISTORY_LIMIT} derniers affichés : les statistiques, elles, comptent tout.
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useServerOffset } from "@/hooks/useServerOffset";
 import { RING_TICK_MS, RING_URGENT_MS } from "@/lib/config";
 import { LAYOUT, RING, RINGTEXT } from "@/lib/design";
 import { fmtRemainShort } from "@/lib/format";
 
-/** Compte à rebours circulaire basé sur l'heure de fin serveur. */
+/**
+ * Compte à rebours circulaire basé sur l'heure de fin serveur.
+ * L'écart d'horloge est partagé avec le reste de l'app (même heure partout) :
+ * à la seconde près, il sonne quand le serveur clôturera.
+ */
 export function CountdownRing({
   closesAt,
   durationSec,
@@ -17,6 +22,7 @@ export function CountdownRing({
   size?: number;
   compact?: boolean;
 }) {
+  const offsetMs = useServerOffset();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -26,9 +32,11 @@ export function CountdownRing({
 
   const end = new Date(closesAt).getTime();
   const total = Math.max(1, durationSec * 1000);
-  const remaining = Math.max(0, end - now);
+  const remaining = Math.max(0, end - (now + (offsetMs ?? 0)));
   const frac = remaining / total;
-  const secs = Math.ceil(remaining / 1000);
+  // Plancher comme partout ailleurs (jamais plus de temps qu'il n'en reste),
+  // minimum 1 tant que ça tourne : pas de « 0 s » affiché.
+  const secs = remaining <= 0 ? 0 : Math.max(1, Math.floor(remaining / 1000));
   const urgent = remaining <= RING_URGENT_MS;
 
   const big = size >= RING.bigFrom;

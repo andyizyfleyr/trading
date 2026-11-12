@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiOpenTrade, apiScheduleTrade, apiServerTime, ApiError } from "@/lib/api";
+import { apiOpenTrade, apiScheduleTrade, ApiError } from "@/lib/api";
+import { useServerOffset } from "@/hooks/useServerOffset";
 import {
   BAD_TIME,
-  CLOCK_SYNC_MS,
   DEFAULT_BET,
   DEFAULT_DURATION_SEC,
   PENDING_TICK_MS,
   SHOT_DELAY_MS,
+  SIGNAL_PRESS_WINDOW_MS,
   SIGNAL_TICK_MS,
   STORE,
   TIME_SLOT_BOOK_MARGIN_MS,
@@ -72,7 +73,7 @@ export function ScheduledTrades({
   return (
     <div className={TRADER.soonBox}>
       <p className={TRADER.soonTitle}>
-        Programmé{trades.length > 1 ? "es" : ""} ({trades.length})
+        Programmé{trades.length > 1 ? "es" : ""} ({trades.length}/{RULES.MAX_SCHEDULED})
       </p>
       <ul className={TRADER.soonList}>
         {trades.map((t) => (
@@ -118,13 +119,13 @@ function parseAmount(raw: string): number | null {
 }
 
 /** « HH:MM » → prochaine occurrence (aujourd'hui, ou demain si l'heure est passée). */
-function slotFromTime(v: string): number | null {
+function slotFromTime(v: string, fromMs: number): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(v);
   if (!m) return null;
-  const day = new Date();
+  const day = new Date(fromMs);
   day.setHours(Number(m[1]), Number(m[2]), 0, 0);
   let slot = Math.floor(day.getTime() / 1000);
-  if (slot * 1000 <= Date.now()) slot += 24 * 3600; // heure passée → demain
+  if (slot * 1000 <= fromMs) slot += 24 * 3600; // heure passée → demain
   return slot;
 }
 
@@ -148,7 +149,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
   }
 }
 
-/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, HAUSSE/BAISSE. */
+/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
@@ -162,8 +163,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [durTab, setDurTab] = useState<"min" | "time">("min");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draftTime, setDraftTime] = useState("");
-  const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  // Écart téléphone ↔ serveur, partagé avec le reste de l'app : même heure partout.
+  const offsetMs = useServerOffset();
   const [tick, setTick] = useState(() => Date.now());
   const [hidden, setHidden] = useState(false);
   const firedRef = useRef(false);
@@ -190,28 +192,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     const t = setInterval(() => setSignalNow(Date.now()), SIGNAL_TICK_MS);
     return () => clearInterval(t);
   }, [signal]);
-
-  // Écart d'horloge avec le serveur (pour tirer à la seconde pile).
-  useEffect(() => {
-    let stopped = false;
-    const sync = async () => {
-      const t0 = Date.now();
-      try {
-        const serverTime = await apiServerTime();
-        if (!stopped && Number.isFinite(serverTime)) {
-          setOffsetMs(serverTime - (t0 + Date.now()) / 2);
-        }
-      } catch {
-        /* horloge locale en secours */
-      }
-    };
-    sync();
-    const t = setInterval(sync, CLOCK_SYNC_MS);
-    return () => {
-      stopped = true;
-      clearInterval(t);
-    };
-  }, []);
 
   // Horloge pendant l'attente d'une mise programmée.
   useEffect(() => {
@@ -265,6 +245,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const signalRemainMs = signal ? signal.atMs - (signalNow + (offsetMs ?? 0)) : 0;
   const signalLive = signal != null && signalRemainMs > 0;
   const signalLabel = signal?.direction === "DOWN" ? "BAISSE ▼" : "HAUSSE ▲";
+  // Dans les 3 dernières secondes, le bouton conseillé arme le tir :
+  // la mise part toute seule à la seconde pile (entrée exacte, verdict juste).
+  const signalArmed = signalLive && signalRemainMs <= SIGNAL_PRESS_WINDOW_MS;
 
   const serverNowMs = Date.now() + (offsetMs ?? 0);
   // Premier créneau à plus de 8 s : sans marge, la première case tombe
@@ -274,7 +257,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const timeSlots = Array.from({ length: Math.max(0, TIME_SLOT_COUNT - 2) }, (_, i) => firstSlot + i * 60);
 
   // Heure tapée : passée, trop proche (< 8 s) ou bonne.
-  const typedSlot = customTime === "" ? null : slotFromTime(customTime);
+  const typedSlot = customTime === "" ? null : slotFromTime(customTime, serverNowMs);
   const typedPassed = typedSlot != null && typedSlot * 1000 <= serverNowMs;
   const typedTooSoon =
     typedSlot != null &&
@@ -322,7 +305,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setQuand("now");
       return;
     }
-    const slot = slotFromTime(v);
+    const slot = slotFromTime(v, Date.now() + (offsetMs ?? 0));
     const ok =
       slot != null && slot * 1000 > Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS;
     setQuand(ok ? String(slot) : BAD_TIME);
@@ -352,9 +335,10 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
-  // Gain potentiel : ce que rend une bonne prédiction (mise + 85 %).
+  // Ce qu'on touche si ça gagne (mise + 85 %), et le vrai bénéfice (85 % seul).
   const payout =
     amount != null && amount > 0 ? Math.round(amount * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
+  const netWin = Math.round((payout - (amount ?? 0)) * 100) / 100;
 
   // Pas des boutons − / + : la mise minimum.
   const stepBet = (dir: 1 | -1) => {
@@ -401,12 +385,49 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         durationSec: ov?.durationSec ?? durationSec,
       });
       vibrate(VIBRATE.action);
+      pickNow(); // On repart sur « Maintenant » : pas de programmation surprise au prochain appui.
       onOpened(trade, newBalance);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Prédiction impossible pour le moment.");
     } finally {
       setPlacing(null);
     }
+  };
+
+  /**
+   * HAUSSE/BAISSE pendant un signal : le bouton conseillé, appuyé dans les
+   * 3 dernières secondes, arme la mise qui part toute seule à la seconde
+   * pile (même entrée que le signal : le verdict dit vrai). Appuyé trop
+   * tôt, on le dit au lieu de miser à un mauvais moment.
+   */
+  const press = async (direction: "UP" | "DOWN") => {
+    if (signalLive && signal && direction === signal.direction) {
+      if (!signalArmed) {
+        setError("Trop tôt : attends la fin du compte à rebours, le coup part à la seconde pile.");
+        return;
+      }
+      setError(null);
+      if (!online) {
+        setError("Hors ligne : reconnectez-vous pour jouer.");
+        return;
+      }
+      if (amount == null || amount <= 0) {
+        setError("Entrez un montant de mise.");
+        return;
+      }
+      if (amount < RULES.MIN_BET) {
+        setError(`La mise minimum est de ${RULES.MIN_BET}.`);
+        return;
+      }
+      if (amount > maxBet) {
+        setError("Solde insuffisant pour cette mise.");
+        return;
+      }
+      firedRef.current = false;
+      setPending({ direction, amount, durationSec, symbol, slot: Math.floor(signal.atMs / 1000) });
+      return;
+    }
+    await schedule(direction);
   };
 
   /**
@@ -564,7 +585,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           {/* Minuteur + Investissement */}
           <div className={ORDER.boxes}>
             <div id="guide-duration" className={ORDER.box}>
-              <span className={ORDER.boxLabel}>{effectiveSlot != null ? "Temps" : "Minuteur :"}</span>
+              <span className={ORDER.boxLabel}>{effectiveSlot != null ? "Temps" : "Minuteur"}</span>
               <button
                 type="button"
                 onClick={openDurSheet}
@@ -612,23 +633,38 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          {/* Gain potentiel : ce que rend une bonne prédiction */}
+          {/* Ce qu'on touche si ça gagne (mise + bénéfice), bénéfice seul en dessous */}
           <div className={ORDER.debRow}>
-            <span className={ORDER.debLabel}>Gain potentiel</span>
+            <span className={ORDER.debLabel}>Tu touches si tu gagnes</span>
             <span className={ORDER.debDots} aria-hidden="true" />
             <span className={ORDER.debVal}>{fmtMoney(payout)}</span>
           </div>
+          <p className={ORDER.netNote}>
+            Mise {fmtMoney(amount ?? 0)} rendue + {fmtMoney(netWin)} de bénéfice
+          </p>
+          <p className={ORDER.netNote}>
+            {RULES.MAX_TRADES_PER_MINUTE} coups par minute maximum
+          </p>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
           {signalLive && (
             <div role="status" className={TRADER.signalBox}>
               <p className={TRADER.signalText}>
-                Dans{" "}
-                <span className={TRADER.signalClock}>
-                  {fmtRemain(signalRemainMs)}
-                </span>
-                , appuie sur{" "}
-                <span className={TRADER.signalClock}>{signalLabel}</span>
+                {signalArmed ? (
+                  <>
+                    C&apos;est le moment : appuie sur{" "}
+                    <span className={TRADER.signalClock}>{signalLabel}</span>
+                  </>
+                ) : (
+                  <>
+                    Dans{" "}
+                    <span className={TRADER.signalClock}>
+                      {fmtRemain(signalRemainMs)}
+                    </span>
+                    , appuie sur{" "}
+                    <span className={TRADER.signalClock}>{signalLabel}</span>
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -655,7 +691,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           <div id="guide-buttons" className={ORDER.goRow}>
             <button
               type="button"
-              onClick={() => schedule("UP")}
+              onClick={() => press("UP")}
               disabled={placing !== null}
               aria-label="HAUSSE : je prédis que le prix va monter"
               className={`${ORDER.go} ${ORDER.buy} ${
@@ -675,7 +711,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </button>
             <button
               type="button"
-              onClick={() => schedule("DOWN")}
+              onClick={() => press("DOWN")}
               disabled={placing !== null}
               aria-label="BAISSE : je prédis que le prix va descendre"
               className={`${ORDER.go} ${ORDER.sell} ${
@@ -786,6 +822,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         <div className={SHEET.list2}>
           <TimePickerPanel
             value={draftTime}
+            nowMs={serverNowMs}
             onChange={setDraftTime}
             onConfirm={() => {
               onCustomTime(draftTime);
