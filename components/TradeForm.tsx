@@ -667,7 +667,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       )}
 
       {/* Panneau : choisir son heure (colonnes à faire défiler) */}
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure">
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure" hideTitle>
         <div className="flex flex-col gap-2 pb-2">
           <TimePickerPanel
             value={draftTime}

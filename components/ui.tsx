@@ -91,11 +91,13 @@ export function BottomSheet({
   onClose,
   title,
   children,
+  hideTitle = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  hideTitle?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -117,8 +119,8 @@ export function BottomSheet({
       <div className="anim-fade absolute inset-0 bg-fond/70" onClick={onClose} />
       <div className="sheet-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[82dvh] w-full max-w-xl flex-col rounded-t-3xl border-t border-ligne bg-carte px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 lg:relative lg:inset-auto lg:mx-0 lg:max-h-[85vh] lg:max-w-md lg:rounded-3xl lg:border lg:pb-4 lg:pt-3 lg:shadow-2xl">
         <div className="mx-auto mb-1 h-1.5 w-12 shrink-0 rounded-full bg-ligne lg:hidden" aria-hidden="true" />
-        <div className="flex min-h-[48px] shrink-0 items-center justify-between gap-2">
-          <p className="text-lg font-extrabold">{title}</p>
+        <div className={`flex min-h-[48px] shrink-0 items-center gap-2 ${hideTitle ? "justify-end" : "justify-between"}`}>
+          {!hideTitle && <p className="text-lg font-extrabold">{title}</p>}
           <button
             type="button"
             onClick={onClose}
