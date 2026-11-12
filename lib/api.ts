@@ -6,11 +6,10 @@
  */
 import type {
   ApiCandle,
-  ApiStats,
   ApiTrade,
   ApiUser,
 } from "./types";
-import { STORE } from "./config";
+import { API_TIMEOUT_MS, STORE } from "./config";
 import { SYMBOLS } from "./symbols";
 
 const TOKEN_KEY = STORE.token;
@@ -53,6 +52,10 @@ async function request<T>(
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // Abandon après 15 s : sans cela, un réseau qui stagne bloque l'écran
+  // (bouton « … » infini) au lieu d'afficher une erreur réessayable.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
   let res: Response;
   try {
     res = await fetch(path, {
@@ -60,9 +63,15 @@ async function request<T>(
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       cache: "no-store",
+      signal: ctrl.signal,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Le serveur met trop longtemps à répondre.", "DELAI_DEPASSE", 0);
+    }
     throw new ApiError("Pas de connexion Internet. Vérifiez votre connexion.", "HORS_LIGNE", 0);
+  } finally {
+    clearTimeout(timer);
   }
 
   let json: unknown = null;
@@ -103,8 +112,6 @@ export const apiDeposit = (amount: number) =>
 
 export const apiWithdraw = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/withdraw", { method: "POST", body: { amount } });
-
-export const apiMyStats = () => request<{ stats: ApiStats }>("/api/me/stats");
 
 // --- Marché ---
 

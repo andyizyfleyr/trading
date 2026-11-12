@@ -20,8 +20,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Redirection dans un effet : en plein rendu, React se plaint
+  // (« Cannot update a component while rendering ») et peut boucler.
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`${ROUTES.login}?${NEXT_PARAM}=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, user, router, pathname]);
+
   if (!loading && !user) {
-    router.replace(`${ROUTES.login}?${NEXT_PARAM}=${encodeURIComponent(pathname)}`);
     return (
       <div className={SHELL.loadBox}>
         <div className={SHELL.loadBig} />

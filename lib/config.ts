@@ -31,6 +31,8 @@ export const SIGNAL_PARAMS = {
   duration: "duree",
   sense: "sens",
   slot: "slot",
+  /** Heure programmée d'avance (la mise part à la seconde exacte). */
+  prog: "prog",
   /** Valeurs du sens : montée ou baisse. */
   up: "up",
   down: "down",
@@ -38,7 +40,6 @@ export const SIGNAL_PARAMS = {
 
 /** Mises. */
 export const DEFAULT_BET = 50;
-export const QUICK_AMOUNTS = [RULES.MIN_BET, 50, 100] as const;
 export const DEPOSIT_OPTIONS = [1000, 5000, 10000] as const;
 export const WITHDRAW_OPTIONS = [1000, 5000] as const;
 
@@ -56,21 +57,30 @@ export const RESULTS_SHOWN = 5;
 export const TIME_SLOT_COUNT = 12;
 export const TIME_SLOT_STEP_MIN = 15;
 export const TIME_SLOT_MARGIN_SEC = 90;
+/**
+ * La grille TEMPS ne propose que les heures à plus de 8 s (le serveur
+ * refuse au-delà de 5 s : à 8 s, la programmation passe même avec un
+ * réseau lent, et on ne propose jamais un créneau imprenable).
+ */
+export const TIME_SLOT_BOOK_MARGIN_MS = 8000;
 
 /** Signaux : créneaux affichés + fraîcheur d'un signal pré-rempli. */
 export const SIGNAL_SLOT_COUNT = 20;
 export const SIGNAL_FRESH_PAST_MS = 10000;
 export const SIGNAL_FRESH_FUTURE_MS = 30 * 60000;
+/** Un signal raté s'efface 30 s après son heure (sinon « Trop tard » reste affiché). */
+export const SIGNAL_LATE_MS = 30000;
 
 /** Cadences en millisecondes. */
 export const CLOCK_SYNC_MS = 30000;
 export const SCHEDULED_REFRESH_MS = 30000;
 export const TRADES_REFRESH_MS = 15000;
-export const STATS_REFRESH_MS = 60000;
 export const LIVE_POLL_MS = 4000;
-export const LIVE_GUARD_MS = 6000;
 export const SETTLE_TICK_MS = 1000;
-export const FLOAT_TICK_MS = 500;
+/** Si le serveur n'a pas fini de clôturer, on réessaie au bout de 5 s (pas chaque seconde). */
+export const SETTLE_RETRY_MS = 5000;
+/** Le trader se rafraîchit chaque seconde (la pastille affiche des secondes). */
+export const FLOAT_TICK_MS = 1000;
 export const SIGNAL_TICK_MS = 250;
 export const PENDING_TICK_MS = 250;
 export const RING_TICK_MS = 200;
@@ -100,6 +110,13 @@ export const NEXT_PARAM = "next";
 
 /** Longueur minimum du mot de passe (client + serveur). */
 export const PASSWORD_MIN = 6;
+
+/** Appels API : abandon après 15 s (pas d'écran bloqué si le réseau stagne). */
+export const API_TIMEOUT_MS = 15000;
+
+/** Anti brute-force : 10 essais ratés par adresse IP et par 10 minutes. */
+export const LOGIN_MAX_ATTEMPTS = 10;
+export const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 
 /** Export de l'historique : copié dans le presse-papiers (maquette). */
 export const CSV = {

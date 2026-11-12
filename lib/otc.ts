@@ -1,5 +1,5 @@
 import type { Candle } from "./binance";
-import type { Interval } from "./symbols";
+import { symbolDecimals, type Interval } from "./symbols";
 
 /**
  * Jeux casino maison (Lucky 7, Jackpot, Turbo) : 100 % hasard, indépendants
@@ -16,15 +16,14 @@ import type { Interval } from "./symbols";
  */
 interface GameCfg {
   base: number;
-  decimals: number;
   vol: number;
   seed: number;
 }
 
 const GAMES: Record<string, GameCfg> = {
-  EURUSDOTC: { base: 7.777, decimals: 3, vol: 1, seed: 11 }, // Lucky 7 : doux
-  GBPUSDOTC: { base: 1000, decimals: 2, vol: 2, seed: 47 }, // Jackpot : mouvementé
-  USDJPYOTC: { base: 100, decimals: 2, vol: 3.5, seed: 83 }, // Turbo : nerveux
+  EURUSDOTC: { base: 7.777, vol: 1, seed: 11 }, // Lucky 7 : doux
+  GBPUSDOTC: { base: 1000, vol: 2, seed: 47 }, // Jackpot : mouvementé
+  USDJPYOTC: { base: 100, vol: 3.5, seed: 83 }, // Turbo : nerveux
 };
 
 const BUCKET: Record<Interval, number> = { "1m": 60, "5m": 300, "15m": 900 };
@@ -111,7 +110,7 @@ export function otcPriceAt(symbol: string, sec: number): number {
   const rel =
     (drift + waves) * v + (texture * 0.002 + trap * 0.004 + jitter * 0.0007) * regime * v;
   const price = cfg.base * (1 + rel);
-  const factor = 10 ** cfg.decimals;
+  const factor = 10 ** symbolDecimals(symbol);
   return Math.round(price * factor) / factor;
 }
 
@@ -136,11 +135,13 @@ export async function getOtcCandles(
   const candles: Candle[] = [];
   for (let i = safeLimit - 1; i >= 0; i--) {
     const start = lastStart - i * len;
+    // Bougie en formation : bornée à la seconde actuelle (jamais de prix futur).
+    const endCap = Math.min(start + len - 1, now);
     const open = otcPriceAt(symbol, start);
-    const close = otcPriceAt(symbol, start + len - 1);
+    const close = otcPriceAt(symbol, Math.max(start, endCap));
     let high = Math.max(open, close);
     let low = Math.min(open, close);
-    for (let t = start; t < start + len; t += step) {
+    for (let t = start; t <= endCap; t += step) {
       const p = otcPriceAt(symbol, t);
       if (p > high) high = p;
       if (p < low) low = p;

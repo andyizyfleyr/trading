@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { apiLogin, apiMe, apiRegister, getToken, setToken } from "./api";
+import { apiLogin, apiMe, apiRegister, ApiError, getToken, setToken } from "./api";
 import type { ApiUser } from "./types";
 
 interface AuthState {
@@ -35,8 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user: me } = await apiMe();
       setUser(me);
-    } catch {
-      logout();
+    } catch (err) {
+      // Token refusé (401/403) : déconnexion. Panne réseau ou serveur :
+      // on ne touche à rien (sinon chaque micro-coupure efface la session).
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) logout();
     } finally {
       setLoading(false);
     }
@@ -44,6 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Retour du réseau : on revalide la session gardée (sans cela, un
+  // utilisateur banni vers la connexion par une micro-coupure devrait
+  // retaper son mot de passe alors que son token est toujours bon).
+  useEffect(() => {
+    const onOnline = () => {
+      if (getToken()) refresh();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {

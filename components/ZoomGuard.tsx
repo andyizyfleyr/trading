@@ -17,7 +17,7 @@ export function ZoomGuard() {
     let lastEnd = 0;
     const blockDoubleTap = (e: TouchEvent) => {
       const t = Date.now();
-      if (t - lastEnd < 350) e.preventDefault();
+      if (t - lastEnd < DOUBLE_TAP_MS) e.preventDefault();
       lastEnd = t;
     };
     document.addEventListener("touchend", blockDoubleTap, { passive: false });

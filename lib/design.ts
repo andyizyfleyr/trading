@@ -72,12 +72,8 @@ export const RING = {
 
 /** Tailles d'icônes. */
 export const ICON = {
-  dot: "h-2.5 w-2.5",
-  xs: "h-3 w-3",
-  sm: "h-3.5 w-3.5",
   md: "h-4 w-4",
   lg: "h-5 w-5",
-  nav: "h-[18px] w-[18px]",
   xl: "h-8 w-8",
 } as const;
 
@@ -85,14 +81,7 @@ export const ICON = {
 export const TEXT = {
   pageTitle: "text-[15px] font-extrabold",
   sectionTitle: "text-sm font-extrabold",
-  authTitle: "text-lg font-extrabold",
-  body: "text-[13px]",
   bodyMuted: "text-[13px] text-doux",
-  small: "text-xs",
-  smallMuted: "text-xs text-doux",
-  tiny: "text-[11px]",
-  tinyMuted: "text-[11px] text-doux",
-  micro: "text-[10px]",
 } as const;
 
 /** Proportions flex (pastilles qui s'étirent). */
@@ -291,10 +280,6 @@ export const SHEET = {
   rowOn: "bg-fond",
   rowName: "min-w-0 flex-1 truncate text-sm font-extrabold",
   rowCheck: "h-4 w-4 shrink-0 text-hausse",
-  helpBtn: "flex items-center justify-center p-1.5 -m-1.5",
-  helpDot:
-    "flex h-[13px] w-[13px] items-center justify-center rounded-full bg-puce text-[8px] font-bold text-doux active:text-texte",
-  helpText: "pb-2 text-[13px] leading-relaxed",
   list1: "flex flex-col gap-1 pb-2",
   list2: "flex flex-col gap-2 pb-2",
   dot: "h-3.5 w-3.5 shrink-0 rounded-full",
@@ -305,17 +290,9 @@ export const SHEET = {
 export const BTN = {
   base: "min-h-[42px] rounded-[10px] px-4 text-sm font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50",
   primary: "bg-primary text-white active:bg-blue-700",
-  green: "bg-hausse text-vertfonce active:bg-green-400",
-  red: "bg-vente text-white active:bg-red-700",
   ghost: "border border-ligne bg-transparent text-texte active:bg-carte",
   card: "border border-ligne bg-carte text-texte active:bg-ligne",
-  danger: "border border-baisse/50 bg-transparent text-baisse active:bg-baisse/10",
   block: "w-full font-extrabold",
-} as const;
-
-export const CARD = {
-  base: "rounded-xl border border-ligne bg-carte p-3",
-  result: "anim-in rounded-xl border border-transparent p-3",
 } as const;
 
 export const FORM = {
@@ -342,19 +319,9 @@ export const SKELETON = {
 /* ---------- Pastilles et tons ---------- */
 
 export const TONE = {
-  up: "rounded-lg bg-hausse/15 px-2 py-0.5 text-[13px] font-extrabold text-hausse",
-  down: "rounded-lg bg-baisse/15 px-2 py-0.5 text-[13px] font-extrabold text-baisse",
   badgeUp: "shrink-0 rounded-lg bg-hausse/15 px-2 py-1 text-[13px] font-extrabold tabular-nums text-hausse",
   badgeDown: "shrink-0 rounded-lg bg-baisse/15 px-2 py-1 text-[13px] font-extrabold tabular-nums text-baisse",
-  badgeInfo: "shrink-0 rounded-lg bg-action/15 px-2 py-1 text-[13px] font-extrabold text-action",
   badgePass: "shrink-0 rounded-lg bg-fond px-2 py-1 text-[13px] font-extrabold text-doux",
-} as const;
-
-/* ---------- Cartes de prédiction ---------- */
-
-export const TRADE = {
-  statUp: "text-hausse",
-  statDown: "text-baisse",
 } as const;
 
 /** Anneau : chiffres et unités (grand / carte). */
@@ -423,7 +390,6 @@ export const SIGNAL = {
 export const HISTORY = {
   head: "flex items-center gap-1.5",
   title: "mr-auto text-base font-extrabold",
-  tools: "flex items-center gap-1.5",
   exportBtn:
     "flex h-7 items-center rounded-lg border border-ligne bg-carte px-2.5 text-[11px] font-bold active:text-texte disabled:opacity-50",
   iconBtn:
@@ -574,6 +540,5 @@ export const LAYOUT = {
   /** L'anneau démarre en haut (le cercle SVG démarre à droite par défaut). */
   ringFlip: "-rotate-90",
   ringCenter: "absolute inset-0 flex flex-col items-center justify-center",
-  helpWrap: "inline-flex",
   field: "block",
 } as const;

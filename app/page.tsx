@@ -19,6 +19,7 @@ import {
   SETTLE_TICK_MS,
   SIGNAL_FRESH_FUTURE_MS,
   SIGNAL_FRESH_PAST_MS,
+  SIGNAL_LATE_MS,
   SIGNAL_PARAMS,
   STORE,
   TOAST_MS,
@@ -26,7 +27,7 @@ import {
   TRADES_REFRESH_MS,
   VIBRATE,
 } from "@/lib/config";
-import { ENCOURS, SHEET, STACK, TRADER } from "@/lib/design";
+import { ENCOURS, SHEET, TRADER } from "@/lib/design";
 import { fmtMoney, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
@@ -54,6 +55,7 @@ export default function TraderPage() {
   const [now, setNow] = useState(() => Date.now());
   const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
   const [signal, setSignal] = useState<SignalHint | null>(null);
+  const [progSlot, setProgSlot] = useState<number | null>(null);
   const [toast, setToast] = useState<ChartToast | null>(null);
   const [replay, setReplay] = useState<ReplayOrder | null>(null);
 
@@ -89,6 +91,10 @@ export default function TraderPage() {
       if ((sens === SIGNAL_PARAMS.up || sens === SIGNAL_PARAMS.down) && Number.isFinite(atMs) && fresh) {
         setSignal({ direction: sens === SIGNAL_PARAMS.up ? "UP" : "DOWN", atMs });
       }
+      // Créneau programmé d'avance (« Préparer ma mise ») : présélectionné
+      // dans « Temps » (le panneau vérifie qu'il est encore à venir).
+      const prog = Number(q.get(SIGNAL_PARAMS.prog));
+      if (Number.isInteger(prog) && prog > 0) setProgSlot(prog);
     } catch {
       /* adresse illisible : trader normal */
     }
@@ -99,6 +105,18 @@ export default function TraderPage() {
     const t = setInterval(() => setNow(Date.now()), FLOAT_TICK_MS);
     return () => clearInterval(t);
   }, []);
+
+  // Signal raté : on l'efface après un délai (sinon « Trop tard » reste affiché).
+  useEffect(() => {
+    if (!signal) return;
+    const wait = signal.atMs + SIGNAL_LATE_MS - Date.now();
+    if (wait <= 0) {
+      setSignal(null);
+      return;
+    }
+    const t = setTimeout(() => setSignal(null), wait);
+    return () => clearTimeout(t);
+  }, [signal]);
 
   const pickSymbol = (id: string) => {
     setSymbol(id);
@@ -171,10 +189,20 @@ export default function TraderPage() {
           setResults((prev) => [...res.settled, ...prev].slice(0, RESULTS_SHOWN));
           setBalance(res.balance);
           vibrate(VIBRATE.settle);
-          for (const s of res.settled) {
+          // Un seul message : en boucle, chaque appel écrase le précédent et
+          // seul le dernier résultat s'affiche.
+          if (res.settled.length === 1) {
+            const s = res.settled[0];
             if (s.result === "WIN") say(`Gagné +${fmtMoney((s.payout ?? 0) - s.amount)}`, "win");
             else if (s.result === "LOSS") say(`Perdu −${fmtMoney(s.amount)}`, "loss");
             else say("Égalité : mise rendue", null);
+          } else {
+            const won = res.settled.filter((s) => s.result === "WIN").length;
+            const lost = res.settled.filter((s) => s.result === "LOSS").length;
+            say(
+              `${res.settled.length} résultats : ${won} gagné${won > 1 ? "s" : ""}, ${lost} perdu${lost > 1 ? "s" : ""}`,
+              won > lost ? "win" : lost > won ? "loss" : null
+            );
           }
         }
       } catch {
@@ -253,6 +281,7 @@ export default function TraderPage() {
               signal={signal}
               onBalance={setBalance}
               replay={replay}
+              progSlot={progSlot}
               onPickAsset={() => setAssetOpen(true)}
             />
           </div>
@@ -397,7 +426,6 @@ export default function TraderPage() {
                   direction: t.direction,
                   amount: t.amount,
                   durationSec: t.durationSec,
-                  symbol: t.symbol,
                   nonce: Date.now(),
                 });
               }}

@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
-import { EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { ErrorState, Skeleton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
-import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_TICK_MS } from "@/lib/config";
+import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_RETRY_MS, SETTLE_TICK_MS } from "@/lib/config";
 import { HISTORY, STACK } from "@/lib/design";
 import { fmtDay, fmtGain, fmtMoney, fmtPrice, fmtRemainShort, fmtTime } from "@/lib/format";
 import { RULES, SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
@@ -105,10 +105,34 @@ export default function HistoriquePage() {
   }, []);
 
   // Une prédiction en cours arrive à échéance : clôture + recharge aussitôt.
+  // Anti-rafale : si le serveur n'a pas fini (horloge décalée, réseau lent),
+  // on réessaie au bout de 5 s, pas chaque seconde.
+  const retryRef = useRef<Map<number, number>>(new Map());
   useEffect(() => {
-    if (trades.some((t) => t.status === "OPEN" && new Date(t.closesAt).getTime() <= now)) {
-      load();
-    }
+    const openIds = new Set(trades.filter((t) => t.status === "OPEN").map((t) => t.id));
+    retryRef.current.forEach((_, id) => {
+      if (!openIds.has(id)) retryRef.current.delete(id);
+    });
+    const due = trades.filter(
+      (t) =>
+        t.status === "OPEN" &&
+        new Date(t.closesAt).getTime() <= now &&
+        (retryRef.current.get(t.id) ?? 0) <= now
+    );
+    if (due.length === 0) return;
+    due.forEach((t) => retryRef.current.set(t.id, now + SETTLE_RETRY_MS));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiSettle(due.map((t) => t.id));
+        if (!cancelled && res.settled.length > 0) load();
+      } catch {
+        /* nouvel essai au prochain délai */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [now, trades, load]);
 
   useEffect(() => {

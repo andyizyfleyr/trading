@@ -8,9 +8,9 @@
 export type SymbolKind = "crypto" | "stock" | "otc";
 
 export const SYMBOLS = [
-  { id: "EURUSDOTC", base: "Lucky 7", color: "#FBBF24", kind: "otc" as SymbolKind },
-  { id: "GBPUSDOTC", base: "Jackpot", color: "#A78BFA", kind: "otc" as SymbolKind },
-  { id: "USDJPYOTC", base: "Turbo", color: "#F472B6", kind: "otc" as SymbolKind },
+  { id: "EURUSDOTC", base: "Lucky 7", color: "#FBBF24", kind: "otc" as SymbolKind, decimals: 3 },
+  { id: "GBPUSDOTC", base: "Jackpot", color: "#A78BFA", kind: "otc" as SymbolKind, decimals: 2 },
+  { id: "USDJPYOTC", base: "Turbo", color: "#F472B6", kind: "otc" as SymbolKind, decimals: 2 },
 ] as const;
 
 export type SymbolId = (typeof SYMBOLS)[number]["id"];
@@ -36,6 +36,11 @@ export function symbolDisplay(symbol: string): string {
   const found = SYMBOLS.find((s) => s.id === symbol);
   if (!found) return symbol;
   return found.base;
+}
+
+/** Décimales affichées du prix (Lucky 7 : 3, Jackpot et Turbo : 2). */
+export function symbolDecimals(symbol: string): number {
+  return SYMBOLS.find((s) => s.id === symbol)?.decimals ?? 2;
 }
 
 /** Durées de prédiction autorisées (en secondes). */

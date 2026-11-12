@@ -78,14 +78,6 @@ export const CheckIcon = ({ className }: { className?: string }) => (
   </Svg>
 );
 
-export const WifiOffIcon = ({ className }: { className?: string }) => (
-  <Svg className={className}>
-    <path d="m2 2 20 20" />
-    <path d="M8.5 11.5a5 5 0 0 1 7 0M5 8a10 10 0 0 1 4-2.4M19 8a10 10 0 0 0-4-2.4" />
-    <path d="M12 19h.01" />
-  </Svg>
-);
-
 export const ArrowUpIcon = ({ className }: { className?: string }) => (
   <Svg className={className}>
     <path d="M12 19V5m0 0-6 6m6-6 6 6" />
@@ -103,12 +95,6 @@ export const WalletIcon = ({ className }: { className?: string }) => (
     <path d="M20 7H4a2 2 0 0 1 0-4h14v4" />
     <path d="M20 7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5" />
     <path d="M18 14h.01" />
-  </Svg>
-);
-
-export const BackIcon = ({ className }: { className?: string }) => (
-  <Svg className={className}>
-    <path d="m15 18-6-6 6-6" />
   </Svg>
 );
 
