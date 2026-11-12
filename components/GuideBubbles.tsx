@@ -28,12 +28,12 @@ const STEPS = [
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: `Tape un montant ou ajuste avec \u2212 et +. Gain potentiel : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
+    text: `Tape un montant ou ajuste avec − et +. Si tu gagnes : mise rendue + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} % de bénéfice.`,
   },
   {
     id: "guide-buttons",
     title: "5. Prédis la direction",
-    text: "HAUSSE ▲ si ça monte, BAISSE ▼ si ça descend. Tes prédictions en cours s'affichent avec leur compte à rebours.",
+    text: "HAUSSE ▲ si ça monte, BAISSE ▼ si ça descend. Tes prédictions en cours s'affichent ici : touche la pastille « N en cours » sur le graphique pour les suivre avec leur compte à rebours.",
   },
 ];
 

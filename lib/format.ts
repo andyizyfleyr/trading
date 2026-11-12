@@ -1,13 +1,9 @@
 /** Formatages : français simple, chiffres à largeur fixe (via CSS tabular-nums). */
+import { symbolDecimals } from "./symbols";
 
 const LOCALE = "fr-FR";
-/** Seuils d'ordre de grandeur pour les décimales des prix. */
-const PRICE_BIG = 100;
-const PRICE_UNIT = 1;
-/** Décimales : gros prix (1000,00), moyens (7,7770), petits (0,12345). */
+/** Décimales des montants (1000, 42,5). */
 const DEC_BIG = 2;
-const DEC_MID = 4;
-const DEC_SMALL = 5;
 
 const moneyFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: DEC_BIG });
 
@@ -25,23 +21,22 @@ export function fmtGain(n: number): string {
   return gainFmt.format(Number(n) || 0);
 }
 
-/** Prix avec un nombre de décimales adapté à l'ordre de grandeur. */
-const priceFmtBig = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: DEC_BIG,
-  maximumFractionDigits: DEC_BIG,
+/**
+ * Prix d'un jeu avec SES décimales (Lucky 7 : 3, Jackpot et Turbo : 2),
+ * comme l'axe du graphique. Même formateur pour les écarts (mouvements).
+ */
+const gameFmt2 = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
-const priceFmtMid = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: DEC_MID,
-  maximumFractionDigits: DEC_MID,
-});
-const priceFmtSmall = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: DEC_SMALL,
-  maximumFractionDigits: DEC_SMALL,
+const gameFmt3 = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
 });
 
-export function fmtPrice(p: number): string {
+export function fmtGamePrice(symbol: string, p: number): string {
   const v = Number(p) || 0;
-  return (v >= PRICE_BIG ? priceFmtBig : v >= PRICE_UNIT ? priceFmtMid : priceFmtSmall).format(v);
+  return (symbolDecimals(symbol) >= 3 ? gameFmt3 : gameFmt2).format(v);
 }
 
 /** Montant signé : +340 / -400 / ±0 */
@@ -60,14 +55,16 @@ export function fmtTime(iso: string): string {
   }
 }
 
+/**
+ * Date + heure « 12/11/2026 14:35 » (export CSV : triable, sans virgule
+ * pour ne pas casser les colonnes). L'année est obligatoire : sinon deux
+ * trades à la même heure semblent identiques.
+ */
 export function fmtDateTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(LOCALE, {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
   } catch {
     return "";
   }
@@ -105,7 +102,8 @@ export function fmtDay(iso: string): string {
     const day = new Date(d);
     day.setHours(0, 0, 0, 0);
     const diff = Math.round((midnight.getTime() - day.getTime()) / 86400000);
-    if (diff <= 0) return "Aujourd'hui";
+    // Les programmées de demain affichent leur vraie date (pas « Aujourd'hui »).
+    if (diff === 0) return "Aujourd'hui";
     if (diff === 1) return "Hier";
     return d.toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
   } catch {

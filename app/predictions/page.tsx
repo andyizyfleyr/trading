@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { otcPriceAt } from "@/lib/otc";
 import { DURATIONS, SYMBOLS, durationLabel, type DurationSec } from "@/lib/symbols";
-import { apiServerTime } from "@/lib/api";
+import { useOnline } from "@/hooks/useOnline";
+import { useServerOffset } from "@/hooks/useServerOffset";
 import {
-  CLOCK_SYNC_MS,
   COUNTDOWN_TICK_MS,
   DEFAULT_DURATION_SEC,
   GO_THRESHOLD_MS,
@@ -31,7 +31,7 @@ function verdict(symbol: string, fromSec: number, durationSec: number): Verdict 
 }
 
 function verdictLabel(v: Verdict): string {
-  return v === "UP" ? "HAUSSE ▲" : v === "DOWN" ? "BAISSE ▼" : "PASSE";
+  return v === "UP" ? "HAUSSE ▲" : v === "DOWN" ? "BAISSE ▼" : "ÉGALITÉ =";
 }
 
 /**
@@ -40,34 +40,14 @@ function verdictLabel(v: Verdict): string {
  * puis les choix (jeu, durée) et tous les coups à venir.
  */
 export default function PredictionsPage() {
-  const [offsetMs, setOffsetMs] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Même heure serveur que le trader (le coup « À JOUER » part à la seconde pile là-bas).
+  const offsetMs = useServerOffset();
+  const online = useOnline();
   const [gameId, setGameId] = useState<string>(GAMES[0]?.id ?? "");
   const [duration, setDuration] = useState<DurationSec>(DEFAULT_DURATION_SEC);
   const [now, setNow] = useState(() => Date.now());
 
   const game = GAMES.find((g) => g.id === gameId) ?? GAMES[0];
-
-  // Écart d'horloge avec le serveur (mesuré à la latence près).
-  const syncClock = useCallback(async () => {
-    if (GAMES.length === 0) return;
-    const t0 = Date.now();
-    try {
-      const serverTime = await apiServerTime();
-      if (!Number.isFinite(serverTime)) throw new Error("heure invalide");
-      const t1 = Date.now();
-      setOffsetMs(serverTime - (t0 + t1) / 2);
-      setError(null);
-    } catch {
-      setError("Synchronisation impossible. Vérifiez votre connexion.");
-    }
-  }, []);
-
-  useEffect(() => {
-    syncClock();
-    const timer = setInterval(syncClock, CLOCK_SYNC_MS);
-    return () => clearInterval(timer);
-  }, [syncClock]);
 
   // Horloge fluide pour le compte à rebours (10 fois par seconde pour que
   // la seconde affichée bascule pile au bon moment). Les signaux, eux,
@@ -92,7 +72,7 @@ export default function PredictionsPage() {
     });
   }, [offsetMs, minuteKey, serverNowMs, gameId, duration, game]);
 
-  // Le coup mis en avant : le premier où on peut gagner (on saute les « PASSE »).
+  // Le coup mis en avant : le premier où on peut gagner (on saute les « ÉGALITÉ »).
   const target = slots.find((s) => s.v !== "TIE") ?? slots[0];
   const remainingMs = target ? Math.max(0, target.start * 1000 - serverNowMs) : 0;
   // Jauge sur la vraie fenêtre (la minute qui précède le coup), pas sur 60 s
@@ -111,8 +91,13 @@ export default function PredictionsPage() {
     );
   }
 
-  if (error && offsetMs == null) {
-    return <ErrorState text={error} retry={syncClock} />;
+  if (!online && offsetMs == null) {
+    return (
+      <ErrorState
+        text="Hors ligne : reconnecte-toi pour voir les signaux."
+        retry={() => window.location.reload()}
+      />
+    );
   }
 
   if (offsetMs == null || !game || !target) {
@@ -204,8 +189,8 @@ export default function PredictionsPage() {
         <ol className={SIGNAL.steps}>
           {[
             "Appuie sur « Préparer ma mise » : tout est déjà rempli.",
-            "Choisis ta mise, puis attends que le décompte arrive à 00:00.",
-            "À 00:00 pile, appuie vite sur le bouton entouré de blanc.",
+            "Choisis ta mise, puis attends la fin du décompte.",
+            "Dans les 3 dernières secondes, appuie sur le bouton conseillé : ta mise partira toute seule à la seconde pile.",
           ].map((step, i) => (
             <li key={i} className={SIGNAL.step}>
               <span
@@ -219,8 +204,9 @@ export default function PredictionsPage() {
           ))}
         </ol>
         <p className={SIGNAL.note}>
-          En retard même d&apos;1 seconde ? Le coup est raté : attends le suivant. Astuce :
-          sur le trader, choisis ton heure dans « Quand » et ta mise partira toute seule,
+          Trop tôt ? Attends : le bouton conseillé ne s&apos;arme que dans les 3 dernières
+          secondes. En retard ? Le coup est raté : attends le suivant. Astuce :
+          sur le trader, choisis ton heure dans « Temps » et ta mise partira toute seule,
           même si tu quittes l&apos;app.
         </p>
       </div>
@@ -312,7 +298,7 @@ export default function PredictionsPage() {
           })}
         </ul>
         <p className={SIGNAL.listFoot}>
-          « PASSE » = le prix ne bougera pas : garde ta mise pour le coup d&apos;après.
+          « ÉGALITÉ » = le prix ne bougera pas : garde ta mise pour le coup d&apos;après.
         </p>
       </div>
     </div>

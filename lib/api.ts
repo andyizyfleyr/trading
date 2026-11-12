@@ -6,6 +6,7 @@
  */
 import type {
   ApiCandle,
+  ApiStats,
   ApiTrade,
   ApiUser,
 } from "./types";
@@ -42,6 +43,23 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+// Redirection « session expirée » : une seule fois (sinon les requêtes
+// en rafale rechargent la page en boucle).
+let expiredRedirecting = false;
+
+/**
+ * Token refusé (401/403) hors connexion/inscription : la session a expiré
+ * (30 jours) ou le compte a été supprimé. On efface le token mort et on
+ * renvoie vers la connexion AVEC l'explication (pas d'expulsion silencieuse).
+ */
+function handleExpired(path: string) {
+  if (typeof window === "undefined" || expiredRedirecting) return;
+  if (path.startsWith("/api/auth/")) return;
+  expiredRedirecting = true;
+  setToken(null);
+  window.location.replace("/connexion?expired=1");
 }
 
 async function request<T>(
@@ -83,6 +101,7 @@ async function request<T>(
 
   if (!res.ok) {
     const err = (json as { error?: { message?: string; code?: string } } | null)?.error;
+    if (res.status === 401 || res.status === 403) handleExpired(path);
     throw new ApiError(err?.message ?? "Une erreur est survenue.", err?.code ?? "ERREUR", res.status);
   }
   return (json as { data: T }).data;
@@ -112,6 +131,12 @@ export const apiDeposit = (amount: number) =>
 
 export const apiWithdraw = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/withdraw", { method: "POST", body: { amount } });
+
+/** Statistiques globales (optionnel : un seul jeu). Jamais tronquées. */
+export const apiMyStats = (symbol?: string) =>
+  request<{ stats: ApiStats }>(
+    symbol ? `/api/me/stats?symbol=${encodeURIComponent(symbol)}` : "/api/me/stats"
+  );
 
 // --- Marché ---
 

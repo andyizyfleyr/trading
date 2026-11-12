@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ROUTES } from "@/lib/config";
 import { NAV } from "@/lib/design";
-import { ChartIcon, HistoryIcon } from "./Icons";
+import { ChartIcon, HistoryIcon, SignalIcon } from "./Icons";
 
 const TABS = [
   { href: ROUTES.trader, label: "Trader", Icon: ChartIcon },
+  { href: ROUTES.predictions, label: "Signaux", Icon: SignalIcon },
   { href: ROUTES.history, label: "Historique", Icon: HistoryIcon },
 ];
 
-/** Barre du bas fixe, compacte : 2 onglets dans la zone du pouce. */
+/** Barre du bas fixe, compacte : 3 onglets dans la zone du pouce. */
 export function BottomNav() {
   const pathname = usePathname();
 

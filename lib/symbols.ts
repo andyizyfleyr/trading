@@ -78,4 +78,6 @@ export const RULES = {
   WIN_PAYOUT_RATIO: 0.85,
   /** Limite : 20 prédictions par minute et par utilisateur */
   MAX_TRADES_PER_MINUTE: 20,
+  /** Limite : 50 mises programmées maximum par utilisateur */
+  MAX_SCHEDULED: 50,
 } as const;

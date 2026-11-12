@@ -49,18 +49,17 @@ export const DEFAULT_INTERVAL = "1m" as const;
 
 /** Limites de chargement. */
 export const TRADES_PAGE_LIMIT = 50;
-export const HISTORY_LIMIT = 100;
+/** Historique : 200 derniers trades (maximum du serveur). */
+export const HISTORY_LIMIT = 200;
 export const CANDLES_LIMIT = 200;
 export const RESULTS_SHOWN = 5;
 
-/** Sélecteur d'heure : créneaux proposés. */
+/** Sélecteur d'heure : 12 créneaux, tous les quarts d'heure (les heures lointaines). */
 export const TIME_SLOT_COUNT = 12;
 export const TIME_SLOT_STEP_MIN = 15;
-export const TIME_SLOT_MARGIN_SEC = 90;
 /**
- * La grille TEMPS ne propose que les heures à plus de 8 s (le serveur
- * refuse au-delà de 5 s : à 8 s, la programmation passe même avec un
- * réseau lent, et on ne propose jamais un créneau imprenable).
+ * Marge de programmation (grille TEMPS comme sélecteur « Autre ») : seuls
+ * les créneaux à plus de 8 s sont proposés, comme le serveur l'exige.
  */
 export const TIME_SLOT_BOOK_MARGIN_MS = 8000;
 
@@ -70,9 +69,17 @@ export const SIGNAL_FRESH_PAST_MS = 10000;
 export const SIGNAL_FRESH_FUTURE_MS = 30 * 60000;
 /** Un signal raté s'efface 30 s après son heure (sinon « Trop tard » reste affiché). */
 export const SIGNAL_LATE_MS = 30000;
+/**
+ * Tir signalé : appuyer sur le bouton conseillé dans les 3 dernières secondes
+ * arme le tir (la mise part à la seconde pile, toute seule). Plus tôt, le
+ * verdict ne voudrait plus rien dire : on refuse avec un message clair.
+ */
+export const SIGNAL_PRESS_WINDOW_MS = 3000;
 
 /** Cadences en millisecondes. */
 export const CLOCK_SYNC_MS = 30000;
+/** Le graphique recharge ses bougies toutes les 15 s (sinon il se fige). */
+export const CANDLES_REFRESH_MS = 15000;
 export const SCHEDULED_REFRESH_MS = 30000;
 export const TRADES_REFRESH_MS = 15000;
 export const LIVE_POLL_MS = 4000;
@@ -121,7 +128,7 @@ export const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 /** Export de l'historique : copié dans le presse-papiers (maquette). */
 export const CSV = {
   sep: ",",
-  header: "jeu,duree,sens,mise,depart,arrivee,resultat,heure",
+  header: "jeu,duree,sens,mise,depart,arrivee,resultat,date",
 } as const;
 
 /** Retour visuel « Copié ✓ » après un export. */

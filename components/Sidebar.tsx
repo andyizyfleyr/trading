@@ -10,11 +10,13 @@ import {
   ChartIcon,
   HistoryIcon,
   LogoutIcon,
+  SignalIcon,
   UserIcon,
 } from "./Icons";
 
 const ITEMS = [
   { href: ROUTES.trader, label: "Trader", Icon: ChartIcon },
+  { href: ROUTES.predictions, label: "Signaux", Icon: SignalIcon },
   { href: ROUTES.history, label: "Historique", Icon: HistoryIcon },
   { href: ROUTES.profile, label: "Profil", Icon: UserIcon },
 ];

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiTrade } from "@/lib/types";
-import { fmtGain, fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
+import { fmtGain, fmtGamePrice, fmtMoney, fmtSigned } from "@/lib/format";
 import { RULES, durationLabel, symbolDisplay } from "@/lib/symbols";
 import { ENCOURS, RESULT, RING } from "@/lib/design";
 import { CountdownRing } from "./CountdownRing";
@@ -46,12 +46,12 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
         </div>
         <p className={ENCOURS.mid2}>
           Mise <b className={ENCOURS.mid2B}>{fmtMoney(trade.amount)}</b> · Départ{" "}
-          <b className={ENCOURS.mid2B}>{fmtPrice(trade.openPrice)}</b>
+          <b className={ENCOURS.mid2B}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
         </p>
       </div>
       <div className={ENCOURS.right}>
         <p className={`${ENCOURS.cur} ${toneText}`}>
-          {price == null ? "…" : `${arrow}${fmtPrice(price)}`}
+          {price == null ? "…" : `${arrow}${fmtGamePrice(trade.symbol, price)}`}
         </p>
         <p className={`${ENCOURS.est} ${toneText}`}>{est}</p>
       </div>
@@ -95,17 +95,17 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </div>
         <p className={RESULT.move}>
           <span>
-            Départ <b className={RESULT.moveB}>{fmtPrice(trade.openPrice)}</b>
+            Départ <b className={RESULT.moveB}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
           </span>
           <span aria-hidden="true">→</span>
           <span>
             Arrivée{" "}
             <b className={RESULT.moveB}>
-              {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
+              {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
             </b>
           </span>
           <span className={RESULT.moveFar}>
-            {move == null ? "…" : `${moveArrow}${fmtPrice(Math.abs(move))}`}
+            {move == null ? "…" : `${moveArrow}${fmtGamePrice(trade.symbol, Math.abs(move))}`}
           </span>
         </p>
       </div>

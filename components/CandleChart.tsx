@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
-import { CANDLES_LIMIT } from "@/lib/config";
+import { CANDLES_LIMIT, CANDLES_REFRESH_MS } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
 import { fmtHM, fmtRemain } from "@/lib/format";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
@@ -43,6 +43,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
   // Chargement de l'historique des bougies. On garde les anciennes bougies
   // pendant le rechargement (pas de flash vide quand on touche « Réessayer ») ;
   // on n'efface que si le jeu ou l'unité change (sinon mélange de deux jeux).
+  // Rechargé toutes les 15 s : sinon les nouvelles bougies n'apparaissent
+  // jamais et le graphique se fige (la dernière bougie mutait sans fin).
   const seriesRef = useRef("");
   const drawnRef = useRef("");
   useEffect(() => {
@@ -56,22 +58,27 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
     setLoading(true);
     setError(null);
 
-    apiCandles(symbol, interval, CANDLES_LIMIT)
-      .then(({ candles: list }) => {
-        if (cancelled) return;
-        setCandles(list);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setLoading(false);
-        setError(
-          err instanceof ApiError ? err.message : "Graphique temporairement indisponible."
-        );
-      });
+    const load = () => {
+      apiCandles(symbol, interval, CANDLES_LIMIT)
+        .then(({ candles: list }) => {
+          if (cancelled) return;
+          setCandles(list);
+          setLoading(false);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setLoading(false);
+          setError(
+            err instanceof ApiError ? err.message : "Graphique temporairement indisponible."
+          );
+        });
+    };
+    load();
+    const timer = setInterval(load, CANDLES_REFRESH_MS);
 
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [symbol, interval, reloadKey]);
 
