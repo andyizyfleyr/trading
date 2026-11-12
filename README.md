@@ -105,9 +105,6 @@ Format unique :
 | GET | `/api/scheduled` | Mes mises programmées |
 | DELETE | `/api/scheduled/[id]` | Annuler une mise programmée (remboursée) → `{balance}` |
 | POST | `/api/trades/settle` | Clôture ce qui est échu (`{ids?}` optionnel) → `{settled, pending, balance}` |
-| GET | `/api/leaderboard` | Top 20 des soldes + mon rang |
-| GET | `/api/lessons` | Leçons + progression |
-| POST | `/api/lessons/progress` | `{lessonId, done}` |
 
 Jeux : `EURUSDOTC` (Lucky 7), `GBPUSDOTC` (Jackpot), `USDJPYOTC` (Turbo) : hasard pur, moteur déterministe.
 Intervalles : `1m, 5m, 15m`.
@@ -129,8 +126,6 @@ Intervalles : `1m, 5m, 15m`.
 app/
   page.tsx            Écran Trader (graphique + prédictions)
   historique/         Historique des prédictions
-  classement/         Classement des soldes
-  cours/              Leçons éducatives
   profil/             Solde, dépôt/retrait, réglages
   connexion/ inscription/ bienvenue/   Auth + onboarding (3 écrans)
   api/                Routes API JSON (voir tableau ci-dessus)
@@ -152,10 +147,10 @@ drizzle/0001_init.sql Schéma SQL de référence
 
 ## Notes produit
 
-- **Mobile first 360 px** : barre du bas (Trader, Historique, Classement, Cours),
+- **Mobile first 360 px** : barre du bas (Trader, Historique),
   profil via l'avatar, boutons ≥ 48 px, chiffres tabulaires, français simple.
 - **Temps réel** : prix des jeux actualisé par sondage régulier de `/api/price`.
 - **Hors ligne** : bannière « Reconnexion… », prédictions en cours conservées
   (heures de fin serveur) et clôturées au retour de la connexion.
 - **Éthique** : pas de pression artificielle, pas de confettis, pas de séries
-  de victoires mises en avant ; aide « ? » sur chaque terme, cours intégrés.
+  de victoires mises en avant ; aide « ? » sur chaque terme.

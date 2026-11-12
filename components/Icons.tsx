@@ -39,20 +39,6 @@ export const HistoryIcon = ({ className }: { className?: string }) => (
   </Svg>
 );
 
-export const TrophyIcon = ({ className }: { className?: string }) => (
-  <Svg className={className}>
-    <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
-    <path d="M8 5H5a3 3 0 0 0 3 5M16 5h3a3 3 0 0 1-3 5" />
-    <path d="M12 13v4M8 21h8M9 17h6" />
-  </Svg>
-);
-
-export const BookIcon = ({ className }: { className?: string }) => (
-  <Svg className={className}>
-    <path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13" />
-  </Svg>
-);
-
 export const UserIcon = ({ className }: { className?: string }) => (
   <Svg className={className}>
     <circle cx="12" cy="8" r="4" />
