@@ -129,7 +129,7 @@ function slotFromTime(v: string, fromMs: number): number | null {
   return slot;
 }
 
-/** Minuteur + Investissement sauvegardés (survivent au refresh, à la déconnexion, à la fermeture). */
+/** Durée + Investissement sauvegardés (survivent au refresh, à la déconnexion, à la fermeture). */
 function loadOrderPrefs(): { durationSec: number; amountStr: string } {
   const fallback = { durationSec: DEFAULT_DURATION_SEC, amountStr: String(DEFAULT_BET) };
   if (typeof window === "undefined") return fallback;
@@ -149,7 +149,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
   }
 }
 
-/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, gains, HAUSSE/BAISSE. */
+/** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
@@ -175,7 +175,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     if (initialDuration != null) setDurationSec(initialDuration);
   }, [initialDuration]);
 
-  // Chaque choix (Minuteur, Investissement) est sauvegardé aussitôt :
+  // Chaque choix (Durée, Investissement) est sauvegardé aussitôt :
   // on le retrouve après un refresh, une déconnexion ou la fermeture.
   useEffect(() => {
     try {
@@ -253,7 +253,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Premier créneau à plus de 8 s : sans marge, la première case tombe
   // parfois dans 2-3 s et la programmation échoue (« Heure passée »).
   const firstSlot = Math.ceil((serverNowMs + TIME_SLOT_BOOK_MARGIN_MS) / 60000) * 60;
-  // Grille TEMPS : les prochaines minutes (avec « Maintenant » et « Autre », 12 cases).
+  // Grille DÉPART : les prochaines minutes (avec « Maintenant » et « Autre », 12 cases).
   const timeSlots = Array.from({ length: Math.max(0, TIME_SLOT_COUNT - 2) }, (_, i) => firstSlot + i * 60);
 
   // Heure tapée : passée, trop proche (< 8 s) ou bonne.
@@ -582,17 +582,17 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </button>
           </div>
 
-          {/* Minuteur + Investissement */}
+          {/* Durée + Investissement */}
           <div className={ORDER.boxes}>
             <div id="guide-duration" className={ORDER.box}>
-              <span className={ORDER.boxLabel}>{effectiveSlot != null ? "Temps" : "Minuteur"}</span>
+              <span className={ORDER.boxLabel}>{effectiveSlot != null ? "Départ" : "Durée"}</span>
               <button
                 type="button"
                 onClick={openDurSheet}
                 aria-haspopup="dialog"
                 aria-label={
                   effectiveSlot != null
-                    ? `Départ à ${fmtHM(effectiveSlot)}. Changer.`
+                    ? `Départ à ${fmtHM(effectiveSlot)}, durée ${fmtDurMS(durationSec)}. Changer.`
                     : `Durée ${fmtDurMS(durationSec)}. Changer.`
                 }
                 className={ORDER.minBtn}
@@ -600,6 +600,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 <span className={ORDER.minVal}>
                   {effectiveSlot != null ? fmtHM(effectiveSlot) : fmtDurMS(durationSec)}
                 </span>
+                {effectiveSlot != null && (
+                  <span className={ORDER.minSub}>durée {fmtDurMS(durationSec)}</span>
+                )}
               </button>
             </div>
             <div id="guide-amount" className={ORDER.box}>
@@ -671,7 +674,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           {signal && !signalLive && (
             <div role="alert" className={TRADER.lateBox}>
               <p className={TRADER.lateText}>
-                Trop tard : ce coup est passé. Choisis une autre heure dans « Temps ».
+                Trop tard : ce coup est passé. Choisis une autre heure dans « Départ ».
               </p>
             </div>
           )}
@@ -739,10 +742,10 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </p>
       )}
 
-      {/* Panneau : Minuteur (durée) ou Temps (heure de départ) */}
-      <BottomSheet open={durSheetOpen} onClose={() => setDurSheetOpen(false)} title="Minuteur" hideTitle>
+      {/* Panneau : Durée (combien de temps) ou Départ (à quelle heure) */}
+      <BottomSheet open={durSheetOpen} onClose={() => setDurSheetOpen(false)} title="Durée ou départ" hideTitle>
         <div className={SHEET.list2}>
-          <div className={ORDER.tabs} role="tablist" aria-label="Minuteur ou heure">
+          <div className={ORDER.tabs} role="tablist" aria-label="Durée ou départ">
             <button
               type="button"
               role="tab"
@@ -750,7 +753,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               onClick={() => setDurTab("min")}
               className={durTab === "min" ? ORDER.tabOn : ORDER.tabOff}
             >
-              MINUTEUR
+              DURÉE
             </button>
             <button
               type="button"
@@ -759,7 +762,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               onClick={() => setDurTab("time")}
               className={durTab === "time" ? ORDER.tabOn : ORDER.tabOff}
             >
-              TEMPS
+              DÉPART
             </button>
           </div>
           {durTab === "min" ? (

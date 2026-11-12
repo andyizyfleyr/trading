@@ -96,7 +96,7 @@ export default function TraderPage() {
         setSignal({ direction: sens === SIGNAL_PARAMS.up ? "UP" : "DOWN", atMs });
       }
       // Créneau programmé d'avance (« Préparer ma mise ») : présélectionné
-      // dans « Temps » (le panneau vérifie qu'il est encore à venir).
+      // dans « Départ » (le panneau vérifie qu'il est encore à venir).
       const prog = Number(q.get(SIGNAL_PARAMS.prog));
       if (Number.isInteger(prog) && prog > 0) setProgSlot(prog);
     } catch {

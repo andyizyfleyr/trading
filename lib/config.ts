@@ -21,7 +21,7 @@ export const STORE = {
   token: "tf_token",
   guide: "tf_guide",
   calm: "tf_calme",
-  /** Minuteur + Investissement : retrouvés après refresh, déconnexion, fermeture. */
+  /** Durée + Investissement : retrouvés après refresh, déconnexion, fermeture. */
   order: "tf_order",
 } as const;
 
@@ -58,7 +58,7 @@ export const RESULTS_SHOWN = 5;
 export const TIME_SLOT_COUNT = 12;
 export const TIME_SLOT_STEP_MIN = 15;
 /**
- * Marge de programmation (grille TEMPS comme sélecteur « Autre ») : seuls
+ * Marge de programmation (grille DÉPART comme sélecteur « Autre ») : seuls
  * les créneaux à plus de 8 s sont proposés, comme le serveur l'exige.
  */
 export const TIME_SLOT_BOOK_MARGIN_MS = 8000;

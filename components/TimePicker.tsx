@@ -32,7 +32,7 @@ function isNextDay(slot: number, fromMs: number): boolean {
 /**
  * Liste des prochaines heures : on touche une heure, on valide.
  * `value` = « HH:MM » ou « » (vide = rien choisi).
- * `nowMs` = heure serveur (même heure que la grille TEMPS, marge 8 s aussi).
+ * `nowMs` = heure serveur (même heure que la grille DÉPART, marge 8 s aussi).
  */
 export function TimePickerPanel({
   value,

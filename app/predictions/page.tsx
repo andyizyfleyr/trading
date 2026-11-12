@@ -206,7 +206,7 @@ export default function PredictionsPage() {
         <p className={SIGNAL.note}>
           Trop tôt ? Attends : le bouton conseillé ne s&apos;arme que dans les 3 dernières
           secondes. En retard ? Le coup est raté : attends le suivant. Astuce :
-          sur le trader, choisis ton heure dans « Temps » et ta mise partira toute seule,
+          sur le trader, choisis ton heure dans « Départ » et ta mise partira toute seule,
           même si tu quittes l&apos;app.
         </p>
       </div>

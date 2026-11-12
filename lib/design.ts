@@ -206,6 +206,7 @@ export const ORDER = {
     "absolute -top-2 left-3 bg-carte px-1 text-[11px] font-medium text-doux",
   minBtn: "block w-full text-left",
   minVal: "truncate text-lg font-bold tabular-nums",
+  minSub: "block truncate text-[11px] font-medium tabular-nums text-doux",
   invRow: "flex items-center gap-1",
   step:
     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-texte active:bg-ligne",
