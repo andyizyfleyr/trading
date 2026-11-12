@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
+import { CandleChart, type ChartToast } from "@/components/CandleChart";
 import { TradeForm, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
@@ -21,23 +21,16 @@ import {
   SIGNAL_FRESH_PAST_MS,
   SIGNAL_PARAMS,
   STORE,
+  TOAST_MS,
   TRADES_PAGE_LIMIT,
   TRADES_REFRESH_MS,
   VIBRATE,
 } from "@/lib/config";
-import { INK, SHEET, STACK, TRADER } from "@/lib/design";
+import { SHEET, STACK, TRADER } from "@/lib/design";
 import { fmtMoney, fmtPrice, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
-
-const PriceChart = dynamic(
-  () => import("@/components/PriceChart").then((m) => m.PriceChart),
-  {
-    ssr: false,
-    loading: () => <div className={TRADER.chartLoading} />,
-  }
-);
 
 function loadSymbol(): string {
   if (typeof window === "undefined") return SYMBOLS[0].id;
@@ -61,9 +54,20 @@ export default function TraderPage() {
   const [now, setNow] = useState(() => Date.now());
   const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
   const [signal, setSignal] = useState<SignalHint | null>(null);
+  const [toast, setToast] = useState<ChartToast | null>(null);
 
   const { price, tickCandle, online } = useLiveMarket(symbol, DEFAULT_INTERVAL);
   const settlingRef = useRef(false);
+  const toastIdRef = useRef(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Message bref sur le graphique (mise, gain, perte).
+  const say = useCallback((msg: string, tone: ChartToast["tone"]) => {
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, msg, tone });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), TOAST_MS);
+  }, []);
 
   useEffect(() => {
     setShowGuide(!hasSeenGuide());
@@ -166,6 +170,11 @@ export default function TraderPage() {
           setResults((prev) => [...res.settled, ...prev].slice(0, RESULTS_SHOWN));
           setBalance(res.balance);
           vibrate(VIBRATE.settle);
+          for (const s of res.settled) {
+            if (s.result === "WIN") say(`Gagné +${fmtMoney((s.payout ?? 0) - s.amount)}`, "win");
+            else if (s.result === "LOSS") say(`Perdu −${fmtMoney(s.amount)}`, "loss");
+            else say("Égalité : mise rendue", null);
+          }
         }
       } catch {
         // Nouvel essai automatique à la prochaine seconde.
@@ -184,17 +193,13 @@ export default function TraderPage() {
       setBalance(balance);
       setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
+      say(
+        `${trade.direction === "UP" ? "Achat" : "Vente"} ${fmtMoney(trade.amount)} · ${trade.durationSec} s`,
+        null
+      );
     },
-    [setBalance]
+    [setBalance, say]
   );
-
-  const priceLines = openTrades
-    .filter((t) => t.symbol === symbol)
-    .map((t) => ({
-      price: t.openPrice,
-      title: `${t.direction === "UP" ? "Achat" : "Vente"} ${t.amount}`,
-      color: t.direction === "UP" ? INK.hausse : INK.baisse,
-    }));
 
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
   const nearestMs =
@@ -241,14 +246,14 @@ export default function TraderPage() {
           </span>
         </button>
 
-        {/* Graphique en bougies : prend toute la place restante */}
+        {/* Graphique maison en bougies : prend toute la place restante */}
         <div id="guide-chart" className={TRADER.chartBox}>
-          <PriceChart
+          <CandleChart
             symbol={symbol}
             interval={DEFAULT_INTERVAL}
             tickCandle={tickCandle}
             livePrice={isOtc(symbol) ? price : null}
-            priceLines={priceLines}
+            toast={toast}
           />
         </div>
 

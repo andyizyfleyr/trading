@@ -474,7 +474,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 text="Le temps que dure ta prédiction. À la fin du compte à rebours, on compare le prix de fin au prix de départ."
               />
             </span>
-            <div className={TRADER.chips} role="group" aria-label="Choisir la durée">
+            <div className={TRADER.chipsBox} role="group" aria-label="Choisir la durée">
               {DURATIONS.map((d) => (
                 <button
                   key={d}
@@ -490,22 +490,22 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           </div>
 
           {/* Mise : montant + raccourcis sur une ligne */}
-          <div id="guide-amount">
-            <div className={TRADER.row}>
-              <span className={TRADER.label}>
-                Mise
-                <HelpTip
-                  label="Mise"
-                  text={`La somme jouée, de ${RULES.MIN_BET} jusqu'à tout ton solde. Bonne prédiction = mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} % de gain. Égalité = mise rendue.`}
-                />
-              </span>
+          <div id="guide-amount" className={TRADER.row}>
+            <span className={TRADER.label}>
+              Mise
+              <HelpTip
+                label="Mise"
+                text={`La somme jouée, de ${RULES.MIN_BET} jusqu'à tout ton solde. Bonne prédiction = mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} % de gain. Égalité = mise rendue.`}
+              />
+            </span>
+            <div className={TRADER.chipsBox}>
               <input
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value)}
                 inputMode="decimal"
                 autoComplete="off"
                 aria-label="Montant de la mise"
-                className={`${TRADER.amount} ${FLEX.wide}`}
+                className={`${TRADER.amount} ${FLEX.input}`}
               />
               {QUICK_AMOUNTS.map((v) => (
                 <button
@@ -519,17 +519,12 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               ))}
               <button
                 type="button"
-                onClick={() => setAmountStr(String(maxBet))}
+                onClick={() => setAmountStr(String(Math.floor(maxBet)))}
                 className={`${TRADER.chipOff} ${FLEX.fill}`}
-                aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
+                aria-label={`Miser le maximum : ${fmtMoney(Math.floor(maxBet))}`}
               >
                 Max
               </button>
-            </div>
-            <div className={TRADER.gainRow}>
-              <span className={TRADER.gain}>
-                Gain <span className={TRADER.gainVal}>+{fmtMoney(gain)}</span>
-              </span>
             </div>
           </div>
 
@@ -543,34 +538,36 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                   text="« Maintenant » mise aussitôt. Appuie sur une heure (ou « Autre » pour la choisir) : ta mise partira toute seule à la seconde pile."
                 />
               </span>
-              <button
-                type="button"
-                onClick={pickNow}
-                aria-pressed={quand === "now"}
-                className={`${quand === "now" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.now}`}
-              >
-                Maintenant
-              </button>
-              {quickSlots.map((s) => (
+              <div className={TRADER.chipsBox}>
                 <button
-                  key={s}
                   type="button"
-                  onClick={() => pickSlot(s)}
-                  aria-pressed={quand === String(s)}
-                  className={`${quand === String(s) ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
+                  onClick={pickNow}
+                  aria-pressed={quand === "now"}
+                  className={`${quand === "now" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.now}`}
                 >
-                  {fmtHM(s)}
+                  Maintenant
                 </button>
-              ))}
-              <button
-                type="button"
-                onClick={openTimeSheet}
-                aria-pressed={customTime !== ""}
-                aria-haspopup="dialog"
-                className={`${customTime !== "" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
-              >
-                Autre
-              </button>
+                {quickSlots.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => pickSlot(s)}
+                    aria-pressed={quand === String(s)}
+                    className={`${quand === String(s) ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
+                  >
+                    {fmtHM(s)}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={openTimeSheet}
+                  aria-pressed={customTime !== ""}
+                  aria-haspopup="dialog"
+                  className={`${customTime !== "" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
+                >
+                  Autre
+                </button>
+              </div>
             </div>
           )}
 
@@ -622,7 +619,13 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 signalLive && signal?.direction === "UP" ? TRADER.advised : ""
               }`}
             >
-              {placing === "UP" ? "…" : "ACHAT ▲"}
+              {placing === "UP" ? (
+                "…"
+              ) : (
+                <>
+                  ACHAT ▲<small className={TRADER.goGain}>Gain +{fmtMoney(gain)}</small>
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -633,7 +636,13 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 signalLive && signal?.direction === "DOWN" ? TRADER.advised : ""
               }`}
             >
-              {placing === "DOWN" ? "…" : "VENTE ▼"}
+              {placing === "DOWN" ? (
+                "…"
+              ) : (
+                <>
+                  VENTE ▼<small className={TRADER.goGain}>Gain +{fmtMoney(gain)}</small>
+                </>
+              )}
             </button>
           </div>
         </>

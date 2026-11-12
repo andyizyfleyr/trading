@@ -109,3 +109,6 @@ export const CSV = {
 
 /** Point de rupture desktop = `lg` de Tailwind (barre latérale). */
 export const BREAKPOINT_LG = 1024;
+
+/** Durée d'affichage du message sur le graphique (mise, gain, perte). */
+export const TOAST_MS = 2200;

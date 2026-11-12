@@ -13,6 +13,7 @@ export const INK = {
   doux: "#7F8CAB",
   hausse: "#22C55E",
   baisse: "#EF4444",
+  chartDown: "#E5322D",
   action: "#3B82F6",
   primary: "#2F66F0",
   vente: "#DC2626",
@@ -22,23 +23,18 @@ export const INK = {
   vertfonce: "#06210F",
 } as const;
 
-/** Réglages du graphique en bougies (TradingView Lightweight Charts). */
+/** Réglages du graphique maison (canvas) : grille, bougies, prix. */
 export const CHART = {
-  text: INK.doux,
-  grid: INK.ligne,
-  cross: INK.action,
-  crossLabel: INK.primary,
-  up: INK.hausse,
-  down: INK.baisse,
-  font: "Inter, system-ui, sans-serif",
-  fontSize: 10,
-  visible: 90,
-  overscroll: 4,
-  rightOffset: 4,
-  fill: "h-full w-full",
-  /** Ligne de prix des mises : fine, pointillés. */
-  lineWidth: 1,
-  lineStyle: 2,
+  visible: 70,
+  axisW: 44,
+  axisBottom: 18,
+  gridLines: 4,
+  font: "10px system-ui",
+  fontBold: "700 10px system-ui",
+  dash: [3, 3],
+  padTop: 6,
+  padBottom: 12,
+  rangePad: 0.1,
   /** Garde-fou : ignore les prix aberrants (×2 ou ÷2 par rapport à la clôture). */
   spikeHi: 2,
   spikeLo: 0.5,
@@ -46,6 +42,7 @@ export const CHART = {
   bar: "skeleton flex-1 rounded",
   errBox: "absolute inset-0 flex flex-col items-center justify-center gap-3 bg-carte/95 p-6 text-center",
   errText: "text-base",
+  canvas: "block h-full w-full",
 } as const;
 
 /** Anneau de compte à rebours. */
@@ -90,7 +87,7 @@ export const TEXT = {
 /** Proportions flex (pastilles qui s'étirent). */
 export const FLEX = {
   fill: "flex-1",
-  input: "flex-[1.5]",
+  input: "flex-[1.7]",
   now: "flex-[1.6]",
   wide: "flex-[2]",
 } as const;
@@ -115,8 +112,8 @@ export const SHELL = {
   root: "min-h-dvh bg-fond text-texte",
   desktop: "lg:pl-[280px]",
   bare: "min-h-dvh bg-fond text-texte",
-  main: "mx-auto max-w-xl px-3 pb-28 pt-2 lg:max-w-6xl lg:px-6 lg:pb-10",
-  loadBox: "mx-auto flex max-w-xl flex-col lg:max-w-3xl gap-3 p-4",
+  main: "mx-auto max-w-[520px] px-3 pb-28 pt-2 lg:max-w-6xl lg:px-6 lg:pb-10",
+  loadBox: "mx-auto flex max-w-[520px] flex-col lg:max-w-3xl gap-3 p-4",
   loadBig: "skeleton h-40 rounded-xl",
   loadSmall: "skeleton h-24 rounded-xl",
 } as const;
@@ -128,7 +125,7 @@ export const HEADER = {
   mark: "flex flex-col text-[9px] font-bold leading-[0.9]",
   markUp: "text-hausse",
   markDown: "text-baisse",
-  name: "text-[15px] font-bold tracking-tight",
+  name: "text-[15px] font-bold",
   side: "flex items-center gap-1.5",
   pill: "flex items-center gap-1.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-[5px] text-[13px] font-bold tabular-nums",
   pillIcon: "h-3.5 w-3.5 text-action",
@@ -137,7 +134,7 @@ export const HEADER = {
 
 export const NAV = {
   bar: "safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ligne bg-carte/95 backdrop-blur lg:hidden",
-  grid: "mx-auto grid max-w-xl grid-cols-2",
+  grid: "mx-auto grid max-w-[520px] grid-cols-2",
   tab: "relative flex min-h-[46px] flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors duration-200",
   on: "text-texte",
   off: "text-doux",
@@ -151,7 +148,7 @@ export const TRADER = {
   root: "flex h-[calc(100dvh-106px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] -mb-[104px] flex-col gap-2 overflow-hidden lg:mb-0 lg:grid lg:h-[calc(100dvh-7.5rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:overflow-visible",
   assetBtn:
     "flex h-[34px] w-full shrink-0 items-center gap-[7px] rounded-[10px] border border-ligne bg-carte px-2.5 active:bg-ligne lg:col-span-2 lg:max-w-xl",
-  assetMain: "flex items-center gap-[7px] text-sm font-extrabold",
+  assetMain: "flex items-center gap-[7px] text-sm font-bold",
   dot: "h-2.5 w-2.5 rounded-full",
   tag: "shrink-0 rounded-md bg-tagfond px-1.5 py-0.5 text-[10px] font-bold text-tag",
   assetRight: "flex items-center gap-1.5",
@@ -159,24 +156,21 @@ export const TRADER = {
   chevron: "h-3.5 w-3.5 text-doux",
   chartBox: "min-h-[120px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0",
   chartCard: "relative h-full w-full overflow-hidden rounded-xl border border-ligne bg-carte",
-  chartLoading: "skeleton h-full w-full rounded-xl",
   sideCol:
     "shrink-0 lg:col-start-2 lg:row-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto",
   panel: "flex flex-col gap-1.5 rounded-xl border border-ligne bg-carte p-2",
   row: "flex items-center gap-[5px]",
   label: "flex w-[46px] flex-none items-center gap-[3px] text-[11px] text-doux",
-  chips: "flex flex-1 gap-1",
+  chipsBox: "flex min-w-0 flex-1 gap-0.5 rounded-[10px] border border-ligne bg-fond p-0.5",
   chipOff:
-    "h-7 min-w-0 rounded-lg border border-ligne bg-puce px-1 text-xs font-semibold text-texte transition-colors duration-200 active:bg-ligne",
+    "h-[26px] min-w-0 rounded-lg border-0 bg-transparent p-0 text-xs font-semibold text-doux",
   chipOn:
-    "h-7 min-w-0 rounded-lg border border-primary bg-primary px-1 text-xs font-semibold text-white transition-colors duration-200",
+    "h-[26px] min-w-0 rounded-lg border-0 bg-primary p-0 text-xs font-semibold text-white",
   amount:
-    "h-7 min-w-0 rounded-lg border border-ligne bg-puce px-1 text-center font-bold tabular-nums text-texte outline-none transition-colors duration-200 focus:border-action",
-  gainRow: "flex justify-end",
-  gain: "text-[11px] text-doux",
-  gainVal: "text-xs font-bold text-hausse",
-  goRow: "flex gap-1.5",
-  go: "h-[42px] flex-1 rounded-[10px] text-sm font-extrabold tracking-[0.2px] transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    "h-[26px] min-w-0 rounded-lg border-0 bg-puce p-0 text-center text-sm font-bold tabular-nums text-texte outline-none focus:ring-[1.5px] focus:ring-action",
+  goGain: "text-[11px] font-bold opacity-85",
+  goRow: "flex gap-1.5 border-t border-ligne pt-2",
+  go: "flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-sm font-extrabold transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   buy: "bg-hausse text-vertfonce",
   sell: "bg-vente text-white",
   advised: "animate-pulse ring-4 ring-white",
@@ -221,6 +215,11 @@ export const TRADER = {
   formWrap: "lg:shrink-0",
   doneBox: "anim-in rounded-xl bg-hausse/15 px-3 py-2",
   onlyDesktop: "hidden lg:block",
+  toast: "pointer-events-none absolute left-1/2 top-2.5 z-[5] -translate-x-1/2 whitespace-nowrap rounded-full border border-ligne bg-puce px-3 py-1.5 text-xs font-bold transition-all duration-[250ms] motion-reduce:transition-none",
+  toastShow: "translate-y-0 opacity-100",
+  toastHide: "-translate-y-[30px] opacity-0",
+  toastWin: "text-hausse",
+  toastLoss: "text-baisse",
 } as const;
 
 /* ---------- Panneaux (bottom sheets) ---------- */
@@ -228,7 +227,7 @@ export const TRADER = {
 export const SHEET = {
   root: "fixed inset-0 z-50 lg:flex lg:items-center lg:justify-center lg:p-6",
   fade: "anim-fade absolute inset-0 bg-fond/70",
-  box: "sheet-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[82dvh] w-full max-w-xl flex-col rounded-t-3xl border-t border-ligne bg-carte px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 lg:relative lg:inset-auto lg:mx-0 lg:max-h-[85vh] lg:max-w-md lg:rounded-3xl lg:border lg:pb-4 lg:pt-3 lg:shadow-2xl",
+  box: "sheet-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[82dvh] w-full max-w-[520px] flex-col rounded-t-3xl border-t border-ligne bg-carte px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 lg:relative lg:inset-auto lg:mx-0 lg:max-h-[85vh] lg:max-w-md lg:rounded-3xl lg:border lg:pb-4 lg:pt-3 lg:shadow-2xl",
   handle: "mx-auto mb-1 h-1.5 w-12 shrink-0 rounded-full bg-ligne lg:hidden",
   head: "flex min-h-[44px] shrink-0 items-center justify-between gap-2",
   title: "text-sm font-extrabold",
@@ -502,7 +501,8 @@ export const SIDE = {
 /* ---------- Sélecteur d'heure ---------- */
 
 export const TIME = {
-  grid: "grid grid-cols-3 gap-1.5",
+  box: "rounded-[10px] border border-ligne bg-fond p-0.5",
+  grid: "grid grid-cols-3 gap-0.5",
 } as const;
 
 /* ---------- Tons de résultat ---------- */

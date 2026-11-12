@@ -64,23 +64,25 @@ export function TimePickerPanel({
 
   return (
     <div className={STACK.c2}>
-      <div className={TIME.grid} role="group" aria-label="Heures proposées">
-        {list.map((s) => {
-          const active = s === selected;
-          const label = fmtHM(s);
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => toggle(s)}
-              aria-pressed={active}
-              aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
-              className={`${active ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
-            >
-              {label}
-            </button>
-          );
-        })}
+      <div className={TIME.box}>
+        <div className={TIME.grid} role="group" aria-label="Heures proposées">
+          {list.map((s) => {
+            const active = s === selected;
+            const label = fmtHM(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggle(s)}
+                aria-pressed={active}
+                aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
+                className={`${active ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <Btn onClick={onConfirm} className={BTN.block}>
         {value === ""
