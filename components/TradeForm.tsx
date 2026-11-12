@@ -7,7 +7,8 @@ import { vibrate } from "@/lib/vibrate";
 import { DURATIONS } from "@/lib/symbols";
 import { durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
-import { Btn, Card, HelpTip } from "./ui";
+import { BottomSheet, Btn, Card, HelpTip } from "./ui";
+import { TimePickerPanel } from "./TimePicker";
 
 /** Signal venant de la page Signaux : quoi appuyer, et à quel moment exact. */
 export interface SignalHint {
@@ -86,7 +87,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [signalNow, setSignalNow] = useState(() => Date.now());
   const [quand, setQuand] = useState<string>("now"); // "now" | secondes | BAD_TIME
   const [customTime, setCustomTime] = useState("");
-  const [customOpen, setCustomOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [draftTime, setDraftTime] = useState("");
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [serverPending, setServerPending] = useState<ApiTrade | null>(null);
@@ -219,12 +221,14 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const pickNow = () => {
     setQuand("now");
     setCustomTime("");
-    setCustomOpen(false);
   };
   const pickSlot = (s: number) => {
     setQuand(String(s));
     setCustomTime("");
-    setCustomOpen(false);
+  };
+  const openTimeSheet = () => {
+    setDraftTime(customTime);
+    setSheetOpen(true);
   };
   const onCustomTime = (v: string) => {
     setCustomTime(v);
@@ -555,7 +559,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 Quand
                 <HelpTip
                   label="Quand"
-                  text="« Maintenant » mise aussitôt. Appuie sur une heure (ou « Autre » pour écrire la tienne) : ta mise partira toute seule à la seconde pile."
+                  text="« Maintenant » mise aussitôt. Appuie sur une heure (ou « Autre » pour la choisir) : ta mise partira toute seule à la seconde pile."
                 />
               </div>
               <div className="flex gap-1.5" role="group" aria-label="Choisir l'heure de la mise">
@@ -580,25 +584,14 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 ))}
                 <button
                   type="button"
-                  onClick={() => setCustomOpen(true)}
-                  aria-pressed={customOpen}
-                  className={chipClass(customOpen, "flex-1")}
+                  onClick={openTimeSheet}
+                  aria-pressed={customTime !== ""}
+                  aria-haspopup="dialog"
+                  className={chipClass(customTime !== "", "flex-1")}
                 >
                   Autre
                 </button>
               </div>
-              {customOpen && (
-                <div className="mt-1.5">
-                  <p className="mb-0.5 text-xs font-medium text-doux">Écris n&apos;importe quelle heure :</p>
-                  <input
-                    type="time"
-                    value={customTime}
-                    onChange={(e) => onCustomTime(e.target.value)}
-                    aria-label="Heure choisie pour la mise (heures et minutes)"
-                    className="h-10 w-full rounded-xl border border-ligne bg-fond px-2 text-base font-bold tabular-nums outline-none focus:border-action"
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -672,6 +665,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           {error}
         </p>
       )}
+
+      {/* Panneau : choisir son heure (colonnes à faire défiler) */}
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure">
+        <div className="flex flex-col gap-2 pb-2">
+          <TimePickerPanel
+            value={draftTime}
+            onChange={setDraftTime}
+            onConfirm={() => {
+              onCustomTime(draftTime);
+              setSheetOpen(false);
+            }}
+          />
+        </div>
+      </BottomSheet>
     </Card>
   );
 }
