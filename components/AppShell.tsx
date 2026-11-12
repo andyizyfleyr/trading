@@ -58,9 +58,6 @@ function Header() {
           <span className={HEADER.name}>TradeFacile</span>
         </Link>
         <div className={HEADER.side}>
-          <Link href={ROUTES.profile} className={HEADER.depot}>
-            Dépôt
-          </Link>
           <Link
             href={ROUTES.profile}
             className={HEADER.pill}

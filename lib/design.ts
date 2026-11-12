@@ -138,8 +138,6 @@ export const HEADER = {
   side: "flex items-center gap-1.5",
   pill: "flex items-center gap-1.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-[5px] text-[13px] font-bold tabular-nums",
   pillIcon: "h-3.5 w-3.5 text-action",
-  depot:
-    "flex min-h-[34px] items-center rounded-[10px] bg-hausse px-3.5 text-[13px] font-extrabold text-white active:opacity-90",
   avatar: "hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex",
 } as const;
 
@@ -212,12 +210,6 @@ export const ORDER = {
   assetName: "truncate text-sm font-extrabold",
   payout: "shrink-0 text-sm font-extrabold tabular-nums text-payout",
   assetChev: "h-4 w-4 shrink-0 text-doux",
-  pendWrap: "ml-auto flex shrink-0 items-center gap-2",
-  pendLabel: "text-[11px] font-extrabold tracking-wide text-action",
-  toggleOn: "relative h-6 w-11 shrink-0 rounded-full border-2 border-primary",
-  toggleOff: "relative h-6 w-11 shrink-0 rounded-full border-2 border-ligne",
-  knobOn: "absolute right-[3px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-primary",
-  knobOff: "absolute left-[3px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-doux",
   boxes: "grid grid-cols-2 gap-2",
   box: "relative rounded-lg border border-cadre px-3 pb-2 pt-3",
   boxLabel:
@@ -230,13 +222,10 @@ export const ORDER = {
   stepIcon: "h-3.5 w-3.5",
   invInput:
     "w-full min-w-0 bg-transparent p-0 text-center text-lg font-bold tabular-nums text-texte outline-none",
-  basculeRow: "grid grid-cols-2 gap-2",
-  bascule:
-    "col-start-2 min-h-[24px] text-center text-[11px] font-extrabold tracking-wide text-action",
   debRow: "flex items-baseline gap-2",
   debLabel: "shrink-0 text-[13px] text-doux",
   debDots: "min-w-0 flex-1 border-b-2 border-dotted border-doux/60",
-  debVal: "shrink-0 text-[13px] font-bold tabular-nums",
+  debVal: "shrink-0 text-[13px] font-bold tabular-nums text-hausse",
   goRow: "grid grid-cols-2 gap-2",
   go: "flex h-[52px] items-center justify-between rounded-[10px] px-4 text-[15px] font-extrabold text-white transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   buy: "bg-hausse",
@@ -544,25 +533,10 @@ export const SIDE = {
   linkOff:
     "flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm font-bold text-doux transition-colors duration-200 hover:bg-carte hover:text-texte",
   linkIcon: "h-5 w-5 shrink-0",
-  card: "rounded-2xl border border-ligne bg-carte p-3",
-  cardTitle: "text-xs font-bold uppercase tracking-wide text-doux",
-  acctRow: "mt-2 flex items-center gap-2.5",
-  acctAvatar: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white",
-  acctMail: "truncate text-sm font-bold",
-  acctBal: "text-lg font-extrabold tabular-nums",
-  statsGrid: "mt-2 grid grid-cols-2 gap-2 text-center",
-  statTile: "rounded-xl bg-fond p-2",
-  statNum: "text-lg font-extrabold tabular-nums",
-  statLabel: "text-xs leading-tight text-doux",
-  pnlRow: "flex items-center justify-between rounded-xl bg-fond px-2.5 py-2",
-  pnlLabel: "text-xs font-bold text-doux",
-  pnlVal: "text-base font-extrabold tabular-nums",
   logout:
     "flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-ligne bg-transparent text-sm font-bold text-doux transition-colors duration-200 hover:text-baisse",
-  statsWrap: "mt-2 flex flex-col gap-2",
-  skelGrid: "mt-2 grid grid-cols-2 gap-2",
-  skel: "skeleton h-14 rounded-xl",
   spacer: "flex-1",
+  /** Colonne de texte à côté d'un avatar (profil). */
   acctMain: "min-w-0 flex-1",
 } as const;
 

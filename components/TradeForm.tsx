@@ -8,7 +8,6 @@ import {
   DEFAULT_BET,
   DEFAULT_DURATION_SEC,
   PENDING_TICK_MS,
-  QUICK_AMOUNTS,
   SCHEDULED_REFRESH_MS,
   SHOT_DELAY_MS,
   SIGNAL_TICK_MS,
@@ -88,7 +87,7 @@ function slotFromTime(v: string): number | null {
   return slot;
 }
 
-/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Déboursement, ACHAT/VENTE. */
+/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, ACHAT/VENTE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, onPickAsset }: Props) {
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? DEFAULT_DURATION_SEC);
   const [amountStr, setAmountStr] = useState(String(DEFAULT_BET));
@@ -97,7 +96,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [signalNow, setSignalNow] = useState(() => Date.now());
   const [quand, setQuand] = useState<string>("now"); // "now" | secondes | BAD_TIME
   const [customTime, setCustomTime] = useState("");
-  const [pendingOn, setPendingOn] = useState(true);
   const [durSheetOpen, setDurSheetOpen] = useState(false);
   const [durTab, setDurTab] = useState<"min" | "time">("min");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -229,9 +227,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     else quandStale = true;
   }
 
-  // Programmation effective : le contact « TRADE EN ATTENTE » + une heure choisie.
+  // Programmation effective : une heure choisie = mise programmée.
   // Pendant un signal guidé, on mise toujours aussitôt.
-  const scheduling = !signalLive && pendingOn;
+  const scheduling = !signalLive;
   const effectiveSlot = scheduling ? chosenSlot : null;
   const slotInvalid = scheduling && (quand === BAD_TIME || quandStale);
 
@@ -245,7 +243,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   };
   const pickTimeSlot = (s: number) => {
     pickSlot(s);
-    setPendingOn(true); // Choisir une heure active la programmation.
     setDurSheetOpen(false);
   };
   const openTimeSheet = () => {
@@ -280,7 +277,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
-  // Déboursement : ce que rend une bonne prédiction (mise + 85 %).
+  // Gain potentiel : ce que rend une bonne prédiction (mise + 85 %).
   const payout =
     amount != null && amount > 0 ? Math.round(amount * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
 
@@ -292,16 +289,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         ? Math.min(Math.floor(maxBet), cur + RULES.MIN_BET)
         : Math.max(RULES.MIN_BET, cur - RULES.MIN_BET);
     setAmountStr(String(Math.max(0, next)));
-  };
-
-  // « BASCULEZ » : fait défiler les mises rondes (10 → 50 → 100 → Max → 10…).
-  const cycleBet = () => {
-    const opts = [...new Set([...QUICK_AMOUNTS, Math.floor(maxBet)])]
-      .filter((v) => v > 0)
-      .sort((a, b) => a - b);
-    if (opts.length === 0) return;
-    const cur = amount ?? 0;
-    setAmountStr(String(opts.find((v) => v > cur) ?? opts[0]));
   };
 
   // Jeu affiché dans le panneau (pastille + nom + gain).
@@ -533,23 +520,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               <span className={ORDER.payout}>{payoutPct}%</span>
               <ChevronDownIcon className={ORDER.assetChev} />
             </button>
-            {!signalLive && (
-              <span className={ORDER.pendWrap}>
-                <span className={ORDER.pendLabel} id="trade-en-attente">
-                  TRADE EN ATTENTE
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={pendingOn}
-                  aria-labelledby="trade-en-attente"
-                  onClick={() => setPendingOn((v) => !v)}
-                  className={pendingOn ? ORDER.toggleOn : ORDER.toggleOff}
-                >
-                  <span className={pendingOn ? ORDER.knobOn : ORDER.knobOff} aria-hidden="true" />
-                </button>
-              </span>
-            )}
           </div>
 
           {/* Minuteur + Investissement */}
@@ -603,15 +573,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          <div className={ORDER.basculeRow}>
-            <button type="button" onClick={cycleBet} className={ORDER.bascule}>
-              BASCULEZ
-            </button>
-          </div>
-
-          {/* Déboursement : ce que rend une bonne prédiction */}
+          {/* Gain potentiel : ce que rend une bonne prédiction */}
           <div className={ORDER.debRow}>
-            <span className={ORDER.debLabel}>Déboursement</span>
+            <span className={ORDER.debLabel}>Gain potentiel</span>
             <span className={ORDER.debDots} aria-hidden="true" />
             <span className={ORDER.debVal}>{fmtMoney(payout)}</span>
           </div>
