@@ -29,6 +29,16 @@ export interface SignalHint {
   atMs: number;
 }
 
+/** Ordre « Rejouer » : rejoue aussitôt la même mise (panneau résultat). */
+export interface ReplayOrder {
+  direction: "UP" | "DOWN";
+  amount: number;
+  durationSec: number;
+  symbol: string;
+  /** Change à chaque demande (rejoue même le même trade deux fois). */
+  nonce: number;
+}
+
 interface Props {
   balance: number;
   symbol: string;
@@ -40,6 +50,8 @@ interface Props {
   signal?: SignalHint | null;
   /** Solde après programmation/annulation d'une mise. */
   onBalance?: (balance: number) => void;
+  /** Rejoue un trade terminé dès que l'ordre change. */
+  replay?: ReplayOrder | null;
 }
 
 /** Mise programmée sur l'appareil (marchés réels : la page doit rester ouverte). */
@@ -73,7 +85,7 @@ function slotFromTime(v: string): number | null {
 }
 
 /** Formulaire ultra-compact : durée + mise + heure + boutons, tout sur une vue. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance }: Props) {
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay }: Props) {
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? DEFAULT_DURATION_SEC);
   const [amountStr, setAmountStr] = useState(String(DEFAULT_BET));
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
@@ -383,6 +395,18 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, pending, offsetMs]);
+
+  // « Rejouer » : reprend durée + mise + sens, puis mise aussitôt (maquette).
+  const replayNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!replay || replay.nonce === replayNonceRef.current) return;
+    replayNonceRef.current = replay.nonce;
+    setDurationSec(replay.durationSec);
+    setAmountStr(String(replay.amount));
+    pickNow();
+    void place(replay.direction, { amount: replay.amount, durationSec: replay.durationSec });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replay]);
 
   const pendingRemainMs = pending
     ? Math.max(0, pending.slot * 1000 + SHOT_DELAY_MS - (tick + (offsetMs ?? 0)))

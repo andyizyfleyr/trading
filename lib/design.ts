@@ -337,12 +337,6 @@ export const TONE = {
 export const TRADE = {
   statUp: "text-hausse",
   statDown: "text-baisse",
-  resultTitle: "text-sm font-semibold",
-  resultNet: "text-2xl font-extrabold tabular-nums",
-  resultLine: "text-[13px] tabular-nums",
-  resultWin: "font-bold",
-  resultMuted: "text-doux",
-  resultMeta: "mt-1 text-[11px] tabular-nums text-doux",
 } as const;
 
 /** Anneau : chiffres et unités (grand / carte). */
@@ -406,29 +400,44 @@ export const SIGNAL = {
   idle: "mt-2 py-4 text-center text-base font-bold text-doux",
 } as const;
 
-/* ---------- Historique ---------- */
+/* ---------- Historique (maquette) ---------- */
 
 export const HISTORY = {
-  head: "flex items-center justify-between gap-2",
+  head: "flex items-center gap-1.5",
+  title: "mr-auto text-base font-extrabold",
   tools: "flex items-center gap-1.5",
-  iconBtn:
-    "flex h-9 w-9 items-center justify-center rounded-[10px] border border-ligne bg-carte text-doux active:text-texte",
-  select:
-    "h-[42px] flex-1 rounded-[10px] border border-ligne bg-carte px-2 font-bold outline-none focus:border-action lg:max-w-xs",
-  filters: "grid grid-cols-3 gap-1.5 lg:max-w-md",
-  filterOn: "min-h-[40px] rounded-xl bg-primary text-[13px] font-bold text-white transition-colors duration-200",
-  filterOff:
-    "min-h-[40px] rounded-xl border border-ligne bg-carte text-[13px] font-bold text-doux transition-colors duration-200 active:text-texte",
-  row: "rounded-xl border border-ligne bg-carte p-2.5",
-  rowMeta: "mt-0.5 truncate text-[11px] tabular-nums text-doux",
-  rowLink: "font-semibold text-action underline",
   exportBtn:
-    "flex min-h-[40px] items-center rounded-xl border border-ligne bg-carte px-3 text-[13px] font-bold text-doux active:text-texte disabled:opacity-50",
+    "flex h-7 items-center rounded-lg border border-ligne bg-carte px-2.5 text-[11px] font-bold active:text-texte disabled:opacity-50",
+  iconBtn:
+    "flex h-7 w-7 items-center justify-center rounded-lg border border-ligne bg-carte text-sm active:text-texte",
+  stats: "grid grid-cols-3 rounded-xl border border-ligne bg-carte py-2",
+  stat: "border-r border-ligne text-center last:border-0",
+  statNum: "block text-[15px] font-extrabold tabular-nums",
+  statUp: "text-hausse",
+  statDown: "text-[#E5322D]",
+  statLabel: "text-[10px] text-doux",
+  filterRow: "flex gap-1.5",
+  select:
+    "h-8 min-w-0 flex-[1.1] rounded-[10px] border border-ligne bg-carte px-2 text-xs font-bold outline-none focus:border-action",
+  chipsBox: "flex min-w-0 flex-[2] gap-0.5 rounded-[10px] border border-ligne bg-carte p-0.5",
+  chipOn: "h-[26px] min-w-0 flex-1 rounded-lg bg-primary p-0 text-[11px] font-semibold text-white",
+  chipOff: "h-[26px] min-w-0 flex-1 rounded-lg bg-transparent p-0 text-[11px] font-semibold text-doux",
+  grid: "grid content-start gap-[5px]",
+  group: "px-0.5 pt-1 text-[11px] font-bold text-doux",
+  hrow: "grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-1.5",
+  hicon: "grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-puce text-[11px] font-extrabold text-doux",
+  hiconWin: "bg-hausse/15 text-hausse",
+  hiconLoss: "bg-[#E5322D]/15 text-[#E5322D]",
+  hmid: "truncate text-xs font-bold",
+  hsub: "font-medium text-doux",
+  hmeta: "mt-[3px] truncate text-[11px] font-medium tabular-nums text-doux",
+  hright: "text-right text-[13px] font-extrabold tabular-nums",
+  htime: "mt-0.5 block text-[10px] font-medium text-doux",
+  hrightWin: "text-hausse",
+  hrightLoss: "text-[#E5322D]",
+  hrightRun: "text-action",
+  empty: "px-2 py-[14px] text-center text-xs text-doux",
   skel: "h-16",
-  grid: "grid gap-2 lg:grid-cols-2",
-  rowMain: "flex min-w-0 items-center gap-1.5",
-  rowName: "truncate text-sm font-bold",
-  rowSub: "font-medium text-doux",
 } as const;
 
 /* ---------- Profil ---------- */
@@ -535,17 +544,29 @@ export const TIME = {
   grid: "grid grid-cols-3 gap-0.5",
 } as const;
 
-/* ---------- Tons de résultat ---------- */
+/* ---------- Panneau résultat (maquette) ---------- */
 
 export const RESULT = {
-  col: "flex flex-col items-center gap-1 text-center",
-  winText: "text-hausse",
-  winBg: "bg-hausse/15",
-  lossText: "text-baisse",
-  lossBg: "bg-baisse/15",
-  tieText: "text-action",
-  tieBg: "bg-action/15",
-  btn: "mt-2 w-full",
+  box: "rounded-xl border border-ligne border-l-[3px] bg-fond px-3 py-2.5",
+  boxWin: "border-l-hausse bg-hausse/[0.08]",
+  boxLoss: "border-l-[#E5322D] bg-[#E5322D]/[0.09]",
+  boxTie: "border-l-doux",
+  top: "flex items-center gap-2.5",
+  icon: "grid h-[34px] w-[34px] flex-none place-items-center rounded-full text-[15px] font-extrabold",
+  iconWin: "bg-hausse/[0.18] text-hausse",
+  iconLoss: "bg-[#E5322D]/[0.18] text-[#E5322D]",
+  iconTie: "bg-puce text-doux",
+  title: "min-w-0 flex-1 text-[13px] font-bold",
+  sub: "mt-[3px] block text-[11px] font-medium text-doux",
+  amt: "flex-none text-2xl font-extrabold tabular-nums",
+  amtWin: "text-hausse",
+  amtLoss: "text-[#E5322D]",
+  amtTie: "text-texte",
+  move: "mt-2 flex items-center gap-1.5 border-t border-ligne pt-2 text-[11px] tabular-nums text-doux",
+  moveB: "font-semibold text-texte",
+  moveFar: "ml-auto",
+  again:
+    "mt-2 h-[42px] w-full flex-none rounded-[10px] bg-primary text-sm font-extrabold text-white transition-transform duration-200 active:scale-[0.98]",
 } as const;
 
 /* ---------- Atomes de mise en page ---------- */
