@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { TIME_SLOT_COUNT, TIME_SLOT_MARGIN_SEC, TIME_SLOT_STEP_MIN } from "@/lib/config";
-import { BTN, FLEX, STACK, TIME, TRADER } from "@/lib/design";
+import { BTN, ORDER, STACK } from "@/lib/design";
 import { fmtHM } from "@/lib/format";
 import { Btn } from "./ui";
 
@@ -64,25 +64,23 @@ export function TimePickerPanel({
 
   return (
     <div className={STACK.c2}>
-      <div className={TIME.box}>
-        <div className={TIME.grid} role="group" aria-label="Heures proposées">
-          {list.map((s) => {
-            const active = s === selected;
-            const label = fmtHM(s);
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggle(s)}
-                aria-pressed={active}
-                aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
-                className={`${active ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+      <div className={ORDER.grid} role="group" aria-label="Heures proposées">
+        {list.map((s) => {
+          const active = s === selected;
+          const label = fmtHM(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggle(s)}
+              aria-pressed={active}
+              aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
+              className={active ? ORDER.cellOn : ORDER.cellOff}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
       <Btn onClick={onConfirm} className={BTN.block}>
         {value === ""

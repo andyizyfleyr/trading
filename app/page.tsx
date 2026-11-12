@@ -7,7 +7,7 @@ import { CandleChart, type ChartToast } from "@/components/CandleChart";
 import { TradeForm, type ReplayOrder, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
-import { CheckIcon, ChevronDownIcon } from "@/components/Icons";
+import { CheckIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
@@ -27,7 +27,7 @@ import {
   VIBRATE,
 } from "@/lib/config";
 import { ENCOURS, SHEET, STACK, TRADER } from "@/lib/design";
-import { fmtMoney, fmtPrice, fmtRemainShort } from "@/lib/format";
+import { fmtMoney, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
@@ -212,36 +212,11 @@ export default function TraderPage() {
   // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
   // Sur desktop, « En cours » est affiché dans la colonne de droite, pas en panneau.
   const encoursVisible = tradesOpen && sortedOpen.length > 0 && !isDesktop;
-  const current = SYMBOLS.find((s) => s.id === symbol) ?? SYMBOLS[0];
 
   return (
     <RequireAuth>
       {/* Vue unique : 100 % de la hauteur dispo, aucun scroll de page. */}
       <div className={TRADER.root}>
-        {/* Sélecteur d'actif (liste déroulante) + prix en direct */}
-        <button
-          id="guide-symbol"
-          type="button"
-          onClick={() => setAssetOpen(true)}
-          aria-haspopup="dialog"
-          className={TRADER.assetBtn}
-        >
-          <span className={TRADER.assetMain}>
-            <span
-              className={TRADER.dot}
-              style={{ backgroundColor: current.color }}
-              aria-hidden="true"
-            />
-            {symbolDisplay(current.id)}
-          </span>
-          <span className={TRADER.assetRight}>
-            <span className={TRADER.assetPrice}>
-              {price != null ? fmtPrice(price) : "…"}
-            </span>
-            <ChevronDownIcon className={TRADER.chevron} />
-          </span>
-        </button>
-
         {/* Graphique maison en bougies : prend toute la place restante */}
         <div id="guide-chart" className={TRADER.chartBox}>
           <CandleChart
@@ -250,6 +225,7 @@ export default function TraderPage() {
             tickCandle={tickCandle}
             livePrice={isOtc(symbol) ? price : null}
             toast={toast}
+            endsInMs={sortedOpen.length > 0 ? nearestMs : null}
           />
           {/* Pastille « N en cours » en bas à gauche du graphique (maquette). */}
           {openTrades.length > 0 && (
@@ -277,6 +253,7 @@ export default function TraderPage() {
               signal={signal}
               onBalance={setBalance}
               replay={replay}
+              onPickAsset={() => setAssetOpen(true)}
             />
           </div>
 

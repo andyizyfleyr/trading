@@ -42,7 +42,7 @@ body {
 
 /* Chargement : placeholder animé doux */
 .skeleton {
-  background: linear-gradient(100deg, #131a2e 40%, #1e2a44 50%, #131a2e 60%);
+  background: linear-gradient(100deg, #222839 40%, #303848 50%, #222839 60%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite linear;
 }
@@ -123,7 +123,7 @@ body {
 .guide-spot {
   position: relative;
   z-index: 45;
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #2e99fb;
   outline-offset: 4px;
   border-radius: 1rem;
 }

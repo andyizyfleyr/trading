@@ -6,21 +6,24 @@
 
 /** Couleurs pour le JS (graphique, anneau, SVG) : miroir du thème Tailwind. */
 export const INK = {
-  fond: "#0A0F1E",
-  carte: "#121A2E",
-  ligne: "#222D4A",
-  texte: "#E8EDF8",
-  doux: "#7F8CAB",
-  hausse: "#22C55E",
-  baisse: "#EF4444",
-  chartDown: "#E5322D",
-  action: "#3B82F6",
-  primary: "#2F66F0",
-  vente: "#DC2626",
-  puce: "#1A2440",
+  fond: "#1C1F2E",
+  carte: "#2A3040",
+  ligne: "#3D4356",
+  texte: "#F0F0F0",
+  doux: "#8E93A7",
+  hausse: "#0CAF56",
+  baisse: "#E55D4F",
+  chartDown: "#E55D4F",
+  action: "#2E99FB",
+  primary: "#0270D1",
+  vente: "#DC4633",
+  puce: "#424554",
   tag: "#7AA2FF",
   tagfond: "#16275A",
-  vertfonce: "#06210F",
+  /** Étiquette du prix en direct (pastille bleue). */
+  pill: "#2E99FB",
+  /** Pastille du compte à rebours sur la ligne du prix. */
+  countBg: "#303040",
 } as const;
 
 /** Réglages du graphique maison (canvas) : grille, bougies, prix. */
@@ -95,8 +98,6 @@ export const TEXT = {
 /** Proportions flex (pastilles qui s'étirent). */
 export const FLEX = {
   fill: "flex-1",
-  input: "flex-[1.7]",
-  now: "flex-[1.6]",
   wide: "flex-[2]",
 } as const;
 
@@ -137,13 +138,15 @@ export const HEADER = {
   side: "flex items-center gap-1.5",
   pill: "flex items-center gap-1.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-[5px] text-[13px] font-bold tabular-nums",
   pillIcon: "h-3.5 w-3.5 text-action",
+  depot:
+    "flex min-h-[34px] items-center rounded-[10px] bg-hausse px-3.5 text-[13px] font-extrabold text-white active:opacity-90",
   avatar: "hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex",
 } as const;
 
 export const NAV = {
   bar: "safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ligne bg-carte/95 backdrop-blur lg:hidden",
   grid: "mx-auto grid max-w-[520px] grid-cols-2",
-  tab: "relative flex min-h-[46px] flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors duration-200",
+  tab: "relative flex min-h-[46px] flex-col items-center justify-center gap-0.5 text-[10px] font-bold uppercase tracking-wide transition-colors duration-200",
   on: "text-texte",
   off: "text-doux",
   icon: "h-[18px] w-[18px]",
@@ -153,34 +156,14 @@ export const NAV = {
 /* ---------- Trader ---------- */
 
 export const TRADER = {
-  root: "flex h-[calc(100dvh-106px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] -mb-[104px] flex-col gap-2 overflow-hidden lg:mb-0 lg:grid lg:h-[calc(100dvh-7.5rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:overflow-visible",
-  assetBtn:
-    "flex h-[34px] w-full shrink-0 items-center gap-[7px] rounded-[10px] border border-ligne bg-carte px-2.5 active:bg-ligne lg:col-span-2 lg:max-w-xl",
-  assetMain: "flex items-center gap-[7px] text-sm font-bold",
-  dot: "h-2.5 w-2.5 rounded-full",
+  root: "flex h-[calc(100dvh-106px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] -mb-[104px] flex-col gap-2 overflow-hidden lg:mb-0 lg:grid lg:h-[calc(100dvh-7.5rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-4 lg:overflow-visible",
   tag: "shrink-0 rounded-md bg-tagfond px-1.5 py-0.5 text-[10px] font-bold text-tag",
-  assetRight: "ml-auto flex items-center gap-1.5",
-  assetPrice: "text-[13px] font-bold tabular-nums text-doux",
-  chevron: "h-3.5 w-3.5 text-doux",
-  chartBox: "relative min-h-[120px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0",
-  chartCard: "relative h-full w-full overflow-hidden rounded-xl border border-ligne bg-carte",
+  chartBox: "relative min-h-[120px] flex-1 lg:col-start-1 lg:min-h-0",
+  /** Plein fond bleu nuit comme Quotex : le graphique se fond dans la page. */
+  chartCard: "relative h-full w-full overflow-hidden rounded-xl bg-fond",
   sideCol:
-    "shrink-0 lg:col-start-2 lg:row-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto",
-  panel: "flex flex-col gap-1.5 rounded-xl border border-ligne bg-carte p-2",
-  row: "flex items-center gap-[5px]",
-  label: "flex w-[46px] flex-none items-center gap-[3px] text-[11px] text-doux",
-  chipsBox: "flex min-w-0 flex-1 gap-0.5 rounded-[10px] border border-ligne bg-fond p-0.5",
-  chipOff:
-    "h-[26px] min-w-0 rounded-lg border-0 bg-transparent p-0 text-xs font-semibold text-doux",
-  chipOn:
-    "h-[26px] min-w-0 rounded-lg border-0 bg-primary p-0 text-xs font-semibold text-white",
-  amount:
-    "h-[26px] min-w-0 rounded-lg border-0 bg-puce p-0 text-center text-sm font-bold tabular-nums text-texte outline-none focus:ring-[1.5px] focus:ring-action",
-  goGain: "text-[11px] font-bold opacity-85",
-  goRow: "flex gap-1.5 border-t border-ligne pt-2",
-  go: "flex h-[46px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] text-sm font-extrabold transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-  buy: "bg-hausse text-vertfonce",
-  sell: "bg-vente text-white",
+    "shrink-0 lg:col-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto",
+  panel: "flex flex-col gap-2 rounded-xl bg-carte p-3",
   advised: "animate-pulse ring-4 ring-white",
   hintErr: "text-center text-[11px] font-bold text-baisse",
   error: "anim-in rounded-xl bg-baisse/10 px-3 py-1.5 text-center text-[13px] font-medium text-baisse",
@@ -220,6 +203,58 @@ export const TRADER = {
   toastLoss: "text-baisse",
 } as const;
 
+/* ---------- Panneau d'ordres (Quotex) ---------- */
+
+export const ORDER = {
+  assetRow: "flex items-center gap-2",
+  assetBtn: "flex min-w-0 items-center gap-1.5",
+  assetDot: "h-5 w-5 shrink-0 rounded-full",
+  assetName: "truncate text-sm font-extrabold",
+  payout: "shrink-0 text-sm font-extrabold tabular-nums text-payout",
+  assetChev: "h-4 w-4 shrink-0 text-doux",
+  pendWrap: "ml-auto flex shrink-0 items-center gap-2",
+  pendLabel: "text-[11px] font-extrabold tracking-wide text-action",
+  toggleOn: "relative h-6 w-11 shrink-0 rounded-full border-2 border-primary",
+  toggleOff: "relative h-6 w-11 shrink-0 rounded-full border-2 border-ligne",
+  knobOn: "absolute right-[3px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-primary",
+  knobOff: "absolute left-[3px] top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-doux",
+  boxes: "grid grid-cols-2 gap-2",
+  box: "relative rounded-lg border border-cadre px-3 pb-2 pt-3",
+  boxLabel:
+    "absolute -top-2 left-3 bg-carte px-1 text-[11px] font-medium text-doux",
+  minBtn: "block w-full text-left",
+  minVal: "truncate text-lg font-bold tabular-nums",
+  invRow: "flex items-center gap-1",
+  step:
+    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-texte active:bg-ligne",
+  stepIcon: "h-3.5 w-3.5",
+  invInput:
+    "w-full min-w-0 bg-transparent p-0 text-center text-lg font-bold tabular-nums text-texte outline-none",
+  basculeRow: "grid grid-cols-2 gap-2",
+  bascule:
+    "col-start-2 min-h-[24px] text-center text-[11px] font-extrabold tracking-wide text-action",
+  debRow: "flex items-baseline gap-2",
+  debLabel: "shrink-0 text-[13px] text-doux",
+  debDots: "min-w-0 flex-1 border-b-2 border-dotted border-doux/60",
+  debVal: "shrink-0 text-[13px] font-bold tabular-nums",
+  goRow: "grid grid-cols-2 gap-2",
+  go: "flex h-[52px] items-center justify-between rounded-[10px] px-4 text-[15px] font-extrabold text-white transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+  buy: "bg-hausse",
+  sell: "bg-vente",
+  arrowDot: "grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/25",
+  arrowIcon: "h-4 w-4 text-white",
+  tabs: "grid shrink-0 grid-cols-2 gap-2",
+  tabOn:
+    "flex h-11 items-center justify-center rounded-lg bg-primary text-[13px] font-extrabold tracking-wide text-white",
+  tabOff:
+    "flex h-11 items-center justify-center rounded-lg bg-onglet text-[13px] font-extrabold tracking-wide text-doux",
+  grid: "grid grid-cols-3 gap-2",
+  cellOn:
+    "flex h-12 items-center justify-center rounded-lg bg-primary text-sm font-bold tabular-nums text-white",
+  cellOff:
+    "flex h-12 items-center justify-center rounded-lg bg-grille text-sm font-bold tabular-nums text-texte",
+} as const;
+
 /* ---------- « En cours » compact (maquette) ---------- */
 
 export const ENCOURS = {
@@ -235,12 +270,12 @@ export const ENCOURS = {
   card: "grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne border-l-[3px] bg-fond px-2.5 py-[7px]",
   toneFlat: "border-l-doux",
   toneWin: "border-l-hausse",
-  /** Rouge maquette (#E5322D, comme les bougies baissières du graphique). */
-  toneLoss: "border-l-[#E5322D]",
+  /** Rouge Quotex (#E55D4F, comme les bougies baissières du graphique). */
+  toneLoss: "border-l-[#E55D4F]",
   mid: "min-w-0",
   mid1: "flex items-center gap-1.5 text-xs font-bold",
-  dirUp: "rounded-[5px] bg-[#0F3A20] px-1.5 py-0.5 text-[10px] font-extrabold text-hausse",
-  dirDown: "rounded-[5px] bg-[#451413] px-1.5 py-0.5 text-[10px] font-extrabold text-[#FF6B66]",
+  dirUp: "rounded-[5px] bg-hausse/15 px-1.5 py-0.5 text-[10px] font-extrabold text-hausse",
+  dirDown: "rounded-[5px] bg-baisse/15 px-1.5 py-0.5 text-[10px] font-extrabold text-baisse",
   mid2: "mt-1 text-[11px] text-doux",
   mid2B: "font-semibold text-texte",
   right: "text-right tabular-nums",
@@ -248,7 +283,7 @@ export const ENCOURS = {
   est: "mt-[3px] text-[11px] font-bold",
   textFlat: "text-texte",
   textWin: "text-hausse",
-  textLoss: "text-[#E5322D]",
+  textLoss: "text-[#E55D4F]",
 } as const;
 
 /* ---------- Panneaux (bottom sheets) ---------- */
@@ -408,7 +443,7 @@ export const HISTORY = {
   stat: "border-r border-ligne text-center last:border-0",
   statNum: "block text-[15px] font-extrabold tabular-nums",
   statUp: "text-hausse",
-  statDown: "text-[#E5322D]",
+  statDown: "text-[#E55D4F]",
   statLabel: "text-[10px] text-doux",
   filterRow: "flex gap-1.5",
   select:
@@ -421,14 +456,14 @@ export const HISTORY = {
   hrow: "grid grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-1.5",
   hicon: "grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-puce text-[11px] font-extrabold text-doux",
   hiconWin: "bg-hausse/15 text-hausse",
-  hiconLoss: "bg-[#E5322D]/15 text-[#E5322D]",
+  hiconLoss: "bg-[#E55D4F]/15 text-[#E55D4F]",
   hmid: "truncate text-xs font-bold",
   hsub: "font-medium text-doux",
   hmeta: "mt-[3px] truncate text-[11px] font-medium tabular-nums text-doux",
   hright: "text-right text-[13px] font-extrabold tabular-nums",
   htime: "mt-0.5 block text-[10px] font-medium text-doux",
   hrightWin: "text-hausse",
-  hrightLoss: "text-[#E5322D]",
+  hrightLoss: "text-[#E55D4F]",
   hrightRun: "text-action",
   empty: "px-2 py-[14px] text-center text-xs text-doux",
   skel: "h-16",
@@ -533,28 +568,23 @@ export const SIDE = {
 
 /* ---------- Sélecteur d'heure ---------- */
 
-export const TIME = {
-  box: "rounded-[10px] border border-ligne bg-fond p-0.5",
-  grid: "grid grid-cols-3 gap-0.5",
-} as const;
-
 /* ---------- Panneau résultat (maquette) ---------- */
 
 export const RESULT = {
   box: "rounded-xl border border-ligne border-l-[3px] bg-fond px-3 py-2.5",
   boxWin: "border-l-hausse bg-hausse/[0.08]",
-  boxLoss: "border-l-[#E5322D] bg-[#E5322D]/[0.09]",
+  boxLoss: "border-l-[#E55D4F] bg-[#E55D4F]/[0.09]",
   boxTie: "border-l-doux",
   top: "flex items-center gap-2.5",
   icon: "grid h-[34px] w-[34px] flex-none place-items-center rounded-full text-[15px] font-extrabold",
   iconWin: "bg-hausse/[0.18] text-hausse",
-  iconLoss: "bg-[#E5322D]/[0.18] text-[#E5322D]",
+  iconLoss: "bg-[#E55D4F]/[0.18] text-[#E55D4F]",
   iconTie: "bg-puce text-doux",
   title: "min-w-0 flex-1 text-[13px] font-bold",
   sub: "mt-[3px] block text-[11px] font-medium text-doux",
   amt: "flex-none text-2xl font-extrabold tabular-nums",
   amtWin: "text-hausse",
-  amtLoss: "text-[#E5322D]",
+  amtLoss: "text-[#E55D4F]",
   amtTie: "text-texte",
   move: "mt-2 flex items-center gap-1.5 border-t border-ligne pt-2 text-[11px] tabular-nums text-doux",
   moveB: "font-semibold text-texte",

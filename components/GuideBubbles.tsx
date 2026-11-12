@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QUICK_AMOUNTS, STORE } from "@/lib/config";
+import { STORE } from "@/lib/config";
 import { FLEX, GUIDE } from "@/lib/design";
 import { DURATIONS, RULES, SYMBOLS, durationLabel } from "@/lib/symbols";
 import { Btn } from "./ui";
@@ -28,7 +28,7 @@ const STEPS = [
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: `Tape un montant ou touche ${QUICK_AMOUNTS.join(", ")} ou Max (tout ton solde). Gain : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
+    text: `Tape un montant, ajuste avec \u2212 et +, ou touche BASCULEZ pour changer de mise ronde. D\u00e9boursement : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
   },
   {
     id: "guide-buttons",
