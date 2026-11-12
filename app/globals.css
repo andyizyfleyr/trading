@@ -72,7 +72,7 @@ body {
 
 /* Panneau coulissant depuis le bas */
 .sheet-in {
-  animation: sheet-in 0.22s ease-out;
+  animation: sheet-in 0.28s ease-out;
 }
 @keyframes sheet-in {
   from {
@@ -87,7 +87,7 @@ body {
 
 /* Fondu du fond derrière les panneaux */
 .anim-fade {
-  animation: anim-fade 0.2s ease-out;
+  animation: anim-fade 0.25s ease-out;
 }
 @keyframes anim-fade {
   from {
