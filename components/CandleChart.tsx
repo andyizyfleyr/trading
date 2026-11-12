@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
+import { fmtHM } from "@/lib/format";
 import { type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
@@ -177,6 +178,25 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast }: 
       ctx.fillStyle = INK.vertfonce;
       ctx.font = CHART.fontBold;
       ctx.fillText(last.toFixed(2), W - pw + 7, cy + 3.5);
+
+      // Heures en bas + petites graduations.
+      const count = Math.min(CHART.timeLabels, data.length);
+      const plotBottom = y(lo);
+      ctx.font = CHART.font;
+      ctx.fillStyle = mu;
+      ctx.strokeStyle = ln;
+      ctx.lineWidth = 1;
+      ctx.textAlign = "center";
+      ctx.beginPath();
+      for (let i = 0; i < count; i++) {
+        const idx = count === 1 ? data.length - 1 : Math.round((i * (data.length - 1)) / (count - 1));
+        const x = Math.min(Math.max(idx * cw + cw / 2, CHART.timeEdge), W - pw - CHART.timeEdge);
+        ctx.moveTo(x, plotBottom);
+        ctx.lineTo(x, plotBottom + CHART.tickLen);
+        ctx.fillText(fmtHM(data[idx].time), x, H - CHART.timePad);
+      }
+      ctx.stroke();
+      ctx.textAlign = "left";
     };
 
     draw();
