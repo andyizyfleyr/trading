@@ -12,6 +12,7 @@ import {
   SHOT_DELAY_MS,
   SIGNAL_TICK_MS,
   STORE,
+  TIME_SLOT_BOOK_MARGIN_MS,
   TIME_SLOT_COUNT,
   TRADES_PAGE_LIMIT,
   VIBRATE,
@@ -36,7 +37,6 @@ export interface ReplayOrder {
   direction: "UP" | "DOWN";
   amount: number;
   durationSec: number;
-  symbol: string;
   /** Change à chaque demande (rejoue même le même trade deux fois). */
   nonce: number;
 }
@@ -54,6 +54,8 @@ interface Props {
   onBalance?: (balance: number) => void;
   /** Rejoue un trade terminé dès que l'ordre change. */
   replay?: ReplayOrder | null;
+  /** Créneau pré-choisi par la page Signaux (« Préparer ma mise »). */
+  progSlot?: number | null;
   /** Ouvre le choix du jeu (ligne actif du panneau). */
   onPickAsset: () => void;
 }
@@ -109,7 +111,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
 }
 
 /** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, ACHAT/VENTE. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, onPickAsset }: Props) {
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onPickAsset }: Props) {
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
@@ -237,18 +239,26 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     };
   }, [pending]);
 
-  const signalRemainMs = signal ? signal.atMs - signalNow : 0;
+  // Le signal vise une seconde SERVEUR : le décompte utilise l'heure serveur
+  // (horloge locale + écart mesuré), sinon il sonne trop tôt ou trop tard.
+  const signalRemainMs = signal ? signal.atMs - (signalNow + (offsetMs ?? 0)) : 0;
   const signalLive = signal != null && signalRemainMs > 0;
   const signalLabel = signal?.direction === "DOWN" ? "VENTE ▼" : "ACHAT ▲";
 
   const serverNowMs = Date.now() + (offsetMs ?? 0);
-  const firstSlot = Math.ceil(serverNowMs / 60000) * 60;
+  // Premier créneau à plus de 8 s : sans marge, la première case tombe
+  // parfois dans 2-3 s et la programmation échoue (« Heure passée »).
+  const firstSlot = Math.ceil((serverNowMs + TIME_SLOT_BOOK_MARGIN_MS) / 60000) * 60;
   // Grille TEMPS : les prochaines minutes (avec « Maintenant » et « Autre », 12 cases).
   const timeSlots = Array.from({ length: Math.max(0, TIME_SLOT_COUNT - 2) }, (_, i) => firstSlot + i * 60);
 
-  // Heure tapée : à venir ou non.
+  // Heure tapée : passée, trop proche (< 8 s) ou bonne.
   const typedSlot = customTime === "" ? null : slotFromTime(customTime);
   const typedPassed = typedSlot != null && typedSlot * 1000 <= serverNowMs;
+  const typedTooSoon =
+    typedSlot != null &&
+    typedSlot * 1000 > serverNowMs &&
+    typedSlot * 1000 <= serverNowMs + TIME_SLOT_BOOK_MARGIN_MS;
 
   // Choix effectif (nul = immédiat ou invalide).
   let chosenSlot: number | null = null;
@@ -292,8 +302,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     const slot = slotFromTime(v);
-    setQuand(slot != null && slot * 1000 > Date.now() + (offsetMs ?? 0) ? String(slot) : BAD_TIME);
+    const ok =
+      slot != null && slot * 1000 > Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS;
+    setQuand(ok ? String(slot) : BAD_TIME);
   };
+
+  // Créneau pré-choisi par la page Signaux : on le présélectionne tel quel
+  // (l'utilisateur choisit sa mise puis appuie une fois sur ACHAT/VENTE).
+  useEffect(() => {
+    if (progSlot == null || !Number.isInteger(progSlot)) return;
+    if (progSlot * 1000 > Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS) {
+      setQuand(String(progSlot));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progSlot]);
 
   // Jeu changé pendant l'attente sur l'appareil : la programmation ne veut plus rien dire.
   // (Les programmations serveur, elles, survivent : le serveur s'en occupe.)
@@ -328,7 +350,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const payoutPct = Math.round(RULES.WIN_PAYOUT_RATIO * 100);
 
   // Programmées à venir (les parties rejoignent « En cours » toutes seules).
-  const upcoming = scheduledList.filter((t) => new Date(t.openedAt).getTime() > Date.now());
+  // Comparées à l'heure serveur : ce sont des heures serveur.
+  const upcoming = scheduledList.filter((t) => new Date(t.openedAt).getTime() > serverNowMs);
 
   const place = async (
     direction: "UP" | "DOWN",
@@ -383,13 +406,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError(
         typedPassed
           ? "Heure passée : choisis une heure à venir."
-          : "Choisis une heure à venir dans la liste."
+          : typedTooSoon
+            ? "Heure trop proche : choisis une heure plus tardive."
+            : "Choisis une heure à venir dans la liste."
       );
       return;
     }
     const slot = Number(quand);
+    const bookAfter = Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS;
     if (!Number.isFinite(slot) || slot * 1000 <= Date.now() + (offsetMs ?? 0)) {
       setError("Heure passée : choisis une autre heure.");
+      return;
+    }
+    if (slot * 1000 <= bookAfter) {
+      setError("Heure trop proche : choisis une heure plus tardive.");
       return;
     }
     setError(null);
@@ -637,7 +667,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               {quand === BAD_TIME
                 ? typedPassed
                   ? "Heure passée : choisis une heure à venir."
-                  : "Choisis une heure à venir dans la liste."
+                  : typedTooSoon
+                    ? "Heure trop proche : choisis une heure plus tardive."
+                    : "Choisis une heure à venir dans la liste."
                 : "Heure passée : choisis une autre heure."}
             </p>
           )}

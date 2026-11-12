@@ -5,7 +5,7 @@ import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
 import { fmtHM, fmtRemain } from "@/lib/format";
-import { type Interval } from "@/lib/symbols";
+import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
 
@@ -40,12 +40,21 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
   const [reloadKey, setReloadKey] = useState(0);
   const [toastVis, setToastVis] = useState(false);
 
-  // Chargement de l'historique des bougies.
+  // Chargement de l'historique des bougies. On garde les anciennes bougies
+  // pendant le rechargement (pas de flash vide quand on touche « Réessayer ») ;
+  // on n'efface que si le jeu ou l'unité change (sinon mélange de deux jeux).
+  const seriesRef = useRef("");
+  const drawnRef = useRef("");
   useEffect(() => {
     let cancelled = false;
+    const series = `${symbol}|${interval}`;
+    if (seriesRef.current !== series) {
+      seriesRef.current = series;
+      setCandles([]);
+      drawnRef.current = ""; // force le redessin (sinon l'ancien graphique reste)
+    }
     setLoading(true);
     setError(null);
-    setCandles([]);
 
     apiCandles(symbol, interval, CANDLES_LIMIT)
       .then(({ candles: list }) => {
@@ -95,19 +104,40 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
   const endsRef = useRef(endsInMs ?? null);
   endsRef.current = endsInMs ?? null;
 
-  // Dessin + redessin au redimensionnement.
+  // Dessin + redessin au redimensionnement. Le trader se rafraîchit chaque
+  // seconde : on ne touche au canvas que si quelque chose a vraiment changé
+  // (taille, bougies, prix ou seconde du compte à rebours), sinon la page
+  // rame et le graphique scintille.
   useEffect(() => {
     const box = boxRef.current;
     const cv = canvasRef.current;
 
     const draw = () => {
       if (!box || !cv) return;
+      const data = shownRef.current;
+      if (data.length === 0) return;
+      const remain = endsRef.current;
+      const sig = [
+        data.length,
+        data[data.length - 1].time,
+        data[data.length - 1].close,
+        remain == null ? "-" : Math.floor(remain / 1000),
+        box.clientWidth,
+        box.clientHeight,
+      ].join("|");
+      if (sig === drawnRef.current) return;
+      drawnRef.current = sig;
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       const r = box.getBoundingClientRect();
       const d = window.devicePixelRatio || 1;
-      cv.width = Math.max(1, Math.round(r.width * d));
-      cv.height = Math.max(1, Math.round(r.height * d));
+      // Changer width/height efface tout : seulement si la taille a bougé.
+      const w = Math.max(1, Math.round(r.width * d));
+      const h = Math.max(1, Math.round(r.height * d));
+      if (cv.width !== w || cv.height !== h) {
+        cv.width = w;
+        cv.height = h;
+      }
       ctx.setTransform(d, 0, 0, d, 0, 0);
       const W = r.width;
       const H = r.height;
@@ -118,8 +148,6 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       const ln = INK.ligne;
       const mu = INK.doux;
 
-      const data = shownRef.current;
-      if (data.length === 0) return;
       let hi = -Infinity;
       let lo = Infinity;
       for (const k of data) {
@@ -135,7 +163,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       const y = (v: number) =>
         CHART.padTop + ((hi - v) / (hi - lo)) * (H - ph - CHART.padBottom);
 
-      // Grille + prix à droite.
+      // Grille + prix à droite (décimales du jeu : Lucky 7 en a 3).
+      const dec = symbolDecimals(symbol);
       ctx.font = CHART.font;
       ctx.textAlign = "left";
       ctx.fillStyle = mu;
@@ -148,7 +177,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
         ctx.moveTo(0, yy);
         ctx.lineTo(W - pw, yy);
         ctx.stroke();
-        ctx.fillText(v.toFixed(2), W - pw + 6, yy + 3);
+        ctx.fillText(v.toFixed(dec), W - pw + 6, yy + 3);
       }
 
       // Bougies.
@@ -192,7 +221,6 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       const pillX = W - pw + 2;
       const pillW = pw - 4;
       const pillH = 18;
-      const remain = endsRef.current;
       if (remain != null) {
         const txt = fmtRemain(Math.max(0, remain));
         const cw2 = ctx.measureText(txt).width + 12;
@@ -209,7 +237,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       ctx.fillStyle = INK.pill;
       ctx.fill();
       ctx.fillStyle = "#FFFFFF";
-      ctx.fillText(last.toFixed(2), pillX + pillW / 2, cy + 3.5);
+      ctx.fillText(last.toFixed(dec), pillX + pillW / 2, cy + 3.5);
       ctx.textAlign = "left";
 
       // Heures en bas + petites graduations.
@@ -265,7 +293,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
         </div>
       )}
 
-      {loading && (
+      {loading && shown.length === 0 && (
         <div className={CHART.load} aria-label="Chargement du graphique...">
           {SKELETON_BARS.map((h, i) => (
             <div key={i} className={CHART.bar} style={{ height: `${h}%` }} />
@@ -273,7 +301,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
         </div>
       )}
 
-      {error && !loading && (
+      {error && !loading && shown.length === 0 && (
         <div className={CHART.errBox}>
           <p className={CHART.errText}>{error}</p>
           <Btn variant="card" onClick={() => setReloadKey((k) => k + 1)}>

@@ -27,10 +27,3 @@ CREATE TABLE IF NOT EXISTS "trades" (
 );
 CREATE INDEX IF NOT EXISTS "trades_user_idx" ON "trades" ("user_id", "opened_at" DESC);
 CREATE INDEX IF NOT EXISTS "trades_open_idx" ON "trades" ("user_id", "status", "closes_at");
-
-CREATE TABLE IF NOT EXISTS "lessons_progress" (
-  "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
-  "lesson_id" TEXT NOT NULL,
-  "done" BOOLEAN NOT NULL DEFAULT FALSE,
-  PRIMARY KEY ("user_id", "lesson_id")
-);

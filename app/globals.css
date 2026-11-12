@@ -98,20 +98,6 @@ body {
   }
 }
 
-/* Point "en direct" */
-.pulse-dot {
-  animation: pulse-dot 1.6s ease-in-out infinite;
-}
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
 /* Anneau du compte à rebours */
 .ring-anim {
   transition:

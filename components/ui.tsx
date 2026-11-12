@@ -1,21 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
-import { BTN, CARD, FORM, LAYOUT, SHEET, SKELETON, STATE } from "@/lib/design";
+import { BTN, FORM, LAYOUT, SHEET, SKELETON, STATE } from "@/lib/design";
 import { XIcon } from "./Icons";
 
 /* ---------- Bouton ---------- */
 
-type BtnVariant = "primary" | "green" | "red" | "ghost" | "card" | "danger";
+type BtnVariant = "primary" | "ghost" | "card";
 
 const btnStyles: Record<BtnVariant, string> = {
   primary: BTN.primary,
-  green: BTN.green,
-  red: BTN.red,
   ghost: BTN.ghost,
   card: BTN.card,
-  danger: BTN.danger,
 };
 
 export function Btn({
@@ -32,12 +29,6 @@ export function Btn({
       {children}
     </button>
   );
-}
-
-/* ---------- Carte ---------- */
-
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`${CARD.base} ${className}`}>{children}</div>;
 }
 
 /* ---------- Chargement (skeleton) ---------- */
@@ -86,6 +77,9 @@ export function ErrorState({ text, retry }: { text: string; retry?: () => void }
 
 /* ---------- Bottom sheet (panneau coulissant depuis le bas) ---------- */
 
+/** Nombre de panneaux ouverts (verrouille le scroll de la page). */
+let sheetLocks = 0;
+
 export function BottomSheet({
   open,
   onClose,
@@ -102,16 +96,21 @@ export function BottomSheet({
   /** En-tête sur mesure (remplace le titre + bouton fermer par défaut). */
   header?: ReactNode;
 }) {
+  // Panneaux empilés (Minuteur + « Choisir l'heure ») : un compteur, sinon
+  // la fermeture du panneau du dessus rend le scroll alors que l'autre
+  // est encore ouvert.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
+    sheetLocks += 1;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      sheetLocks = Math.max(0, sheetLocks - 1);
+      if (sheetLocks === 0) document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
@@ -138,27 +137,6 @@ export function BottomSheet({
         <div className={SHEET.body}>{children}</div>
       </div>
     </div>
-  );
-}
-
-/* ---------- Bulle d'aide "?" (ouvre un panneau) ---------- */
-
-export function HelpTip({ label, text }: { label: string; text: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className={LAYOUT.helpWrap}>
-      <button
-        type="button"
-        aria-label={`Aide : ${label}`}
-        onClick={() => setOpen(true)}
-        className={SHEET.helpBtn}
-      >
-        <span className={SHEET.helpDot}>?</span>
-      </button>
-      <BottomSheet open={open} onClose={() => setOpen(false)} title={label}>
-        <p className={SHEET.helpText}>{text}</p>
-      </BottomSheet>
-    </span>
   );
 }
 

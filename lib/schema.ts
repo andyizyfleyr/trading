@@ -5,8 +5,6 @@ import {
   integer,
   doublePrecision,
   timestamp,
-  boolean,
-  primaryKey,
 } from "drizzle-orm/pg-core";
 
 /** Utilisateurs : solde de départ 10 000 (argent fictif). */
@@ -40,19 +38,5 @@ export const trades = pgTable("trades", {
   closesAt: timestamp("closes_at").notNull(),
 });
 
-/** Progression dans les leçons éducatives. */
-export const lessonsProgress = pgTable(
-  "lessons_progress",
-  {
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id),
-    lessonId: text("lesson_id").notNull(),
-    done: boolean("done").notNull().default(false),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.lessonId] })]
-);
-
 export type User = typeof users.$inferSelect;
 export type Trade = typeof trades.$inferSelect;
-export type LessonProgress = typeof lessonsProgress.$inferSelect;

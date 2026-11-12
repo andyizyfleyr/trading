@@ -1,41 +1,15 @@
 import { NextRequest } from "next/server";
-import { and, asc, count, eq, gt, gte, sql } from "drizzle-orm";
+import { and, count, eq, gt, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
+import { TIME_SLOT_BOOK_MARGIN_MS } from "@/lib/config";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiTrade } from "@/lib/trade-shape";
 import { otcPriceAt } from "@/lib/otc";
 import { isDuration, isOtc, isSymbol, RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
-
-/**
- * GET /api/scheduled — Mes mises programmées (protégé).
- * Les mises encore à venir (ouverture dans le futur).
- */
-export async function GET(req: NextRequest) {
-  const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
-
-  try {
-    const rows = await db()
-      .select()
-      .from(trades)
-      .where(
-        and(
-          eq(trades.userId, userId),
-          eq(trades.status, "OPEN"),
-          gt(trades.openedAt, new Date())
-        )
-      )
-      .orderBy(asc(trades.openedAt))
-      .limit(50);
-    return ok({ scheduled: rows.map(toApiTrade) });
-  } catch {
-    return fail("ERREUR_SERVEUR", "Programmations temporairement indisponibles.", 500);
-  }
-}
 
 /**
  * POST /api/scheduled — Programmer une mise casino (protégé).
@@ -84,12 +58,15 @@ export async function POST(req: NextRequest) {
     return fail("MISE_TROP_PETITE", `La mise minimum est de ${RULES.MIN_BET}.`, 400);
   }
   const slot = Number(body.slot);
-  const nowSec = Math.floor(Date.now() / 1000);
+  const nowMs = Date.now();
+  const nowSec = Math.floor(nowMs / 1000);
   if (!Number.isInteger(slot) || slot % 60 !== 0) {
     return fail("HEURE_INVALIDE", "Choisissez une heure pile (ex : 14:35:00).", 400);
   }
-  if (slot <= nowSec + 5) {
-    return fail("HEURE_PASSEE", "Choisissez une heure à venir.", 400);
+  // Même marge que le client (8 s) : un créneau trop proche est refusé
+  // avec un message clair, pas « heure passée ».
+  if (slot * 1000 <= nowMs + TIME_SLOT_BOOK_MARGIN_MS) {
+    return fail("HEURE_TROP_PROCHE", "Heure trop proche : choisissez une heure plus tardive.", 400);
   }
   if (slot > nowSec + 24 * 3600) {
     return fail("HEURE_TROP_LOIN", "On ne programme pas au-delà de 24 heures.", 400);

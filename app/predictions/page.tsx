@@ -13,6 +13,7 @@ import {
   ROUTES,
   SIGNAL_PARAMS,
   SIGNAL_SLOT_COUNT,
+  TIME_SLOT_BOOK_MARGIN_MS,
 } from "@/lib/config";
 import { ICON, SIGNAL, STACK, TEXT, TONE, TRADER } from "@/lib/design";
 import { fmtRemain, fmtSlot } from "@/lib/format";
@@ -81,17 +82,24 @@ export default function PredictionsPage() {
 
   const slots = useMemo(() => {
     if (offsetMs == null || !game) return [];
-    const first = (minuteKey + 1) * 60;
+    // Premier créneau à plus de 8 s : sans cela, il tombe parfois dans moins
+    // d'1 s et la consigne affiche « GO ! » pour un coup déjà raté.
+    let first = (minuteKey + 1) * 60;
+    if (first * 1000 - serverNowMs < TIME_SLOT_BOOK_MARGIN_MS) first += 60;
     return Array.from({ length: SIGNAL_SLOT_COUNT }, (_, i) => {
       const start = first + i * 60;
       return { start, v: verdict(game.id, start, duration) };
     });
-  }, [offsetMs, minuteKey, gameId, duration, game]);
+  }, [offsetMs, minuteKey, serverNowMs, gameId, duration, game]);
 
   // Le coup mis en avant : le premier où on peut gagner (on saute les « PASSE »).
   const target = slots.find((s) => s.v !== "TIE") ?? slots[0];
   const remainingMs = target ? Math.max(0, target.start * 1000 - serverNowMs) : 0;
-  const elapsedPct = Math.min(100, Math.max(0, ((60000 - remainingMs) / 60000) * 100));
+  // Jauge sur la vraie fenêtre (la minute qui précède le coup), pas sur 60 s
+  // fixes : sinon elle reste à 0 % quand le coup est dans 3 minutes.
+  const spanStartMs = target ? (target.start - 60) * 1000 : 0;
+  const spanMs = target ? target.start * 1000 - spanStartMs : 1;
+  const elapsedPct = Math.min(100, Math.max(0, ((serverNowMs - spanStartMs) / spanMs) * 100));
 
   if (GAMES.length === 0) {
     return (
@@ -172,7 +180,7 @@ export default function PredictionsPage() {
               <div className={SIGNAL.fill} style={{ width: `${elapsedPct}%` }} />
             </div>
             <Link
-              href={`${ROUTES.trader}?${SIGNAL_PARAMS.game}=${game.id}&${SIGNAL_PARAMS.duration}=${duration}&${SIGNAL_PARAMS.sense}=${target.v === "UP" ? SIGNAL_PARAMS.up : SIGNAL_PARAMS.down}&${SIGNAL_PARAMS.slot}=${target.start}`}
+              href={`${ROUTES.trader}?${SIGNAL_PARAMS.game}=${game.id}&${SIGNAL_PARAMS.duration}=${duration}&${SIGNAL_PARAMS.sense}=${target.v === "UP" ? SIGNAL_PARAMS.up : SIGNAL_PARAMS.down}&${SIGNAL_PARAMS.slot}=${target.start}&${SIGNAL_PARAMS.prog}=${target.start}`}
               className={SIGNAL.prepareWrap}
             >
               <Btn className={SIGNAL.prepare}>

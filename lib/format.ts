@@ -26,13 +26,22 @@ export function fmtGain(n: number): string {
 }
 
 /** Prix avec un nombre de décimales adapté à l'ordre de grandeur. */
+const priceFmtBig = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: DEC_BIG,
+  maximumFractionDigits: DEC_BIG,
+});
+const priceFmtMid = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: DEC_MID,
+  maximumFractionDigits: DEC_MID,
+});
+const priceFmtSmall = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: DEC_SMALL,
+  maximumFractionDigits: DEC_SMALL,
+});
+
 export function fmtPrice(p: number): string {
   const v = Number(p) || 0;
-  const d = v >= PRICE_BIG ? DEC_BIG : v >= PRICE_UNIT ? DEC_MID : DEC_SMALL;
-  return new Intl.NumberFormat(LOCALE, {
-    minimumFractionDigits: d,
-    maximumFractionDigits: d,
-  }).format(v);
+  return (v >= PRICE_BIG ? priceFmtBig : v >= PRICE_UNIT ? priceFmtMid : priceFmtSmall).format(v);
 }
 
 /** Montant signé : +340 / -400 / ±0 */
@@ -70,15 +79,19 @@ export function fmtDurMS(sec: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** Compte à rebours « MM:SS » (mises programmées, signaux). */
+/**
+ * Compte à rebours « MM:SS » (mises programmées, signaux).
+ * Plancher (pas plafond) : on n'affiche jamais plus de temps qu'il n'en
+ * reste, sinon l'utilisateur appuie une seconde trop tôt.
+ */
 export function fmtRemain(ms: number): string {
-  const s = Math.max(0, Math.ceil(ms / 1000));
+  const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /** Compte à rebours court : « 1:05 » ou « 42s » (bouton flottant, En cours). */
 export function fmtRemainShort(ms: number): string {
-  const s = Math.max(0, Math.ceil(ms / 1000));
+  const s = Math.max(0, Math.floor(ms / 1000));
   if (s >= 60) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   return `${s}s`;
 }
