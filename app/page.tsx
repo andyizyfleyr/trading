@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
 import { fmtMoney, fmtPrice } from "@/lib/format";
-import { SYMBOLS, isDuration, isOtc, isStock, symbolDisplay } from "@/lib/symbols";
+import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
 
@@ -34,7 +34,7 @@ function loadSymbol(): string {
   } catch {
     /* ignore */
   }
-  return "BTCUSDT";
+  return "EURUSDOTC";
 }
 
 function formatRemain(ms: number): string {
@@ -45,7 +45,7 @@ function formatRemain(ms: number): string {
 
 export default function TraderPage() {
   const { user, setBalance } = useAuth();
-  const [symbol, setSymbol] = useState<string>("BTCUSDT");
+  const [symbol, setSymbol] = useState<string>("EURUSDOTC");
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -221,7 +221,6 @@ export default function TraderPage() {
               aria-hidden="true"
             />
             {symbolDisplay(current.id)}
-            <span className="font-medium text-doux">{current.name}</span>
             {current.kind === "otc" && (
               <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
                 JEU
@@ -242,7 +241,7 @@ export default function TraderPage() {
             symbol={symbol}
             interval="1m"
             tickCandle={tickCandle}
-            livePrice={isStock(symbol) || isOtc(symbol) ? price : null}
+            livePrice={isOtc(symbol) ? price : null}
             priceLines={priceLines}
           />
         </div>
@@ -303,7 +302,7 @@ export default function TraderPage() {
       )}
 
       {/* Panneau : choix de l'actif */}
-      <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title="Choisir un actif">
+      <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title="Choisir un jeu">
         <div className="flex flex-col gap-1 pb-2">
           {SYMBOLS.map((s) => {
             const active = s.id === symbol;
@@ -313,7 +312,7 @@ export default function TraderPage() {
                 type="button"
                 onClick={() => pickSymbol(s.id)}
                 aria-pressed={active}
-                className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl px-3 text-left active:bg-ligne ${
+                className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-left active:bg-ligne ${
                   active ? "bg-fond" : ""
                 }`}
               >
@@ -322,13 +321,8 @@ export default function TraderPage() {
                   style={{ backgroundColor: s.color }}
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-base font-extrabold">{symbolDisplay(s.id)}</span>
-                  <span className="block text-sm text-doux">
-                    {s.name}
-                    {s.kind === "stock" ? " · Action" : ""}
-                    {s.kind === "otc" ? " · Jeu de hasard" : ""}
-                  </span>
+                <span className="min-w-0 flex-1 truncate text-base font-extrabold">
+                  {symbolDisplay(s.id)}
                 </span>
                 {s.kind === "otc" && (
                   <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-xs font-extrabold text-action">

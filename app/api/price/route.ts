@@ -9,15 +9,15 @@ const cache = new Map<string, { at: number; price: number }>();
 const TTL_MS = 2_000;
 
 /**
- * GET /api/price?symbol=BTCUSDT — Prix actuel (protégé).
- * Secours quand le temps réel (WebSocket) est indisponible.
+ * GET /api/price?symbol=EURUSDOTC — Prix actuel (protégé).
+ * Prix servi par sondage régulier.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const symbol = searchParams.get("symbol") ?? "BTCUSDT";
+  const symbol = searchParams.get("symbol") ?? "EURUSDOTC";
 
   if (!isSymbol(symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un actif proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
   }
 
   const hit = cache.get(symbol);

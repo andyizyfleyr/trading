@@ -5,22 +5,22 @@ import { fail } from "@/lib/respond";
 
 export const dynamic = "force-dynamic";
 
-/** Petit cache mémoire (5 s) pour soulager Binance. */
+/** Petit cache mémoire (5 s). */
 const cache = new Map<string, { at: number; data: unknown }>();
 const TTL_MS = 5_000;
 
 /**
- * GET /api/candles?symbol=BTCUSDT&interval=1m&limit=200 — Bougies (protégé).
- * Vrais prix du marché. Réponse : { "data": { "symbol", "interval", "candles": [...] } }
+ * GET /api/candles?symbol=EURUSDOTC&interval=1m&limit=200 — Bougies (protégé).
+ * Prix des jeux. Réponse : { "data": { "symbol", "interval", "candles": [...] } }
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const symbol = searchParams.get("symbol") ?? "BTCUSDT";
+  const symbol = searchParams.get("symbol") ?? "EURUSDOTC";
   const interval = searchParams.get("interval") ?? "1m";
   const limit = Number(searchParams.get("limit") ?? 200);
 
   if (!isSymbol(symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un actif proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
   }
   if (!isInterval(interval)) {
     return fail("INTERVALLE_INVALIDE", "Choisissez un intervalle : 1m, 5m ou 15m.", 400);

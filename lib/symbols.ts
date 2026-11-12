@@ -1,30 +1,19 @@
 /**
- * Actifs disponibles :
- * - cryptos : prix Binance en direct ;
- * - actions : vrais cours de la Bourse américaine (Yahoo Finance) ;
- * - jeux casino : prix simulés maison, 100 % hasard (badge JEU).
+ * Jeux proposés : prix simulés maison, 100 % hasard (badge JEU).
+ * Les vrais actifs (cryptos, actions) ont été retirés du jeu :
+ * chaque jeu s'affiche par son seul nom (Lucky 7, Jackpot, Turbo).
  */
+
+/** Sortes d'actifs connues du moteur de prix (cryptos/actions : anciennes données seulement). */
+export type SymbolKind = "crypto" | "stock" | "otc";
+
 export const SYMBOLS = [
-  { id: "BTCUSDT", base: "BTC", name: "Bitcoin", color: "#F7931A", kind: "crypto" },
-  { id: "ETHUSDT", base: "ETH", name: "Ethereum", color: "#8A9CFF", kind: "crypto" },
-  { id: "BNBUSDT", base: "BNB", name: "BNB", color: "#F0B90B", kind: "crypto" },
-  { id: "SOLUSDT", base: "SOL", name: "Solana", color: "#14F195", kind: "crypto" },
-  { id: "XRPUSDT", base: "XRP", name: "XRP", color: "#4AA8E0", kind: "crypto" },
-  { id: "DOGEUSDT", base: "DOGE", name: "Dogecoin", color: "#D3BE5D", kind: "crypto" },
-  { id: "ADAUSDT", base: "ADA", name: "Cardano", color: "#4A7DFF", kind: "crypto" },
-  { id: "AVAXUSDT", base: "AVAX", name: "Avalanche", color: "#E84142", kind: "crypto" },
-  { id: "LINKUSDT", base: "LINK", name: "Chainlink", color: "#8FB4FF", kind: "crypto" },
-  { id: "TRXUSDT", base: "TRX", name: "Tron", color: "#FF6B6B", kind: "crypto" },
-  { id: "AAPL", base: "AAPL", name: "Apple", color: "#D1D5DB", kind: "stock" },
-  { id: "TSLA", base: "TSLA", name: "Tesla", color: "#E31937", kind: "stock" },
-  { id: "NVDA", base: "NVDA", name: "NVIDIA", color: "#76B900", kind: "stock" },
-  { id: "EURUSDOTC", base: "Lucky 7", name: "Le plus doux", color: "#FBBF24", kind: "otc" },
-  { id: "GBPUSDOTC", base: "Jackpot", name: "Le mouvementé", color: "#A78BFA", kind: "otc" },
-  { id: "USDJPYOTC", base: "Turbo", name: "Le plus nerveux", color: "#F472B6", kind: "otc" },
+  { id: "EURUSDOTC", base: "Lucky 7", color: "#FBBF24", kind: "otc" as SymbolKind },
+  { id: "GBPUSDOTC", base: "Jackpot", color: "#A78BFA", kind: "otc" as SymbolKind },
+  { id: "USDJPYOTC", base: "Turbo", color: "#F472B6", kind: "otc" as SymbolKind },
 ] as const;
 
 export type SymbolId = (typeof SYMBOLS)[number]["id"];
-export type SymbolKind = (typeof SYMBOLS)[number]["kind"];
 
 export const SYMBOL_IDS = new Set<string>(SYMBOLS.map((s) => s.id));
 
@@ -32,7 +21,7 @@ export function isSymbol(v: unknown): v is SymbolId {
   return typeof v === "string" && SYMBOL_IDS.has(v);
 }
 
-/** Vrai si l'actif est une action (sinon c'est une crypto). */
+/** Vrai si l'actif est une action (plus aucun jeu proposé : anciennes données seulement). */
 export function isStock(symbol: string): boolean {
   return SYMBOLS.find((s) => s.id === symbol)?.kind === "stock";
 }
@@ -42,11 +31,11 @@ export function isOtc(symbol: string): boolean {
   return SYMBOLS.find((s) => s.id === symbol)?.kind === "otc";
 }
 
-/** Nom affiché : "BTC/USDT" pour les cryptos, "AAPL" et "EUR/USD" tels quels. */
+/** Nom affiché du jeu : « Lucky 7 », « Jackpot » ou « Turbo ». */
 export function symbolDisplay(symbol: string): string {
   const found = SYMBOLS.find((s) => s.id === symbol);
   if (!found) return symbol;
-  return found.kind === "crypto" ? `${found.base}/USDT` : found.base;
+  return found.base;
 }
 
 /** Durées de prédiction autorisées (en secondes). */
