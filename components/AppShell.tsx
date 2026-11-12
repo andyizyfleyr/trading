@@ -82,7 +82,7 @@ function Header() {
  * Garde le solde affiché toujours juste, sur toutes les pages :
  * clôture ce qui est arrivé à échéance puis met à jour le solde,
  * à chaque navigation, au retour sur l'app, et toutes les 30 secondes.
- * Sans cela, les pages qui ne clôturent pas (Classement, Cours, Profil)
+ * Sans cela, les pages qui ne clôturent pas (Historique, Profil)
  * afficheraient un solde périmé dès qu'une prédiction se termine ailleurs.
  */
 function BalanceSync() {

@@ -46,24 +46,3 @@ export interface ApiStats {
   total: number;
 }
 
-export interface LeaderboardEntry {
-  rank: number;
-  userId: number;
-  label: string;
-  balance: number;
-  isMe: boolean;
-}
-
-export interface LessonBlock {
-  heading?: string;
-  text: string;
-}
-
-export interface ApiLesson {
-  id: string;
-  title: string;
-  summary: string;
-  minutes: number;
-  blocks: LessonBlock[];
-  takeaway: string;
-}

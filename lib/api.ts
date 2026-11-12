@@ -6,11 +6,9 @@
  */
 import type {
   ApiCandle,
-  ApiLesson,
   ApiStats,
   ApiTrade,
   ApiUser,
-  LeaderboardEntry,
 } from "./types";
 
 const TOKEN_KEY = "tf_token";
@@ -155,22 +153,3 @@ export const apiSettle = (ids?: number[]) =>
     body: ids ? { ids } : {},
   });
 
-// --- Classement ---
-
-export const apiLeaderboard = () =>
-  request<{
-    entries: LeaderboardEntry[];
-    me: { rank: number; balance: number };
-    total: number;
-  }>("/api/leaderboard");
-
-// --- Leçons ---
-
-export const apiLessons = () =>
-  request<{ lessons: ApiLesson[]; progress: Record<string, boolean> }>("/api/lessons");
-
-export const apiLessonProgress = (lessonId: string, done = true) =>
-  request<{ lessonId: string; done: boolean }>("/api/lessons/progress", {
-    method: "POST",
-    body: { lessonId, done },
-  });

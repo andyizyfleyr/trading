@@ -9,19 +9,15 @@ import { apiMyStats } from "@/lib/api";
 import { fmtMoney, fmtSigned } from "@/lib/format";
 import type { ApiStats } from "@/lib/types";
 import {
-  BookIcon,
   ChartIcon,
   HistoryIcon,
   LogoutIcon,
-  TrophyIcon,
   UserIcon,
 } from "./Icons";
 
 const ITEMS = [
   { href: "/", label: "Trader", Icon: ChartIcon },
   { href: "/historique", label: "Historique", Icon: HistoryIcon },
-  { href: "/classement", label: "Classement", Icon: TrophyIcon },
-  { href: "/cours", label: "Cours", Icon: BookIcon },
   { href: "/profil", label: "Profil", Icon: UserIcon },
 ];
 
@@ -113,8 +109,8 @@ export function Sidebar() {
           <div className="mt-2 flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-2 text-center">
               <div className="rounded-xl bg-fond p-2">
-                <p className="text-lg font-extrabold tabular-nums">#{stats.rank}</p>
-                <p className="text-xs leading-tight text-doux">sur {stats.total}</p>
+                <p className="text-lg font-extrabold tabular-nums">{stats.settled}</p>
+                <p className="text-xs leading-tight text-doux">parties</p>
               </div>
               <div className="rounded-xl bg-fond p-2">
                 <p className="text-lg font-extrabold tabular-nums">{stats.winRate} %</p>
