@@ -21,6 +21,8 @@ export const STORE = {
   token: "tf_token",
   guide: "tf_guide",
   calm: "tf_calme",
+  /** Minuteur + Investissement : retrouvés après refresh, déconnexion, fermeture. */
+  order: "tf_order",
 } as const;
 
 /** Paramètres du lien « Préparer ma mise » (signaux → trader). */
