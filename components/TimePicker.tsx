@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Btn } from "./ui";
 
 function parseHM(v: string): { hour: number; minute: number } | null {
@@ -13,17 +13,28 @@ function parseHM(v: string): { hour: number; minute: number } | null {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const ROW_H = 32; // hauteur d'une ligne (centrage du défilement)
 
-// Les chiffres s'effacent en haut et en bas, comme un vrai rouleau.
-const reelFade = {
-  WebkitMaskImage: "linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)",
-  maskImage: "linear-gradient(to bottom, transparent, black 30%, black 70%, transparent)",
-} as const;
+/** « HH:MM » → prochaine occurrence (aujourd'hui, ou demain si l'heure est passée). */
+function nextOccurrence(hour: number, minute: number, fromMs: number): number {
+  const d = new Date(fromMs);
+  d.setHours(hour, minute, 0, 0);
+  let slot = Math.floor(d.getTime() / 1000);
+  if (slot * 1000 <= fromMs) slot += 24 * 3600;
+  return slot;
+}
+
+function fmtHM(slot: number): string {
+  const d = new Date(slot * 1000);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Le créneau tombe-t-il un autre jour calendaire (ex. 00:15 quand il est 23:50) ? */
+function isNextDay(slot: number, fromMs: number): boolean {
+  return new Date(slot * 1000).getDate() !== new Date(fromMs).getDate();
+}
 
 /**
- * Sélecteur d'heure compact esprit « machine à sous » : deux rouleaux
- * sans cadre dans une fenêtre dorée, rappel lumineux, 24 heures.
+ * Liste des prochaines heures : on touche une heure, on valide.
  * `value` = « HH:MM » ou « » (vide = rien choisi).
  */
 export function TimePickerPanel({
@@ -35,97 +46,57 @@ export function TimePickerPanel({
   onChange: (v: string) => void;
   onConfirm: () => void;
 }) {
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
-  const parsed = parseHM(value);
-  const now = new Date();
-  const selHour = parsed?.hour ?? now.getHours();
-  const selMinute = parsed?.minute ?? now.getMinutes();
+  const { list, selected } = useMemo(() => {
+    const nowMs = Date.now();
+    // 12 créneaux de 15 min, à partir du prochain créneau (marge 90 s).
+    const step = 15 * 60;
+    const first = Math.ceil((nowMs + 90_000) / (step * 1000)) * step;
+    const slots = Array.from({ length: 12 }, (_, i) => first + i * step);
+    // Choix précédent hors liste (panneau rouvert) : on le garde, trié avec les autres.
+    const preset = parseHM(value);
+    const sel = preset ? nextOccurrence(preset.hour, preset.minute, nowMs) : null;
+    if (sel != null && !slots.includes(sel)) {
+      slots.push(sel);
+      slots.sort((a, b) => a - b);
+    }
+    return { list: slots, selected: sel };
+  }, [value]);
 
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
+  const selectedTomorrow = selected != null && isNextDay(selected, Date.now());
 
-  // Centre chaque rouleau sur sa ligne choisie.
-  useEffect(() => {
-    const hourEl = hourRef.current;
-    if (hourEl) hourEl.scrollTop = selHour * ROW_H;
-    const minuteEl = minuteRef.current;
-    if (minuteEl) minuteEl.scrollTop = selMinute * ROW_H;
-  }, [selHour, selMinute]);
+  // Retoucher l'heure choisie = la désélectionner.
+  const toggle = (slot: number) => onChange(slot === selected ? "" : fmtHM(slot));
 
-  const set = (hour: number, minute: number) => onChange(`${pad(hour)}:${pad(minute)}`);
-
-  const renderReel = (
-    items: number[],
-    selected: number,
-    onPick: (v: number) => void,
-    label: string,
-    listRef: React.RefObject<HTMLDivElement>
-  ) => (
-    <div className="relative min-w-0 flex-1">
-      <div
-        ref={listRef}
-        role="listbox"
-        aria-label={label}
-        style={reelFade}
-        className="h-32 snap-y snap-mandatory overflow-y-auto py-[48px]"
-      >
-        {items.map((v) => {
-          const active = v === selected;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Heures proposées">
+        {list.map((s) => {
+          const active = s === selected;
+          const label = fmtHM(s);
           return (
             <button
-              key={v}
+              key={s}
               type="button"
-              role="option"
-              aria-selected={active}
-              onClick={() => onPick(v)}
-              className={`flex h-8 w-full snap-center items-center justify-center tabular-nums ${
+              onClick={() => toggle(s)}
+              aria-pressed={active}
+              aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
+              className={`min-h-[44px] rounded-xl text-sm font-extrabold tabular-nums transition-colors duration-200 ${
                 active
-                  ? "text-base font-black text-amber-300"
-                  : "text-sm font-bold text-doux/60 active:text-texte"
+                  ? "bg-primary text-white"
+                  : "border border-ligne bg-fond text-texte active:bg-ligne"
               }`}
             >
-              {pad(v)}
+              {label}
             </button>
           );
         })}
       </div>
-      {/* Fenêtre dorée : la ligne gagnante */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-8 -translate-y-1/2 rounded-lg border border-amber-300/60 bg-amber-300/10 shadow-[0_0_16px_rgba(251,191,36,0.25)]"
-      />
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p
-        className="text-center text-xl font-black tabular-nums text-amber-300 [text-shadow:0_0_12px_rgba(251,191,36,0.5)]"
-        aria-live="polite"
-      >
-        {pad(selHour)}:{pad(selMinute)}
-      </p>
-      <div>
-        <div className="mb-0.5 flex gap-2" aria-hidden="true">
-          <p className="flex-1 text-center text-xs font-bold tracking-widest text-doux">HEURES</p>
-          <p className="flex-1 text-center text-xs font-bold tracking-widest text-doux">MINUTES</p>
-        </div>
-        <div className="relative">
-          <div className="flex gap-2">
-            {renderReel(hours, selHour, (h) => set(h, selMinute), "Heures", hourRef)}
-            {renderReel(minutes, selMinute, (m) => set(selHour, m), "Minutes", minuteRef)}
-          </div>
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-black text-amber-300 [text-shadow:0_0_10px_rgba(251,191,36,0.5)]"
-          >
-            :
-          </span>
-        </div>
-      </div>
-      <Btn onClick={onConfirm} className="min-h-[44px] w-full text-sm font-extrabold">
-        {value === "" ? "Revenir à Maintenant" : `Valider ${value} →`}
+      <Btn onClick={onConfirm} className="min-h-[48px] w-full text-sm font-extrabold">
+        {value === ""
+          ? "Revenir à Maintenant"
+          : selectedTomorrow
+            ? `Valider demain ${value} →`
+            : `Valider ${value} →`}
       </Btn>
     </div>
   );
