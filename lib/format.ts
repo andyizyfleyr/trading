@@ -64,6 +64,12 @@ export function fmtDateTime(iso: string): string {
   }
 }
 
+/** Durée « MM:SS » : « 00:03 », « 01:00 », « 05:00 » (grille Minuteur, champ). */
+export function fmtDurMS(sec: number): string {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
 /** Compte à rebours « MM:SS » (mises programmées, signaux). */
 export function fmtRemain(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));

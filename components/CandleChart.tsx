@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
-import { fmtHM } from "@/lib/format";
+import { fmtHM, fmtRemain } from "@/lib/format";
 import { type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
@@ -26,10 +26,12 @@ interface Props {
   /** Dernier prix connu : anime la clôture de la bougie en cours. */
   livePrice: number | null;
   toast: ChartToast | null;
+  /** Temps restant du trade le plus proche (pastille sur la ligne du prix). */
+  endsInMs?: number | null;
 }
 
 /** Graphique maison en bougies (canvas) : grille, prix, ligne du prix en direct. */
-export function CandleChart({ symbol, interval, tickCandle, livePrice, toast }: Props) {
+export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, endsInMs }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [candles, setCandles] = useState<ApiCandle[]>([]);
@@ -90,6 +92,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast }: 
   shown = shown.slice(-CHART.visible);
   const shownRef = useRef(shown);
   shownRef.current = shown;
+  const endsRef = useRef(endsInMs ?? null);
+  endsRef.current = endsInMs ?? null;
 
   // Dessin + redessin au redimensionnement.
   useEffect(() => {
@@ -163,21 +167,50 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast }: 
         ctx.fillRect(x - cw * 0.35, t, cw * 0.7, bh);
       });
 
-      // Prix actuel : ligne pointillée + étiquette.
+      // Prix actuel façon Quotex : ligne blanche pointillée, pastille grise
+      // du compte à rebours (si trade en cours), pastille bleue du prix.
+      const rrect = (x: number, yy: number, w: number, h: number, r: number) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, yy);
+        ctx.arcTo(x + w, yy, x + w, yy + h, r);
+        ctx.arcTo(x + w, yy + h, x, yy + h, r);
+        ctx.arcTo(x, yy + h, x, yy, r);
+        ctx.arcTo(x, yy, x + w, yy, r);
+        ctx.closePath();
+      };
       const last = data[data.length - 1].close;
       const cy = y(last);
       ctx.setLineDash([...CHART.dash]);
-      ctx.strokeStyle = up;
+      ctx.strokeStyle = INK.texte;
       ctx.beginPath();
       ctx.moveTo(0, cy);
       ctx.lineTo(W - pw, cy);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = up;
-      ctx.fillRect(W - pw + 2, cy - 8, pw - 4, 16);
-      ctx.fillStyle = INK.vertfonce;
       ctx.font = CHART.fontBold;
-      ctx.fillText(last.toFixed(2), W - pw + 7, cy + 3.5);
+      ctx.textAlign = "center";
+      const pillX = W - pw + 2;
+      const pillW = pw - 4;
+      const pillH = 18;
+      const remain = endsRef.current;
+      if (remain != null) {
+        const txt = fmtRemain(Math.max(0, remain));
+        const cw2 = ctx.measureText(txt).width + 12;
+        const cx = pillX - 4 - cw2;
+        if (cx >= 0) {
+          rrect(cx, cy - pillH / 2, cw2, pillH, 4);
+          ctx.fillStyle = INK.countBg;
+          ctx.fill();
+          ctx.fillStyle = INK.texte;
+          ctx.fillText(txt, cx + cw2 / 2, cy + 3.5);
+        }
+      }
+      rrect(pillX, cy - pillH / 2, pillW, pillH, 4);
+      ctx.fillStyle = INK.pill;
+      ctx.fill();
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillText(last.toFixed(2), pillX + pillW / 2, cy + 3.5);
+      ctx.textAlign = "left";
 
       // Heures en bas + petites graduations.
       const count = Math.min(CHART.timeLabels, data.length);
@@ -204,7 +237,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast }: 
     const ro = new ResizeObserver(draw);
     if (box) ro.observe(box);
     return () => ro.disconnect();
-  }, [shown]);
+  }, [shown, endsInMs]);
 
   // Le message glisse depuis le haut à chaque nouveau message.
   useEffect(() => {
