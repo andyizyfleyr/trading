@@ -31,7 +31,7 @@ function verdict(symbol: string, fromSec: number, durationSec: number): Verdict 
 }
 
 function verdictLabel(v: Verdict): string {
-  return v === "UP" ? "ACHAT ▲" : v === "DOWN" ? "VENTE ▼" : "PASSE";
+  return v === "UP" ? "HAUSSE ▲" : v === "DOWN" ? "BAISSE ▼" : "PASSE";
 }
 
 /**
@@ -132,7 +132,7 @@ export default function PredictionsPage() {
       <div className={STACK.c1}>
         <h1 className={TEXT.pageTitle}>Signaux casino</h1>
         <p className={TEXT.bodyMuted}>
-          On te dit à l&apos;avance s&apos;il faut appuyer sur ACHAT ou VENTE, et à
+          On te dit à l&apos;avance s&apos;il faut appuyer sur HAUSSE ou BAISSE, et à
           quelle seconde exacte.
         </p>
       </div>

@@ -15,7 +15,7 @@ export function fmtMoney(n: number): string {
   return moneyFmt.format(Number(n) || 0);
 }
 
-/** Gain net (+85 %) avec 1 décimale : « 42,5 » (boutons ACHAT/VENTE, En cours). */
+/** Gain net (+85 %) avec 1 décimale : « 42,5 » (boutons HAUSSE/BAISSE, En cours). */
 const gainFmt = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,

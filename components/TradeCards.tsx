@@ -38,7 +38,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
       <div className={ENCOURS.mid}>
         <div className={ENCOURS.mid1}>
           <span className={isUp ? ENCOURS.dirUp : ENCOURS.dirDown}>
-            {isUp ? "ACHAT ▲" : "VENTE ▼"}
+            {isUp ? "HAUSSE ▲" : "BAISSE ▼"}
           </span>
           <span>
             {symbolDisplay(trade.symbol)} · {durationLabel(trade.durationSec)}
@@ -85,7 +85,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
           <p className={RESULT.title}>
             {title}
             <small className={RESULT.sub}>
-              {isUp ? "ACHAT ▲" : "VENTE ▼"} · {symbolDisplay(trade.symbol)} ·{" "}
+              {isUp ? "HAUSSE ▲" : "BAISSE ▼"} · {symbolDisplay(trade.symbol)} ·{" "}
               {durationLabel(trade.durationSec)}
             </small>
           </p>

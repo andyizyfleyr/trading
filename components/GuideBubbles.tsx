@@ -33,7 +33,7 @@ const STEPS = [
   {
     id: "guide-buttons",
     title: "5. Prédis la direction",
-    text: "ACHAT ▲ si ça monte, VENTE ▼ si ça descend. Tes prédictions en cours s'affichent avec leur compte à rebours.",
+    text: "HAUSSE ▲ si ça monte, BAISSE ▼ si ça descend. Tes prédictions en cours s'affichent avec leur compte à rebours.",
   },
 ];
 

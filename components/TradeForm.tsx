@@ -1,20 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiCancelScheduled, apiMyTrades, apiOpenTrade, apiScheduleTrade, apiServerTime, ApiError } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { apiOpenTrade, apiScheduleTrade, apiServerTime, ApiError } from "@/lib/api";
 import {
   BAD_TIME,
   CLOCK_SYNC_MS,
   DEFAULT_BET,
   DEFAULT_DURATION_SEC,
   PENDING_TICK_MS,
-  SCHEDULED_REFRESH_MS,
   SHOT_DELAY_MS,
   SIGNAL_TICK_MS,
   STORE,
   TIME_SLOT_BOOK_MARGIN_MS,
   TIME_SLOT_COUNT,
-  TRADES_PAGE_LIMIT,
   VIBRATE,
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
@@ -56,8 +54,48 @@ interface Props {
   replay?: ReplayOrder | null;
   /** Créneau pré-choisi par la page Signaux (« Préparer ma mise »). */
   progSlot?: number | null;
+  /** Une mise vient d'être programmée (rafraîchit la liste « En cours »). */
+  onScheduledChange?: () => void;
   /** Ouvre le choix du jeu (ligne actif du panneau). */
   onPickAsset: () => void;
+}
+
+/** Mises programmées : partent toutes seules, annulables (panneau « En cours »). */
+export function ScheduledTrades({
+  trades,
+  onCancel,
+}: {
+  trades: ApiTrade[];
+  onCancel: (id: number) => void;
+}) {
+  if (trades.length === 0) return null;
+  return (
+    <div className={TRADER.soonBox}>
+      <p className={TRADER.soonTitle}>
+        Programmé{trades.length > 1 ? "es" : ""} ({trades.length})
+      </p>
+      <ul className={TRADER.soonList}>
+        {trades.map((t) => (
+          <li key={t.id} className={TRADER.soonRow}>
+            <span className={TRADER.soonMain}>
+              {t.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {fmtMoney(t.amount)}{" "}
+              <span className={TRADER.soonSub}>
+                {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => onCancel(t.id)}
+              aria-label={`Annuler la mise programmée à ${fmtSlot(slotOf(t))} (remboursée)`}
+              className={TRADER.soonX}
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 /** Mise programmée sur l'appareil (marchés réels : la page doit rester ouverte). */
@@ -110,8 +148,8 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
   }
 }
 
-/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, ACHAT/VENTE. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onPickAsset }: Props) {
+/** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, HAUSSE/BAISSE. */
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
@@ -126,26 +164,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [draftTime, setDraftTime] = useState("");
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [scheduledList, setScheduledList] = useState<ApiTrade[]>([]);
   const [tick, setTick] = useState(() => Date.now());
   const [hidden, setHidden] = useState(false);
   const firedRef = useRef(false);
-
-  // Mises programmées sur le serveur (partent même appli fermée).
-  const refreshScheduled = useCallback(async () => {
-    try {
-      const { trades } = await apiMyTrades("scheduled", TRADES_PAGE_LIMIT);
-      setScheduledList(trades);
-    } catch {
-      /* non connecté ou hors ligne : pas de bandeau */
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshScheduled();
-    const t = setInterval(refreshScheduled, SCHEDULED_REFRESH_MS);
-    return () => clearInterval(t);
-  }, [refreshScheduled]);
 
   // Durée imposée par le signal (arrive après le premier affichage).
   useEffect(() => {
@@ -243,7 +264,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // (horloge locale + écart mesuré), sinon il sonne trop tôt ou trop tard.
   const signalRemainMs = signal ? signal.atMs - (signalNow + (offsetMs ?? 0)) : 0;
   const signalLive = signal != null && signalRemainMs > 0;
-  const signalLabel = signal?.direction === "DOWN" ? "VENTE ▼" : "ACHAT ▲";
+  const signalLabel = signal?.direction === "DOWN" ? "BAISSE ▼" : "HAUSSE ▲";
 
   const serverNowMs = Date.now() + (offsetMs ?? 0);
   // Premier créneau à plus de 8 s : sans marge, la première case tombe
@@ -308,7 +329,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   };
 
   // Créneau pré-choisi par la page Signaux : on le présélectionne tel quel
-  // (l'utilisateur choisit sa mise puis appuie une fois sur ACHAT/VENTE).
+  // (l'utilisateur choisit sa mise puis appuie une fois sur HAUSSE/BAISSE).
   useEffect(() => {
     if (progSlot == null || !Number.isInteger(progSlot)) return;
     if (progSlot * 1000 > Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS) {
@@ -348,10 +369,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Jeu affiché dans le panneau (pastille + nom + gain).
   const asset = SYMBOLS.find((s) => s.id === symbol) ?? SYMBOLS[0];
   const payoutPct = Math.round(RULES.WIN_PAYOUT_RATIO * 100);
-
-  // Programmées à venir (les parties rejoignent « En cours » toutes seules).
-  // Comparées à l'heure serveur : ce sont des heures serveur.
-  const upcoming = scheduledList.filter((t) => new Date(t.openedAt).getTime() > serverNowMs);
 
   const place = async (
     direction: "UP" | "DOWN",
@@ -393,7 +410,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   };
 
   /**
-   * ACHAT/VENTE : immédiat sauf heure programmée (contact activé).
+   * HAUSSE/BAISSE : immédiat sauf heure programmée (contact activé).
    * Jeux casino → programmation serveur (part même appli fermée).
    * Marchés réels → programmation sur l'appareil (page à garder ouverte).
    */
@@ -451,8 +468,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         });
         vibrate(VIBRATE.action);
         onBalance?.(res.balance);
-        pickNow(); // La mise rejoint la liste « Programmé(es) » ci-dessus.
-        void refreshScheduled();
+        pickNow(); // La mise rejoint la liste « En cours ».
+        onScheduledChange?.();
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Programmation impossible pour le moment.");
       } finally {
@@ -462,17 +479,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     }
     firedRef.current = false;
     setPending({ direction, amount, durationSec, symbol, slot });
-  };
-
-  const cancelScheduled = async (id: number) => {
-    setError(null);
-    try {
-      const res = await apiCancelScheduled(id);
-      onBalance?.(res.balance);
-      await refreshScheduled();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Annulation impossible pour le moment.");
-    }
   };
 
   // Envoi précis sur l'appareil : dès que l'heure pile (+150 ms) arrive, la mise part.
@@ -514,7 +520,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         /* Mise programmée sur l'appareil : attente de l'heure choisie */
         <div role="status" className={TRADER.waitBox}>
           <p className={TRADER.waitTitle}>
-            {pending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(pending.amount)} à{" "}
+            {pending.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {fmtMoney(pending.amount)} à{" "}
             {fmtSlot(pending.slot)}
           </p>
           <p className={TRADER.waitClock}>
@@ -534,35 +540,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </div>
       ) : (
         <>
-          {/* Mises programmées : partent toutes seules, annulables */}
-          {upcoming.length > 0 && (
-            <div className={TRADER.soonBox}>
-              <p className={TRADER.soonTitle}>
-                Programmé{upcoming.length > 1 ? "es" : ""} ({upcoming.length})
-              </p>
-              <ul className={TRADER.soonList}>
-                {upcoming.map((t) => (
-                  <li key={t.id} className={TRADER.soonRow}>
-                    <span className={TRADER.soonMain}>
-                      {t.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(t.amount)}{" "}
-                      <span className={TRADER.soonSub}>
-                        {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => cancelScheduled(t.id)}
-                      aria-label={`Annuler la mise programmée à ${fmtSlot(slotOf(t))} (remboursée)`}
-                      className={TRADER.soonX}
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* Jeu + contact de programmation */}
           <div className={ORDER.assetRow}>
             <button
@@ -680,7 +657,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               type="button"
               onClick={() => schedule("UP")}
               disabled={placing !== null}
-              aria-label="ACHAT : je prédis que le prix va monter"
+              aria-label="HAUSSE : je prédis que le prix va monter"
               className={`${ORDER.go} ${ORDER.buy} ${
                 signalLive && signal?.direction === "UP" ? TRADER.advised : ""
               }`}
@@ -689,7 +666,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  <span>ACHAT</span>
+                  <span>HAUSSE</span>
                   <span className={ORDER.arrowDot} aria-hidden="true">
                     <ArrowUpIcon className={ORDER.arrowIcon} />
                   </span>
@@ -700,7 +677,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               type="button"
               onClick={() => schedule("DOWN")}
               disabled={placing !== null}
-              aria-label="VENTE : je prédis que le prix va descendre"
+              aria-label="BAISSE : je prédis que le prix va descendre"
               className={`${ORDER.go} ${ORDER.sell} ${
                 signalLive && signal?.direction === "DOWN" ? TRADER.advised : ""
               }`}
@@ -709,7 +686,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  <span>VENTE</span>
+                  <span>BAISSE</span>
                   <span className={ORDER.arrowDot} aria-hidden="true">
                     <ArrowDownIcon className={ORDER.arrowIcon} />
                   </span>

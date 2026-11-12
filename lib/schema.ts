@@ -23,7 +23,7 @@ export const trades = pgTable("trades", {
     .notNull()
     .references(() => users.id),
   symbol: text("symbol").notNull(),
-  /** UP = le prix va monter (ACHAT), DOWN = le prix va descendre (VENTE) */
+  /** UP = le prix va monter (HAUSSE), DOWN = le prix va descendre (BAISSE) */
   direction: text("direction").notNull(),
   amount: doublePrecision("amount").notNull(),
   openPrice: doublePrecision("open_price").notNull(),
