@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { hashPassword, isValidEmail, normalizeEmail, signToken } from "@/lib/auth";
 import { fail, ok } from "@/lib/respond";
 import { isUniqueViolation, toApiUser } from "@/lib/trade-shape";
+import { PASSWORD_MIN } from "@/lib/config";
 import { RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +26,10 @@ export async function POST(req: NextRequest) {
   if (!isValidEmail(body.email)) {
     return fail("EMAIL_INVALIDE", "Adresse e-mail invalide.", 400);
   }
-  if (typeof body.password !== "string" || body.password.length < 6) {
+  if (typeof body.password !== "string" || body.password.length < PASSWORD_MIN) {
     return fail(
       "MOT_DE_PASSE_TROP_COURT",
-      "Le mot de passe doit contenir au moins 6 caractères.",
+      `Le mot de passe doit contenir au moins ${PASSWORD_MIN} caractères.`,
       400
     );
   }

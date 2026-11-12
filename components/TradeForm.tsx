@@ -1,13 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiCancelScheduled, apiMyTrades, apiOpenTrade, apiScheduleTrade, ApiError } from "@/lib/api";
-import { fmtMoney } from "@/lib/format";
+import { apiCancelScheduled, apiMyTrades, apiOpenTrade, apiScheduleTrade, apiServerTime, ApiError } from "@/lib/api";
+import {
+  BAD_TIME,
+  CLOCK_SYNC_MS,
+  DEFAULT_BET,
+  DEFAULT_DURATION_SEC,
+  PENDING_TICK_MS,
+  QUICK_AMOUNTS,
+  SCHEDULED_REFRESH_MS,
+  SHOT_DELAY_MS,
+  SIGNAL_TICK_MS,
+  TRADES_PAGE_LIMIT,
+  VIBRATE,
+} from "@/lib/config";
+import { BTN, FLEX, SHEET, TRADER } from "@/lib/design";
+import { fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
-import { DURATIONS } from "@/lib/symbols";
-import { durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
+import { DURATIONS, RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
-import { BottomSheet, Btn, Card, HelpTip } from "./ui";
+import { BottomSheet, Btn, HelpTip } from "./ui";
 import { TimePickerPanel } from "./TimePicker";
 
 /** Signal venant de la page Signaux : quoi appuyer, et à quel moment exact. */
@@ -38,27 +51,6 @@ interface Pending {
   slot: number;
 }
 
-const SHOT_DELAY_MS = 150; // on tire juste après la seconde pile (réseau)
-/** Choix d'heure invalide (saisie incomplète ou passée) : jamais de mise surprise. */
-const BAD_TIME = "__bad";
-
-function formatRemain(ms: number): string {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-}
-
-/** Heure locale avec la seconde exacte : « 14:33:00 ». */
-function fmtSlot(slot: number): string {
-  const d = new Date(slot * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
-}
-
-/** Heure courte pour les boutons : « 14:33 ». */
-function fmtHM(slot: number): string {
-  const d = new Date(slot * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 /** Seconde pile d'ouverture d'une mise programmée. */
 function slotOf(t: ApiTrade): number {
   return Math.floor(new Date(t.openedAt).getTime() / 1000);
@@ -82,8 +74,8 @@ function slotFromTime(v: string): number | null {
 
 /** Formulaire ultra-compact : durée + mise + heure + boutons, tout sur une vue. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance }: Props) {
-  const [durationSec, setDurationSec] = useState<number>(initialDuration ?? 60);
-  const [amountStr, setAmountStr] = useState("50");
+  const [durationSec, setDurationSec] = useState<number>(initialDuration ?? DEFAULT_DURATION_SEC);
+  const [amountStr, setAmountStr] = useState(String(DEFAULT_BET));
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signalNow, setSignalNow] = useState(() => Date.now());
@@ -102,7 +94,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Mises programmées sur le serveur (partent même appli fermée).
   const refreshScheduled = useCallback(async () => {
     try {
-      const { trades } = await apiMyTrades("scheduled", 50);
+      const { trades } = await apiMyTrades("scheduled", TRADES_PAGE_LIMIT);
       setScheduledList(trades);
     } catch {
       /* non connecté ou hors ligne : pas de bandeau */
@@ -111,7 +103,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
   useEffect(() => {
     refreshScheduled();
-    const t = setInterval(refreshScheduled, 30000);
+    const t = setInterval(refreshScheduled, SCHEDULED_REFRESH_MS);
     return () => clearInterval(t);
   }, [refreshScheduled]);
 
@@ -124,7 +116,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   useEffect(() => {
     if (!signal) return;
     setSignalNow(Date.now());
-    const t = setInterval(() => setSignalNow(Date.now()), 250);
+    const t = setInterval(() => setSignalNow(Date.now()), SIGNAL_TICK_MS);
     return () => clearInterval(t);
   }, [signal]);
 
@@ -134,9 +126,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     const sync = async () => {
       const t0 = Date.now();
       try {
-        const res = await fetch("/api/price?symbol=EURUSDOTC", { cache: "no-store" });
-        const json = (await res.json()) as { data?: { time?: unknown } };
-        const serverTime = Number(json?.data?.time);
+        const serverTime = await apiServerTime();
         if (!stopped && Number.isFinite(serverTime)) {
           setOffsetMs(serverTime - (t0 + Date.now()) / 2);
         }
@@ -145,7 +135,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       }
     };
     sync();
-    const t = setInterval(sync, 30000);
+    const t = setInterval(sync, CLOCK_SYNC_MS);
     return () => {
       stopped = true;
       clearInterval(t);
@@ -156,7 +146,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   useEffect(() => {
     if (!pending) return;
     setTick(Date.now());
-    const t = setInterval(() => setTick(Date.now()), 250);
+    const t = setInterval(() => setTick(Date.now()), PENDING_TICK_MS);
     return () => clearInterval(t);
   }, [pending]);
 
@@ -256,7 +246,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
-  const gain = amount != null && amount > 0 ? Math.round(amount * 0.85 * 100) / 100 : 0;
+  const gain = amount != null && amount > 0 ? Math.round(amount * RULES.WIN_PAYOUT_RATIO * 100) / 100 : 0;
 
   // Programmées à venir (les parties rejoignent « En cours » toutes seules).
   const upcoming = scheduledList.filter((t) => new Date(t.openedAt).getTime() > Date.now());
@@ -275,8 +265,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError("Entrez un montant de mise.");
       return;
     }
-    if (amt < 10) {
-      setError("La mise minimum est de 10.");
+    if (amt < RULES.MIN_BET) {
+      setError(`La mise minimum est de ${RULES.MIN_BET}.`);
       return;
     }
     if (amt > maxBet) {
@@ -291,7 +281,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         amount: amt,
         durationSec: ov?.durationSec ?? durationSec,
       });
-      vibrate(20);
+      vibrate(VIBRATE.action);
       onOpened(trade, newBalance);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Prédiction impossible pour le moment.");
@@ -332,8 +322,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError("Entrez un montant de mise.");
       return;
     }
-    if (amount < 10) {
-      setError("La mise minimum est de 10.");
+    if (amount < RULES.MIN_BET) {
+      setError(`La mise minimum est de ${RULES.MIN_BET}.`);
       return;
     }
     if (amount > maxBet) {
@@ -350,7 +340,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           durationSec,
           slot,
         });
-        vibrate(20);
+        vibrate(VIBRATE.action);
         onBalance?.(res.balance);
         setServerPending(res.scheduled);
         void refreshScheduled();
@@ -398,71 +388,66 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     ? Math.max(0, pending.slot * 1000 + SHOT_DELAY_MS - (tick + (offsetMs ?? 0)))
     : 0;
 
-  const chipClass = (active: boolean, flex: string) =>
-    `h-10 min-w-0 ${flex} rounded-xl text-sm font-bold transition-colors duration-200 ${
-      active ? "bg-primary text-white" : "border border-ligne bg-fond text-doux active:text-texte"
-    }`;
-
   return (
-    <Card className="flex flex-col gap-1.5 p-2">
+    <div className={TRADER.panel}>
       {pending ? (
         /* Mise programmée sur l'appareil : attente de l'heure choisie */
-        <div role="status" className="anim-in rounded-xl bg-action/15 px-3 py-2">
-          <p className="text-center text-base font-extrabold">
+        <div role="status" className={TRADER.waitBox}>
+          <p className={TRADER.waitTitle}>
             {pending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(pending.amount)} à{" "}
-            <span className="tabular-nums">{fmtSlot(pending.slot)}</span>
+            {fmtSlot(pending.slot)}
           </p>
-          <p className="text-center text-3xl font-extrabold tabular-nums">
-            {formatRemain(pendingRemainMs)}
+          <p className={TRADER.waitClock}>
+            {fmtRemain(pendingRemainMs)}
           </p>
           {hidden && (
-            <p role="alert" className="mt-1 rounded-lg bg-baisse/10 px-2 py-1 text-center text-sm font-bold text-baisse">
+            <p role="alert" className={TRADER.waitWarn}>
               Reviens vite sur cette page, sinon la mise ne partira pas !
             </p>
           )}
-          <Btn variant="ghost" onClick={() => setPending(null)} className="mt-1.5 min-h-[48px] w-full font-extrabold">
+          <Btn variant="ghost" onClick={() => setPending(null)} className={TRADER.waitBtn}>
             Annuler
           </Btn>
-          <p className="mt-1 text-center text-xs text-doux">
+          <p className={TRADER.waitNote}>
             Reste sur cette page jusqu&apos;au départ.
           </p>
         </div>
       ) : serverPending ? (
         /* Mise programmée sur le serveur : part même appli fermée */
-        <div role="status" className="anim-in rounded-xl bg-hausse/15 px-3 py-2">
-          <p className="text-center text-base font-extrabold text-hausse">Programmé ✓</p>
-          <p className="mt-0.5 text-center text-sm font-bold">
+        <div role="status" className={TRADER.doneBox}>
+          <p className={TRADER.doneTitle}>Programmé ✓</p>
+          <p className={TRADER.doneText}>
             {serverPending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"}{" "}
             {fmtMoney(serverPending.amount)} {symbolDisplay(serverPending.symbol)} à{" "}
-            <span className="tabular-nums">{fmtSlot(slotOf(serverPending))}</span>
+            {fmtSlot(slotOf(serverPending))}
           </p>
-          <p className="mt-0.5 text-center text-xs text-doux">
+          <p className={TRADER.doneNote}>
             Partira tout seul à l&apos;heure, même si tu quittes l&apos;app.
           </p>
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-            <Btn variant="ghost" onClick={() => setServerPending(null)} className="min-h-[48px] w-full font-extrabold">
+          <div className={TRADER.doneBtns}>
+            <Btn variant="ghost" onClick={() => setServerPending(null)} className={BTN.block}>
               OK
             </Btn>
-            <Btn variant="red" onClick={() => cancelScheduled(serverPending.id)} className="min-h-[48px] w-full font-extrabold">
+            <Btn variant="red" onClick={() => cancelScheduled(serverPending.id)} className={BTN.block}>
               Annuler
             </Btn>
           </div>
-          <p className="mt-1 text-center text-xs text-doux">Annuler = mise remboursée.</p>
+          <p className={TRADER.waitNote}>Annuler = mise remboursée.</p>
         </div>
       ) : (
         <>
           {/* Mises programmées : partent toutes seules, annulables */}
           {upcoming.length > 0 && (
-            <div className="rounded-xl bg-fond px-2.5 py-2">
-              <p className="text-sm font-extrabold">
+            <div className={TRADER.soonBox}>
+              <p className={TRADER.soonTitle}>
                 Programmé{upcoming.length > 1 ? "es" : ""} ({upcoming.length})
               </p>
-              <ul className="mt-1 flex flex-col gap-1">
+              <ul className={TRADER.soonList}>
                 {upcoming.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate font-bold tabular-nums">
+                  <li key={t.id} className={TRADER.soonRow}>
+                    <span className={TRADER.soonMain}>
                       {t.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"} {fmtMoney(t.amount)}{" "}
-                      <span className="font-medium text-doux">
+                      <span className={TRADER.soonSub}>
                         {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
                       </span>
                     </span>
@@ -470,7 +455,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                       type="button"
                       onClick={() => cancelScheduled(t.id)}
                       aria-label={`Annuler la mise programmée à ${fmtSlot(slotOf(t))} (remboursée)`}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ligne bg-carte text-base font-extrabold text-doux active:text-texte"
+                      className={TRADER.soonX}
                     >
                       ✕
                     </button>
@@ -481,26 +466,22 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           )}
 
           {/* Durée */}
-          <div id="guide-duration">
-            <div className="mb-0.5 flex items-center gap-1 text-xs font-medium text-doux">
+          <div id="guide-duration" className={TRADER.row}>
+            <span className={TRADER.label}>
               Durée
               <HelpTip
                 label="Durée"
                 text="Le temps que dure ta prédiction. À la fin du compte à rebours, on compare le prix de fin au prix de départ."
               />
-            </div>
-            <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Choisir la durée">
+            </span>
+            <div className={TRADER.chips} role="group" aria-label="Choisir la durée">
               {DURATIONS.map((d) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setDurationSec(d)}
                   aria-pressed={durationSec === d}
-                  className={`h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
-                    durationSec === d
-                      ? "bg-primary text-white"
-                      : "border border-ligne bg-fond text-doux active:text-texte"
-                  }`}
+                  className={`${durationSec === d ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
                 >
                   {durationLabel(d)}
                 </button>
@@ -510,122 +491,118 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
           {/* Mise : montant + raccourcis sur une ligne */}
           <div id="guide-amount">
-            <div className="mb-0.5 flex items-center justify-between gap-1 text-xs font-medium text-doux">
-              <span className="flex items-center gap-1">
+            <div className={TRADER.row}>
+              <span className={TRADER.label}>
                 Mise
                 <HelpTip
                   label="Mise"
-                  text="La somme jouée, de 10 jusqu'à tout ton solde. Bonne prédiction = mise + 85 % de gain. Égalité = mise rendue."
+                  text={`La somme jouée, de ${RULES.MIN_BET} jusqu'à tout ton solde. Bonne prédiction = mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} % de gain. Égalité = mise rendue.`}
                 />
               </span>
-              <span className="tabular-nums">
-                Gain <span className="font-bold text-hausse">+{fmtMoney(gain)}</span>
-              </span>
-            </div>
-            <div className="flex gap-1.5">
               <input
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value)}
                 inputMode="decimal"
                 autoComplete="off"
                 aria-label="Montant de la mise"
-                className="h-10 w-[76px] shrink-0 rounded-xl border border-ligne bg-fond px-2 text-center text-base font-extrabold tabular-nums outline-none focus:border-action"
+                className={`${TRADER.amount} ${FLEX.wide}`}
               />
-              <div className="grid flex-1 grid-cols-4 gap-1.5" role="group" aria-label="Mises rapides">
-                {[10, 50, 100].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setAmountStr(String(v))}
-                    className="h-10 rounded-xl border border-ligne bg-fond text-sm font-bold tabular-nums active:bg-ligne"
-                  >
-                    {v}
-                  </button>
-                ))}
+              {QUICK_AMOUNTS.map((v) => (
                 <button
+                  key={v}
                   type="button"
-                  onClick={() => setAmountStr(String(maxBet))}
-                  className="h-10 rounded-xl border border-ligne bg-fond text-sm font-bold active:bg-ligne"
-                  aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
+                  onClick={() => setAmountStr(String(v))}
+                  className={`${TRADER.chipOff} ${FLEX.fill}`}
                 >
-                  Max
+                  {v}
                 </button>
-              </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAmountStr(String(maxBet))}
+                className={`${TRADER.chipOff} ${FLEX.fill}`}
+                aria-label={`Miser le maximum : ${fmtMoney(maxBet)}`}
+              >
+                Max
+              </button>
+            </div>
+            <div className={TRADER.gainRow}>
+              <span className={TRADER.gain}>
+                Gain <span className={TRADER.gainVal}>+{fmtMoney(gain)}</span>
+              </span>
             </div>
           </div>
 
           {/* Quand : un appui sur l'heure, ou « Autre » pour la choisir (caché pendant un signal guidé) */}
           {!signalLive && (
-            <div>
-              <div className="mb-0.5 flex items-center gap-1 text-xs font-medium text-doux">
+            <div className={TRADER.row} role="group" aria-label="Choisir l'heure de la mise">
+              <span className={TRADER.label}>
                 Quand
                 <HelpTip
                   label="Quand"
                   text="« Maintenant » mise aussitôt. Appuie sur une heure (ou « Autre » pour la choisir) : ta mise partira toute seule à la seconde pile."
                 />
-              </div>
-              <div className="flex gap-1.5" role="group" aria-label="Choisir l'heure de la mise">
+              </span>
+              <button
+                type="button"
+                onClick={pickNow}
+                aria-pressed={quand === "now"}
+                className={`${quand === "now" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.now}`}
+              >
+                Maintenant
+              </button>
+              {quickSlots.map((s) => (
                 <button
+                  key={s}
                   type="button"
-                  onClick={pickNow}
-                  aria-pressed={quand === "now"}
-                  className={chipClass(quand === "now", "flex-[1.5]")}
+                  onClick={() => pickSlot(s)}
+                  aria-pressed={quand === String(s)}
+                  className={`${quand === String(s) ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
                 >
-                  Maintenant
+                  {fmtHM(s)}
                 </button>
-                {quickSlots.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => pickSlot(s)}
-                    aria-pressed={quand === String(s)}
-                    className={`${chipClass(quand === String(s), "flex-1")} tabular-nums`}
-                  >
-                    {fmtHM(s)}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={openTimeSheet}
-                  aria-pressed={customTime !== ""}
-                  aria-haspopup="dialog"
-                  className={chipClass(customTime !== "", "flex-1")}
-                >
-                  Autre
-                </button>
-              </div>
+              ))}
+              <button
+                type="button"
+                onClick={openTimeSheet}
+                aria-pressed={customTime !== ""}
+                aria-haspopup="dialog"
+                className={`${customTime !== "" ? TRADER.chipOn : TRADER.chipOff} ${FLEX.fill}`}
+              >
+                Autre
+              </button>
             </div>
           )}
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
           {signalLive && (
-            <div role="status" className="anim-in rounded-xl bg-action/15 px-3 py-2 text-center">
-              <p className="text-sm font-bold">
+            <div role="status" className={TRADER.signalBox}>
+              <p className={TRADER.signalText}>
                 Dans{" "}
-                <span className="text-lg font-extrabold tabular-nums">
-                  {formatRemain(signalRemainMs)}
+                <span className={TRADER.signalClock}>
+                  {fmtRemain(signalRemainMs)}
                 </span>
                 , appuie sur{" "}
-                <span className="font-extrabold">{signalLabel}</span>
+                <span className={TRADER.signalClock}>{signalLabel}</span>
               </p>
             </div>
           )}
           {signal && !signalLive && (
-            <div role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center">
-            <p className="text-sm font-bold text-baisse">
-              Trop tard : ce coup est passé. Choisis une autre heure dans « Quand ».
-            </p>
+            <div role="alert" className={TRADER.lateBox}>
+              <p className={TRADER.lateText}>
+                Trop tard : ce coup est passé. Choisis une autre heure dans « Quand ».
+              </p>
             </div>
           )}
 
           {chosenSlot != null && (
-            <p className="text-center text-xs font-bold text-action">
+            <p className={TRADER.hintOk}>
               Appuie sur ACHAT ou VENTE : la mise partira toute seule à {fmtSlot(chosenSlot)}
               {isOtc(symbol) ? ", même si tu quittes l'app." : "."}
             </p>
           )}
           {chosenSlot == null && (quand === BAD_TIME || quandStale) && (
-            <p className="text-center text-xs font-bold text-baisse">
+            <p className={TRADER.hintErr}>
               {quand === BAD_TIME
                 ? typedPassed
                   ? "Heure passée : choisis une heure à venir."
@@ -635,42 +612,42 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           )}
 
           {/* Prédiction */}
-          <div id="guide-buttons" className="grid grid-cols-2 gap-1.5">
-            <Btn
-              variant="green"
+          <div id="guide-buttons" className={TRADER.goRow}>
+            <button
+              type="button"
               onClick={() => schedule("UP")}
               disabled={placing !== null}
               aria-label="ACHAT : je prédis que le prix va monter"
-              className={`min-h-[56px] text-lg font-extrabold ${
-                signalLive && signal?.direction === "UP" ? "animate-pulse ring-4 ring-white" : ""
+              className={`${TRADER.go} ${TRADER.buy} ${
+                signalLive && signal?.direction === "UP" ? TRADER.advised : ""
               }`}
             >
               {placing === "UP" ? "…" : "ACHAT ▲"}
-            </Btn>
-            <Btn
-              variant="red"
+            </button>
+            <button
+              type="button"
               onClick={() => schedule("DOWN")}
               disabled={placing !== null}
               aria-label="VENTE : je prédis que le prix va descendre"
-              className={`min-h-[56px] text-lg font-extrabold ${
-                signalLive && signal?.direction === "DOWN" ? "animate-pulse ring-4 ring-white" : ""
+              className={`${TRADER.go} ${TRADER.sell} ${
+                signalLive && signal?.direction === "DOWN" ? TRADER.advised : ""
               }`}
             >
               {placing === "DOWN" ? "…" : "VENTE ▼"}
-            </Btn>
+            </button>
           </div>
         </>
       )}
 
       {error && (
-        <p role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-1.5 text-center text-sm font-medium text-baisse">
+        <p role="alert" className={TRADER.error}>
           {error}
         </p>
       )}
 
       {/* Panneau : choisir son heure (liste des prochaines heures) */}
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure" hideTitle>
-        <div className="flex flex-col gap-2 pb-2">
+        <div className={SHEET.list2}>
           <TimePickerPanel
             value={draftTime}
             onChange={setDraftTime}
@@ -681,6 +658,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           />
         </div>
       </BottomSheet>
-    </Card>
+    </div>
   );
 }

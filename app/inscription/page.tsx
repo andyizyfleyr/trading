@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
+import { PASSWORD_MIN, ROUTES } from "@/lib/config";
+import { AUTH, FORM, TRADER } from "@/lib/design";
+import { fmtMoney } from "@/lib/format";
+import { RULES } from "@/lib/symbols";
 import { Btn, Field } from "@/components/ui";
 
 export default function InscriptionPage() {
@@ -22,7 +26,7 @@ export default function InscriptionPage() {
     setBusy(true);
     try {
       await register(email.trim(), password);
-      router.replace("/");
+      router.replace(ROUTES.trader);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Inscription impossible.");
     } finally {
@@ -31,21 +35,21 @@ export default function InscriptionPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
-      <div className="mb-6 flex items-center gap-2">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-carte text-lg font-extrabold">
-          <span className="text-hausse">▲</span>
-          <span className="text-baisse">▼</span>
+    <div className={AUTH.shell}>
+      <div className={AUTH.brandRow}>
+        <span className={AUTH.brandMark}>
+          <span className={AUTH.brandUp}>▲</span>
+          <span className={AUTH.brandDown}>▼</span>
         </span>
-        <span className="text-xl font-extrabold">TradeFacile</span>
+        <span className={AUTH.brandName}>TradeFacile</span>
       </div>
 
-      <h1 className="text-2xl font-extrabold">Crée ton compte</h1>
-      <p className="mt-1 text-base text-doux">
-        Tu commences avec un solde de 10 000 pour t&apos;entraîner.
+      <h1 className={AUTH.title}>Crée ton compte</h1>
+      <p className={AUTH.sub}>
+        {`Tu commences avec un solde de ${fmtMoney(RULES.START_BALANCE)} pour t'entraîner.`}
       </p>
 
-      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+      <form onSubmit={submit} className={AUTH.form}>
         <Field label="E-mail">
           <input
             type="email"
@@ -54,24 +58,24 @@ export default function InscriptionPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="toi@exemple.com"
-            className="h-[52px] w-full rounded-xl border border-ligne bg-carte px-4 text-base outline-none placeholder:text-doux focus:border-action"
+            className={FORM.input}
           />
         </Field>
-        <Field label="Mot de passe (6 caractères minimum)">
+        <Field label={`Mot de passe (${PASSWORD_MIN} caractères minimum)`}>
           <input
             type="password"
             required
-            minLength={6}
+            minLength={PASSWORD_MIN}
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Choisis un mot de passe"
-            className="h-[52px] w-full rounded-xl border border-ligne bg-carte px-4 text-base outline-none placeholder:text-doux focus:border-action"
+            className={FORM.input}
           />
         </Field>
 
         {error && (
-          <p role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center text-base font-medium text-baisse">
+          <p role="alert" className={TRADER.error}>
             {error}
           </p>
         )}
@@ -81,9 +85,9 @@ export default function InscriptionPage() {
         </Btn>
       </form>
 
-      <p className="mt-6 text-center text-base text-doux">
+      <p className={AUTH.foot}>
         Déjà un compte ?{" "}
-        <Link href="/connexion" className="font-bold text-action underline">
+        <Link href={ROUTES.login} className={AUTH.link}>
           Se connecter
         </Link>
       </p>

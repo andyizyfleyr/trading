@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiGetPrice } from "@/lib/api";
+import { LIVE_GUARD_MS, LIVE_POLL_MS } from "@/lib/config";
 import { isOtc } from "@/lib/symbols";
 import { useOnline } from "./useOnline";
 import type { ApiCandle } from "@/lib/types";
@@ -50,7 +51,7 @@ export function useLiveMarket(symbol: string, interval: string) {
       if (pollTimer || stopped) return;
       setLive(false);
       pollOnce();
-      pollTimer = setInterval(pollOnce, 4000);
+      pollTimer = setInterval(pollOnce, LIVE_POLL_MS);
     };
     const stopPoll = () => {
       if (pollTimer) {
@@ -81,7 +82,7 @@ export function useLiveMarket(symbol: string, interval: string) {
           /* ignore */
         }
         startPoll();
-      }, 6000);
+      }, LIVE_GUARD_MS);
 
       ws.onmessage = (ev) => {
         if (stopped) return;

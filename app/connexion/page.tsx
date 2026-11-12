@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
+import { NEXT_PARAM, ROUTES } from "@/lib/config";
+import { AUTH, FORM, TRADER } from "@/lib/design";
 import { Btn, Field } from "@/components/ui";
 
 function ConnexionForm() {
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  const next = searchParams.get(NEXT_PARAM) || ROUTES.trader;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,19 +35,19 @@ function ConnexionForm() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
-      <div className="mb-6 flex items-center gap-2">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-carte text-lg font-extrabold">
-          <span className="text-hausse">▲</span>
-          <span className="text-baisse">▼</span>
+    <div className={AUTH.shell}>
+      <div className={AUTH.brandRow}>
+        <span className={AUTH.brandMark}>
+          <span className={AUTH.brandUp}>▲</span>
+          <span className={AUTH.brandDown}>▼</span>
         </span>
-        <span className="text-xl font-extrabold">TradeFacile</span>
+        <span className={AUTH.brandName}>TradeFacile</span>
       </div>
 
-      <h1 className="text-2xl font-extrabold">Bon retour !</h1>
-      <p className="mt-1 text-base text-doux">Connecte-toi pour continuer à jouer.</p>
+      <h1 className={AUTH.title}>Bon retour !</h1>
+      <p className={AUTH.sub}>Connecte-toi pour continuer à jouer.</p>
 
-      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+      <form onSubmit={submit} className={AUTH.form}>
         <Field label="E-mail">
           <input
             type="email"
@@ -54,7 +56,7 @@ function ConnexionForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="toi@exemple.com"
-            className="h-[52px] w-full rounded-xl border border-ligne bg-carte px-4 text-base outline-none placeholder:text-doux focus:border-action"
+            className={FORM.input}
           />
         </Field>
         <Field label="Mot de passe">
@@ -65,12 +67,12 @@ function ConnexionForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Ton mot de passe"
-            className="h-[52px] w-full rounded-xl border border-ligne bg-carte px-4 text-base outline-none placeholder:text-doux focus:border-action"
+            className={FORM.input}
           />
         </Field>
 
         {error && (
-          <p role="alert" className="anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center text-base font-medium text-baisse">
+          <p role="alert" className={TRADER.error}>
             {error}
           </p>
         )}
@@ -80,9 +82,9 @@ function ConnexionForm() {
         </Btn>
       </form>
 
-      <p className="mt-6 text-center text-base text-doux">
+      <p className={AUTH.foot}>
         Pas encore de compte ?{" "}
-        <Link href="/inscription" className="font-bold text-action underline">
+        <Link href={ROUTES.signup} className={AUTH.link}>
           Créer un compte
         </Link>
       </p>

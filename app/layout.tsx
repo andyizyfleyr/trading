@@ -3,12 +3,13 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
 import { SwRegister } from "@/components/SwRegister";
-import { ZoomGuard } from "@/components/ZoomGuard";
+import { STORE } from "@/lib/config";
+import { INK } from "@/lib/design";
+import { SYMBOLS } from "@/lib/symbols";
 
 export const metadata: Metadata = {
   title: "TradeFacile — Prédis si le prix monte ou descend",
-  description:
-    "Jeu éducatif : prédis si le prix du Bitcoin, de l'Ethereum et d'autres actifs monte ou descend, avec de vrais prix en direct.",
+  description: `Jeu : prédis si le prix de ${SYMBOLS.map((s) => s.base).join(", ")} monte ou descend. 100 % hasard, argent fictif.`,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B1020",
+  themeColor: INK.fond,
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -46,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Applique "réduire les animations" avant le premier affichage */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(localStorage.getItem('tf_calme')==='1'){document.documentElement.classList.add('calme')}}catch(e){}})();`,
+            __html: `(function(){try{if(localStorage.getItem('${STORE.calm}')==='1'){document.documentElement.classList.add('calme')}}catch(e){}})();`,
           }}
         />
       </head>

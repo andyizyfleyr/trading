@@ -7,6 +7,8 @@ import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { HistoryIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiMyTrades, apiSettle, ApiError } from "@/lib/api";
+import { CSV, HISTORY_LIMIT, ROUTES } from "@/lib/config";
+import { HISTORY, ICON, ROW, STACK, TEXT, TONE, TRADER } from "@/lib/design";
 import { fmtDateTime, fmtMoney, fmtPrice } from "@/lib/format";
 import { SYMBOLS, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
@@ -22,7 +24,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 function ResultBadge({ trade }: { trade: ApiTrade }) {
   if (trade.status === "OPEN") {
     return (
-      <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-sm font-extrabold tabular-nums text-action">
+      <span className={TONE.badgeInfo}>
         En cours
       </span>
     );
@@ -30,20 +32,20 @@ function ResultBadge({ trade }: { trade: ApiTrade }) {
   if (trade.result === "WIN") {
     const net = (trade.payout ?? 0) - trade.amount;
     return (
-      <span className="shrink-0 rounded-lg bg-hausse/15 px-2 py-1 text-sm font-extrabold tabular-nums text-hausse">
+      <span className={TONE.badgeUp}>
         ▲ +{fmtMoney(net)}
       </span>
     );
   }
   if (trade.result === "LOSS") {
     return (
-      <span className="shrink-0 rounded-lg bg-baisse/15 px-2 py-1 text-sm font-extrabold tabular-nums text-baisse">
+      <span className={TONE.badgeDown}>
         ▼ -{fmtMoney(trade.amount)}
       </span>
     );
   }
   return (
-    <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-sm font-extrabold text-action">
+    <span className={TONE.badgeInfo}>
       Rendue
     </span>
   );
@@ -53,37 +55,33 @@ function ResultBadge({ trade }: { trade: ApiTrade }) {
 function TradeRow({ trade }: { trade: ApiTrade }) {
   const isUp = trade.direction === "UP";
   return (
-    <div className="rounded-xl border border-ligne bg-carte p-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span
-            className={`shrink-0 rounded-lg px-1.5 py-0.5 text-sm font-extrabold ${
-              isUp ? "bg-hausse/15 text-hausse" : "bg-baisse/15 text-baisse"
-            }`}
-          >
+    <div className={HISTORY.row}>
+      <div className={ROW.between}>
+        <div className={HISTORY.rowMain}>
+          <span className={isUp ? TONE.up : TONE.down}>
             {isUp ? "▲" : "▼"}
           </span>
-          <p className="truncate text-sm font-bold">
+          <p className={HISTORY.rowName}>
             {symbolDisplay(trade.symbol)}{" "}
-            <span className="font-medium text-doux">
+            <span className={HISTORY.rowSub}>
               · {durationLabel(trade.durationSec)} · {fmtDateTime(trade.openedAt)}
             </span>
           </p>
           {isOtc(trade.symbol) && (
-            <span className="shrink-0 rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+            <span className={TRADER.tag}>
               JEU
             </span>
           )}
         </div>
         <ResultBadge trade={trade} />
       </div>
-      <p className="mt-0.5 truncate text-xs tabular-nums text-doux">
+      <p className={HISTORY.rowMeta}>
         Mise {fmtMoney(trade.amount)} · {fmtPrice(trade.openPrice)} →{" "}
         {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
         {trade.status === "OPEN" && (
           <>
             {" · "}
-            <Link href="/" className="font-semibold text-action underline">
+            <Link href={ROUTES.trader} className={HISTORY.rowLink}>
               Voir
             </Link>
           </>
@@ -112,7 +110,7 @@ export default function HistoriquePage() {
       } catch {
         /* on affiche quand même l'historique */
       }
-      const { trades: list } = await apiMyTrades("all", 100);
+      const { trades: list } = await apiMyTrades("all", HISTORY_LIMIT);
       setTrades(list);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Historique indisponible.");
@@ -133,7 +131,6 @@ export default function HistoriquePage() {
 
   // Exporte les prédictions affichées en CSV (ouvre dans Excel).
   const exportCsv = () => {
-    const header = "date;actif;direction;duree;mise;depart;arrivee;resultat;gain_perte";
     const lines = visible.map((t) => {
       const pnl =
         t.result === "WIN"
@@ -151,30 +148,30 @@ export default function HistoriquePage() {
         t.closePrice != null ? String(t.closePrice).replace(".", ",") : "",
         t.status === "OPEN" ? "EN COURS" : (t.result ?? ""),
         String(Math.round(pnl * 100) / 100).replace(".", ","),
-      ].join(";");
+      ].join(CSV.sep);
     });
-    const blob = new Blob(["\uFEFF" + [header, ...lines].join("\n")], {
+    const blob = new Blob([CSV.bom + [CSV.header, ...lines].join("\n")], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "tradefacile-historique.csv";
+    a.download = CSV.file;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-extrabold">Historique</h1>
-          <div className="flex items-center gap-1.5">
+      <div className={STACK.c2}>
+        <div className={HISTORY.head}>
+          <h1 className={TEXT.pageTitle}>Historique</h1>
+          <div className={HISTORY.tools}>
             <button
               type="button"
               onClick={exportCsv}
               disabled={visible.length === 0}
-              className="flex min-h-[40px] items-center rounded-xl border border-ligne bg-carte px-3 text-sm font-bold text-doux active:text-texte disabled:opacity-50"
+              className={HISTORY.exportBtn}
             >
               Exporter
             </button>
@@ -182,19 +179,19 @@ export default function HistoriquePage() {
               type="button"
               onClick={load}
               aria-label="Actualiser"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-ligne bg-carte text-doux active:text-texte"
+              className={HISTORY.iconBtn}
             >
-              <RefreshIcon className="h-5 w-5" />
+              <RefreshIcon className={ICON.lg} />
             </button>
           </div>
         </div>
 
-        <div className="flex gap-1.5">
+        <div className={TRADER.goRow}>
           <select
             value={asset}
             onChange={(e) => setAsset(e.target.value)}
             aria-label="Filtrer par jeu"
-            className="h-10 flex-1 rounded-xl border border-ligne bg-carte px-2 text-base font-bold outline-none focus:border-action lg:max-w-xs"
+            className={HISTORY.select}
           >
             <option value="all">Tous les jeux</option>
             {SYMBOLS.map((s) => (
@@ -205,18 +202,14 @@ export default function HistoriquePage() {
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 lg:max-w-md" role="group" aria-label="Filtrer l'historique">
+        <div className={HISTORY.filters} role="group" aria-label="Filtrer l'historique">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
               aria-pressed={filter === f.id}
-              className={`min-h-[40px] rounded-xl text-sm font-bold transition-colors duration-200 ${
-                filter === f.id
-                  ? "bg-primary text-white"
-                  : "border border-ligne bg-carte text-doux active:text-texte"
-              }`}
+              className={filter === f.id ? HISTORY.filterOn : HISTORY.filterOff}
             >
               {f.label}
             </button>
@@ -225,26 +218,26 @@ export default function HistoriquePage() {
 
         {loading ? (
           <>
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
+            <Skeleton className={HISTORY.skel} />
+            <Skeleton className={HISTORY.skel} />
+            <Skeleton className={HISTORY.skel} />
+            <Skeleton className={HISTORY.skel} />
           </>
         ) : error ? (
           <ErrorState text={error} retry={load} />
         ) : visible.length === 0 ? (
           <EmptyState
-            icon={<HistoryIcon className="h-8 w-8" />}
+            icon={<HistoryIcon className={ICON.xl} />}
             title="Rien ici pour l'instant"
             text="Tes prédictions apparaîtront ici."
             action={
-              <Link href="/">
-                <Btn className="min-h-[44px] text-sm">Aller trader</Btn>
+              <Link href={ROUTES.trader}>
+                <Btn>Aller trader</Btn>
               </Link>
             }
           />
         ) : (
-          <div className="grid gap-2 lg:grid-cols-2">
+          <div className={HISTORY.grid}>
             {visible.map((trade) => (
               <TradeRow key={trade.id} trade={trade} />
             ))}

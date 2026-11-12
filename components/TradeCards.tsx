@@ -2,8 +2,9 @@
 
 import type { ApiTrade } from "@/lib/types";
 import { fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
-import { durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
-import { Btn, Card } from "./ui";
+import { RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
+import { BTN, CARD, LAYOUT, RESULT, RING, TONE, TRADE, TRADER } from "@/lib/design";
+import { Btn } from "./ui";
 import { CountdownRing } from "./CountdownRing";
 
 /* ---------- Prédiction en cours (compacte, pour panneau) ---------- */
@@ -18,40 +19,36 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
         : price < trade.openPrice;
 
   return (
-    <Card className="anim-in p-2.5">
-      <div className="flex items-center gap-2.5">
-        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={60} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`rounded-lg px-2 py-0.5 text-sm font-extrabold ${
-                isUp ? "bg-hausse/15 text-hausse" : "bg-baisse/15 text-baisse"
-              }`}
-            >
+    <div className={CARD.active}>
+      <div className={RESULT.row}>
+        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={RING.card} />
+        <div className={LAYOUT.cardMain}>
+          <div className={LAYOUT.cardHead}>
+            <span className={isUp ? TONE.up : TONE.down}>
               {isUp ? "ACHAT ▲" : "VENTE ▼"}
             </span>
-            <span className="text-sm font-bold">{symbolDisplay(trade.symbol)}</span>
-            <span className="text-xs font-semibold text-doux">{durationLabel(trade.durationSec)}</span>
+            <span className={TRADE.name}>{symbolDisplay(trade.symbol)}</span>
+            <span className={TRADE.dur}>{durationLabel(trade.durationSec)}</span>
             {isOtc(trade.symbol) && (
-              <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+              <span className={TRADER.tag}>
                 JEU
               </span>
             )}
           </div>
-          <div className="mt-1 grid grid-cols-3 gap-1 text-center tabular-nums">
+          <div className={TRADE.stats}>
             <div>
-              <p className="text-xs leading-tight text-doux">Mise</p>
-              <p className="text-sm font-bold leading-tight">{fmtMoney(trade.amount)}</p>
+              <p className={TRADE.statLabel}>Mise</p>
+              <p className={TRADE.statVal}>{fmtMoney(trade.amount)}</p>
             </div>
             <div>
-              <p className="text-xs leading-tight text-doux">Départ</p>
-              <p className="text-sm font-bold leading-tight">{fmtPrice(trade.openPrice)}</p>
+              <p className={TRADE.statLabel}>Départ</p>
+              <p className={TRADE.statVal}>{fmtPrice(trade.openPrice)}</p>
             </div>
             <div>
-              <p className="text-xs leading-tight text-doux">Actuel</p>
+              <p className={TRADE.statLabel}>Actuel</p>
               <p
-                className={`text-sm font-bold leading-tight ${
-                  winning == null ? "" : winning ? "text-hausse" : "text-baisse"
+                className={`${TRADE.statVal} ${
+                  winning == null ? "" : winning ? TRADE.statUp : TRADE.statDown
                 }`}
               >
                 {price == null ? (
@@ -67,7 +64,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -84,10 +81,10 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
 
   const tone =
     trade.result === "WIN"
-      ? { text: "text-hausse", bg: "bg-hausse/15", arrow: "▲" }
+      ? { text: RESULT.winText, bg: RESULT.winBg, arrow: "▲" }
       : trade.result === "LOSS"
-        ? { text: "text-baisse", bg: "bg-baisse/15", arrow: "▼" }
-        : { text: "text-action", bg: "bg-action/15", arrow: "" };
+        ? { text: RESULT.lossText, bg: RESULT.lossBg, arrow: "▼" }
+        : { text: RESULT.tieText, bg: RESULT.tieBg, arrow: "" };
 
   const title =
     trade.result === "WIN"
@@ -97,36 +94,39 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         : "Égalité : mise rendue";
 
   return (
-    <Card className={`anim-in ${tone.bg} border-transparent`}>
-      <div className="flex flex-col items-center gap-1 text-center">
-        <p className="text-base font-semibold">{title}</p>
-        <p className={`text-3xl font-extrabold tabular-nums ${tone.text}`}>
+    <div className={`${CARD.result} ${tone.bg}`}>
+      <div className={RESULT.col}>
+        <p className={TRADE.resultTitle}>{title}</p>
+        <p className={`${TRADE.resultNet} ${tone.text}`}>
           {tone.arrow ? `${tone.arrow} ` : ""}
           {fmtSigned(net)}
         </p>
-        <p className="text-sm tabular-nums">
+        <p className={TRADE.resultLine}>
           {trade.result === "WIN" && (
-            <span className="font-bold">
-              {fmtMoney(net)} gagnés <span className="text-doux">(mise + 85 %)</span>
+            <span className={TRADE.resultWin}>
+              {fmtMoney(net)} gagnés{" "}
+              <span className={TRADE.resultMuted}>
+                (mise + {Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %)
+              </span>
             </span>
           )}
           {trade.result === "LOSS" && (
-            <span className="font-bold">-{fmtMoney(trade.amount)}</span>
+            <span className={TRADE.resultWin}>-{fmtMoney(trade.amount)}</span>
           )}
           {trade.result === "TIE" && (
-            <span className="font-bold">{fmtMoney(trade.amount)} rendus</span>
+            <span className={TRADE.resultWin}>{fmtMoney(trade.amount)} rendus</span>
           )}
         </p>
-        <p className="mt-1 text-xs text-doux tabular-nums">
+        <p className={TRADE.resultMeta}>
           {isUp ? "ACHAT" : "VENTE"} · {symbolDisplay(trade.symbol)}
           {isOtc(trade.symbol) ? " · JEU" : ""} · {durationLabel(trade.durationSec)}
           <br />
           {fmtPrice(trade.openPrice)} → {trade.closePrice != null ? fmtPrice(trade.closePrice) : "…"}
         </p>
-        <Btn onClick={onReplay} className="mt-2 w-full" variant="primary">
+        <Btn onClick={onReplay} className={`${BTN.block} ${RESULT.btn}`} variant="primary">
           Rejouer
         </Btn>
       </div>
-    </Card>
+    </div>
   );
 }

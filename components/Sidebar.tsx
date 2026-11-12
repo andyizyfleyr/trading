@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { apiMyStats } from "@/lib/api";
+import { ROUTES, STATS_REFRESH_MS } from "@/lib/config";
+import { HEADER, ICON, SIDE, TRADE } from "@/lib/design";
 import { fmtMoney, fmtSigned } from "@/lib/format";
 import type { ApiStats } from "@/lib/types";
 import {
@@ -16,9 +18,9 @@ import {
 } from "./Icons";
 
 const ITEMS = [
-  { href: "/", label: "Trader", Icon: ChartIcon },
-  { href: "/historique", label: "Historique", Icon: HistoryIcon },
-  { href: "/profil", label: "Profil", Icon: UserIcon },
+  { href: ROUTES.trader, label: "Trader", Icon: ChartIcon },
+  { href: ROUTES.history, label: "Historique", Icon: HistoryIcon },
+  { href: ROUTES.profile, label: "Profil", Icon: UserIcon },
 ];
 
 /**
@@ -44,7 +46,7 @@ export function Sidebar() {
   useEffect(() => {
     if (!isDesktop || !user) return;
     load();
-    const timer = setInterval(load, 60000);
+    const timer = setInterval(load, STATS_REFRESH_MS);
     return () => clearInterval(timer);
   }, [isDesktop, user, pathname, load]);
 
@@ -54,32 +56,30 @@ export function Sidebar() {
 
   const handleLogout = () => {
     logout();
-    router.replace("/connexion");
+    router.replace(ROUTES.login);
   };
 
   return (
-    <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[280px] flex-col gap-4 overflow-y-auto border-r border-ligne bg-fond p-4 lg:flex">
-      <Link href="/" className="flex items-center gap-2 px-1" aria-label="Accueil Trader">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-carte text-base font-extrabold">
-          <span className="text-hausse">▲</span>
-          <span className="text-baisse">▼</span>
+    <aside className={SIDE.bar}>
+      <Link href={ROUTES.trader} className={SIDE.logo} aria-label="Accueil Trader">
+        <span className={SIDE.logoMark} aria-hidden="true">
+          <span className={HEADER.markUp}>▲</span>
+          <span className={HEADER.markDown}>▼</span>
         </span>
-        <span className="text-lg font-extrabold tracking-tight">TradeFacile</span>
+        <span className={SIDE.logoName}>TradeFacile</span>
       </Link>
 
-      <nav aria-label="Navigation principale" className="flex flex-col gap-1">
+      <nav aria-label="Navigation principale" className={SIDE.nav}>
         {ITEMS.map(({ href, label, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = href === ROUTES.trader ? pathname === ROUTES.trader : pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[48px] items-center gap-3 rounded-xl px-3 text-base font-bold transition-colors duration-200 ${
-                active ? "bg-carte text-white" : "text-doux hover:bg-carte hover:text-texte"
-              }`}
+              className={active ? SIDE.linkOn : SIDE.linkOff}
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <Icon className={SIDE.linkIcon} />
               {label}
             </Link>
           );
@@ -87,15 +87,15 @@ export function Sidebar() {
       </nav>
 
       {/* Mon compte : données en direct */}
-      <div className="rounded-2xl border border-ligne bg-carte p-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-doux">Mon compte</p>
-        <div className="mt-2 flex items-center gap-2.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white">
+      <div className={SIDE.card}>
+        <p className={SIDE.cardTitle}>Mon compte</p>
+        <div className={SIDE.acctRow}>
+          <span className={SIDE.acctAvatar}>
             {initial}
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{user?.email ?? "…"}</p>
-            <p className="text-lg font-extrabold tabular-nums">
+          <div className={SIDE.acctMain}>
+            <p className={SIDE.acctMail}>{user?.email ?? "…"}</p>
+            <p className={SIDE.acctBal}>
               {user ? fmtMoney(user.balance) : "…"}
             </p>
           </div>
@@ -103,37 +103,37 @@ export function Sidebar() {
       </div>
 
       {/* Mes stats : vraies données du serveur */}
-      <div className="rounded-2xl border border-ligne bg-carte p-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-doux">Mes stats</p>
+      <div className={SIDE.card}>
+        <p className={SIDE.cardTitle}>Mes stats</p>
         {stats ? (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl bg-fond p-2">
-                <p className="text-lg font-extrabold tabular-nums">{stats.settled}</p>
-                <p className="text-xs leading-tight text-doux">parties</p>
+          <div className={SIDE.statsWrap}>
+            <div className={SIDE.statsGrid}>
+              <div className={SIDE.statTile}>
+                <p className={SIDE.statNum}>{stats.settled}</p>
+                <p className={SIDE.statLabel}>parties</p>
               </div>
-              <div className="rounded-xl bg-fond p-2">
-                <p className="text-lg font-extrabold tabular-nums">{stats.winRate} %</p>
-                <p className="text-xs leading-tight text-doux">réussite</p>
+              <div className={SIDE.statTile}>
+                <p className={SIDE.statNum}>{stats.winRate} %</p>
+                <p className={SIDE.statLabel}>réussite</p>
               </div>
-              <div className="rounded-xl bg-fond p-2">
-                <p className="text-lg font-extrabold tabular-nums text-hausse">
+              <div className={SIDE.statTile}>
+                <p className={`${SIDE.statNum} ${TRADE.statUp}`}>
                   ▲ {stats.wins}
                 </p>
-                <p className="text-xs leading-tight text-doux">victoires</p>
+                <p className={SIDE.statLabel}>victoires</p>
               </div>
-              <div className="rounded-xl bg-fond p-2">
-                <p className="text-lg font-extrabold tabular-nums text-baisse">
+              <div className={SIDE.statTile}>
+                <p className={`${SIDE.statNum} ${TRADE.statDown}`}>
                   ▼ {stats.losses}
                 </p>
-                <p className="text-xs leading-tight text-doux">défaites</p>
+                <p className={SIDE.statLabel}>défaites</p>
               </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-fond px-2.5 py-2">
-              <p className="text-xs font-bold text-doux">Gains nets</p>
+            <div className={SIDE.pnlRow}>
+              <p className={SIDE.pnlLabel}>Gains nets</p>
               <p
-                className={`text-base font-extrabold tabular-nums ${
-                  stats.pnl > 0 ? "text-hausse" : stats.pnl < 0 ? "text-baisse" : ""
+                className={`${SIDE.pnlVal} ${
+                  stats.pnl > 0 ? TRADE.statUp : stats.pnl < 0 ? TRADE.statDown : ""
                 }`}
               >
                 {fmtSigned(stats.pnl)}
@@ -141,23 +141,23 @@ export function Sidebar() {
             </div>
           </div>
         ) : (
-          <div className="mt-2 grid grid-cols-2 gap-2" aria-label="Chargement des stats...">
-            <div className="skeleton h-14 rounded-xl" />
-            <div className="skeleton h-14 rounded-xl" />
-            <div className="skeleton h-14 rounded-xl" />
-            <div className="skeleton h-14 rounded-xl" />
+          <div className={SIDE.skelGrid} aria-label="Chargement des stats...">
+            <div className={SIDE.skel} />
+            <div className={SIDE.skel} />
+            <div className={SIDE.skel} />
+            <div className={SIDE.skel} />
           </div>
         )}
       </div>
 
-      <div className="flex-1" />
+      <div className={SIDE.spacer} />
 
       <button
         type="button"
         onClick={handleLogout}
-        className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-ligne bg-transparent text-sm font-bold text-doux transition-colors duration-200 hover:text-baisse"
+        className={SIDE.logout}
       >
-        <LogoutIcon className="h-4 w-4" />
+        <LogoutIcon className={ICON.md} />
         Se déconnecter
       </button>
     </aside>

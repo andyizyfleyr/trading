@@ -12,7 +12,21 @@ import { useAuth } from "@/lib/auth-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { apiMyTrades, apiSettle } from "@/lib/api";
-import { fmtMoney, fmtPrice } from "@/lib/format";
+import {
+  DEFAULT_INTERVAL,
+  FLOAT_TICK_MS,
+  RESULTS_SHOWN,
+  SETTLE_TICK_MS,
+  SIGNAL_FRESH_FUTURE_MS,
+  SIGNAL_FRESH_PAST_MS,
+  SIGNAL_PARAMS,
+  STORE,
+  TRADES_PAGE_LIMIT,
+  TRADES_REFRESH_MS,
+  VIBRATE,
+} from "@/lib/config";
+import { INK, SHEET, STACK, TRADER } from "@/lib/design";
+import { fmtMoney, fmtPrice, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
@@ -21,31 +35,24 @@ const PriceChart = dynamic(
   () => import("@/components/PriceChart").then((m) => m.PriceChart),
   {
     ssr: false,
-    loading: () => <div className="skeleton h-full w-full rounded-2xl" />,
+    loading: () => <div className={TRADER.chartLoading} />,
   }
 );
 
-const SYMBOL_KEY = "tf_symbol";
-
 function loadSymbol(): string {
+  if (typeof window === "undefined") return SYMBOLS[0].id;
   try {
-    const saved = window.localStorage.getItem(SYMBOL_KEY);
+    const saved = window.localStorage.getItem(STORE.symbol);
     if (saved && SYMBOLS.some((s) => s.id === saved)) return saved;
   } catch {
     /* ignore */
   }
-  return "EURUSDOTC";
-}
-
-function formatRemain(ms: number): string {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  if (s >= 60) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  return `${s}s`;
+  return SYMBOLS[0].id;
 }
 
 export default function TraderPage() {
   const { user, setBalance } = useAuth();
-  const [symbol, setSymbol] = useState<string>("EURUSDOTC");
+  const [symbol, setSymbol] = useState<string>(() => loadSymbol());
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [assetOpen, setAssetOpen] = useState(false);
@@ -55,28 +62,27 @@ export default function TraderPage() {
   const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
   const [signal, setSignal] = useState<SignalHint | null>(null);
 
-  const { price, tickCandle, online } = useLiveMarket(symbol, "1m");
+  const { price, tickCandle, online } = useLiveMarket(symbol, DEFAULT_INTERVAL);
   const settlingRef = useRef(false);
 
   useEffect(() => {
-    setSymbol(loadSymbol());
     setShowGuide(!hasSeenGuide());
     // Signal venant de la page Signaux (?jeu=&duree=&sens=&slot=) :
     // pré-remplit le jeu, la durée et le bouton conseillé.
     try {
       const q = new URLSearchParams(window.location.search);
-      const jeu = q.get("jeu");
+      const jeu = q.get(SIGNAL_PARAMS.game);
       if (jeu && SYMBOLS.some((s) => s.id === jeu)) {
         setSymbol(jeu);
-        window.localStorage.setItem(SYMBOL_KEY, jeu);
+        window.localStorage.setItem(STORE.symbol, jeu);
       }
-      const duree = Number(q.get("duree"));
+      const duree = Number(q.get(SIGNAL_PARAMS.duration));
       if (isDuration(duree)) setSignalDuration(duree);
-      const sens = q.get("sens");
-      const atMs = Number(q.get("slot")) * 1000;
-      const fresh = atMs > Date.now() - 10000 && atMs < Date.now() + 30 * 60000;
-      if ((sens === "up" || sens === "down") && Number.isFinite(atMs) && fresh) {
-        setSignal({ direction: sens === "up" ? "UP" : "DOWN", atMs });
+      const sens = q.get(SIGNAL_PARAMS.sense);
+      const atMs = Number(q.get(SIGNAL_PARAMS.slot)) * 1000;
+      const fresh = atMs > Date.now() - SIGNAL_FRESH_PAST_MS && atMs < Date.now() + SIGNAL_FRESH_FUTURE_MS;
+      if ((sens === SIGNAL_PARAMS.up || sens === SIGNAL_PARAMS.down) && Number.isFinite(atMs) && fresh) {
+        setSignal({ direction: sens === SIGNAL_PARAMS.up ? "UP" : "DOWN", atMs });
       }
     } catch {
       /* adresse illisible : trader normal */
@@ -85,7 +91,7 @@ export default function TraderPage() {
 
   // Horloge pour le compte à rebours du bouton flottant.
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 500);
+    const t = setInterval(() => setNow(Date.now()), FLOAT_TICK_MS);
     return () => clearInterval(t);
   }, []);
 
@@ -93,7 +99,7 @@ export default function TraderPage() {
     setSymbol(id);
     setAssetOpen(false);
     try {
-      window.localStorage.setItem(SYMBOL_KEY, id);
+      window.localStorage.setItem(STORE.symbol, id);
     } catch {
       /* ignore */
     }
@@ -109,7 +115,7 @@ export default function TraderPage() {
   // Si certaines ont été clôturées ailleurs, leurs résultats sont affichés.
   const loadOpen = useCallback(async () => {
     try {
-      const { trades } = await apiMyTrades("open", 50);
+      const { trades } = await apiMyTrades("open", TRADES_PAGE_LIMIT);
       setOpenTrades(trades);
       const fresh = new Set(trades.map((t) => t.id));
       const vanished = [...openIdsRef.current].filter(
@@ -118,13 +124,13 @@ export default function TraderPage() {
       openIdsRef.current = fresh;
       if (vanished.length > 0) {
         try {
-          const { trades: settled } = await apiMyTrades("settled", 50);
+          const { trades: settled } = await apiMyTrades("settled", TRADES_PAGE_LIMIT);
           const found = settled.filter((t) => vanished.includes(t.id));
           if (found.length > 0) {
             found.forEach((t) => shownRef.current.add(t.id));
             setResults((prev) => {
               const known = new Set(prev.map((p) => p.id));
-              return [...found.filter((t) => !known.has(t.id)), ...prev].slice(0, 5);
+              return [...found.filter((t) => !known.has(t.id)), ...prev].slice(0, RESULTS_SHOWN);
             });
           }
         } catch {
@@ -138,7 +144,7 @@ export default function TraderPage() {
 
   useEffect(() => {
     loadOpen();
-    const t = setInterval(loadOpen, 15000);
+    const t = setInterval(loadOpen, TRADES_REFRESH_MS);
     return () => clearInterval(t);
   }, [loadOpen]);
 
@@ -157,16 +163,16 @@ export default function TraderPage() {
           setOpenTrades((prev) =>
             prev.filter((p) => !res.settled.some((s) => s.id === p.id))
           );
-          setResults((prev) => [...res.settled, ...prev].slice(0, 5));
+          setResults((prev) => [...res.settled, ...prev].slice(0, RESULTS_SHOWN));
           setBalance(res.balance);
-          vibrate(30);
+          vibrate(VIBRATE.settle);
         }
       } catch {
         // Nouvel essai automatique à la prochaine seconde.
       } finally {
         settlingRef.current = false;
       }
-    }, 1000);
+    }, SETTLE_TICK_MS);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openTrades, online]);
@@ -187,7 +193,7 @@ export default function TraderPage() {
     .map((t) => ({
       price: t.openPrice,
       title: `${t.direction === "UP" ? "Achat" : "Vente"} ${t.amount}`,
-      color: t.direction === "UP" ? "#22C55E" : "#EF4444",
+      color: t.direction === "UP" ? INK.hausse : INK.baisse,
     }));
 
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
@@ -205,41 +211,41 @@ export default function TraderPage() {
   return (
     <RequireAuth>
       {/* Vue unique : 100 % de la hauteur dispo, aucun scroll de page. */}
-      <div className="-mb-[6.5rem] flex h-[calc(100dvh-7.75rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col gap-2 overflow-hidden lg:mb-0 lg:grid lg:h-[calc(100dvh-7.5rem)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:overflow-visible">
+      <div className={TRADER.root}>
         {/* Sélecteur d'actif (liste déroulante) + prix en direct */}
         <button
           id="guide-symbol"
           type="button"
           onClick={() => setAssetOpen(true)}
           aria-haspopup="dialog"
-          className="flex h-11 w-full shrink-0 items-center justify-between rounded-xl border border-ligne bg-carte px-3 active:bg-ligne lg:col-span-2 lg:max-w-xl"
+          className={TRADER.assetBtn}
         >
-          <span className="flex items-center gap-2 text-base font-extrabold">
+          <span className={TRADER.assetMain}>
             <span
-              className="h-3 w-3 rounded-full"
+              className={TRADER.dot}
               style={{ backgroundColor: current.color }}
               aria-hidden="true"
             />
             {symbolDisplay(current.id)}
             {current.kind === "otc" && (
-              <span className="rounded-lg bg-action/15 px-1.5 py-0.5 text-xs font-extrabold text-action">
+              <span className={TRADER.tag}>
                 JEU
               </span>
             )}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="text-sm font-bold tabular-nums text-doux">
+          <span className={TRADER.assetRight}>
+            <span className={TRADER.assetPrice}>
               {price != null ? fmtPrice(price) : "…"}
             </span>
-            <ChevronDownIcon className="h-5 w-5 text-doux" />
+            <ChevronDownIcon className={TRADER.chevron} />
           </span>
         </button>
 
         {/* Graphique en bougies : prend toute la place restante */}
-        <div id="guide-chart" className="min-h-[100px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0">
+        <div id="guide-chart" className={TRADER.chartBox}>
           <PriceChart
             symbol={symbol}
-            interval="1m"
+            interval={DEFAULT_INTERVAL}
             tickCandle={tickCandle}
             livePrice={isOtc(symbol) ? price : null}
             priceLines={priceLines}
@@ -247,8 +253,8 @@ export default function TraderPage() {
         </div>
 
         {/* Paris + En cours (colonne de droite sur desktop) */}
-        <div className="shrink-0 lg:col-start-2 lg:row-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto">
-          <div className="lg:shrink-0">
+        <div className={TRADER.sideCol}>
+          <div className={TRADER.formWrap}>
             <TradeForm
               balance={user?.balance ?? 0}
               symbol={symbol}
@@ -262,17 +268,17 @@ export default function TraderPage() {
 
           {/* En cours affiché directement sur desktop (panneau sur mobile). */}
           {sortedOpen.length > 0 && (
-            <div className="hidden lg:block">
-              <div className="flex flex-col gap-2 rounded-2xl border border-ligne bg-carte p-3">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <p className="font-extrabold">
+            <div className={TRADER.onlyDesktop}>
+              <div className={TRADER.openPanel}>
+                <div className={TRADER.openHead}>
+                  <p className={TRADER.openTitle}>
                     En cours ({sortedOpen.length})
                   </p>
-                  <p className="font-bold tabular-nums text-action">
-                    Fin dans {formatRemain(nearestMs)}
+                  <p className={TRADER.openSoon}>
+                    Fin dans {fmtRemainShort(nearestMs)}
                   </p>
                 </div>
-                <p className="-mt-1 text-xs tabular-nums text-doux">
+                <p className={TRADER.openStaked}>
                   Mises {fmtMoney(totalStaked)}
                 </p>
                 {sortedOpen.map((trade) => (
@@ -294,16 +300,16 @@ export default function TraderPage() {
           type="button"
           onClick={() => setTradesOpen(true)}
           aria-label={`Voir les ${openTrades.length} prédictions en cours`}
-          className="anim-in fixed bottom-[4.75rem] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-primary px-4 text-base font-extrabold tabular-nums text-white shadow-xl active:bg-blue-700 lg:hidden"
+          className={TRADER.floatBtn}
         >
-          <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
-          {openTrades.length} · {formatRemain(nearestMs)}
+          <span className={TRADER.floatDot} aria-hidden="true" />
+          {openTrades.length} · {fmtRemainShort(nearestMs)}
         </button>
       )}
 
       {/* Panneau : choix de l'actif */}
       <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title="Choisir un jeu">
-        <div className="flex flex-col gap-1 pb-2">
+        <div className={SHEET.list1}>
           {SYMBOLS.map((s) => {
             const active = s.id === symbol;
             return (
@@ -312,24 +318,22 @@ export default function TraderPage() {
                 type="button"
                 onClick={() => pickSymbol(s.id)}
                 aria-pressed={active}
-                className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-left active:bg-ligne ${
-                  active ? "bg-fond" : ""
-                }`}
+                className={`${SHEET.row} ${active ? SHEET.rowOn : ""}`}
               >
                 <span
-                  className="h-3.5 w-3.5 shrink-0 rounded-full"
+                  className={SHEET.dot}
                   style={{ backgroundColor: s.color }}
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-base font-extrabold">
+                <span className={SHEET.rowName}>
                   {symbolDisplay(s.id)}
                 </span>
                 {s.kind === "otc" && (
-                  <span className="shrink-0 rounded-lg bg-action/15 px-2 py-1 text-xs font-extrabold text-action">
+                  <span className={TRADER.tag}>
                     JEU
                   </span>
                 )}
-                {active && <CheckIcon className="h-5 w-5 shrink-0 text-hausse" />}
+                {active && <CheckIcon className={SHEET.rowCheck} />}
               </button>
             );
           })}
@@ -342,14 +346,14 @@ export default function TraderPage() {
         onClose={() => setTradesOpen(false)}
         title={`En cours (${openTrades.length})`}
       >
-        <div className="flex flex-col gap-2 pb-2">
-          <div className="flex items-center justify-between gap-2 rounded-xl bg-fond px-3 py-2 text-sm">
-            <span className="font-bold tabular-nums">
+        <div className={SHEET.list2}>
+          <div className={TRADER.openRow}>
+            <span className={TRADER.openCount}>
               {sortedOpen.length} prédiction{sortedOpen.length > 1 ? "s" : ""}
             </span>
-            <span className="tabular-nums text-doux">Mises {fmtMoney(totalStaked)}</span>
-            <span className="font-bold tabular-nums text-action">
-              Fin dans {formatRemain(nearestMs)}
+            <span className={TRADER.openMises}>Mises {fmtMoney(totalStaked)}</span>
+            <span className={TRADER.openSoon}>
+              Fin dans {fmtRemainShort(nearestMs)}
             </span>
           </div>
           {sortedOpen.map((trade) => (
@@ -368,9 +372,9 @@ export default function TraderPage() {
         onClose={() => setResults((prev) => prev.slice(1))}
         title="Résultat"
       >
-        <div className="flex flex-col gap-2 pb-2">
+        <div className={SHEET.list2}>
           {results.length > 1 && (
-            <p className="text-center text-sm font-semibold text-doux">
+            <p className={TRADER.moreResults}>
               +{results.length - 1} autre{results.length > 2 ? "s" : ""} résultat
               {results.length > 2 ? "s" : ""} après celui-ci
             </p>

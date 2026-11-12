@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from "lightweight-charts";
 import { apiCandles, ApiError } from "@/lib/api";
+import { CANDLES_LIMIT } from "@/lib/config";
+import { CHART, TRADER } from "@/lib/design";
 import { type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
+import { Btn } from "./ui";
+
+const SKELETON_BARS = [55, 70, 45, 80, 60, 75, 50, 65, 72, 58, 66, 48];
 
 export interface ChartPriceLine {
   price: number;
@@ -59,23 +64,23 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
         height: containerRef.current.clientHeight,
         layout: {
           background: { type: ColorType.Solid, color: "transparent" },
-          textColor: "#9CA3AF",
-          fontFamily: "Inter, system-ui, sans-serif",
-          fontSize: 12,
+          textColor: CHART.text,
+          fontFamily: CHART.font,
+          fontSize: CHART.fontSize,
         },
-        grid: { vertLines: { color: "#26345A" }, horzLines: { color: "#26345A" } },
+        grid: { vertLines: { color: CHART.grid }, horzLines: { color: CHART.grid } },
         rightPriceScale: { borderVisible: false },
-        timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 4 },
+        timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: CHART.rightOffset },
         crosshair: {
-          vertLine: { color: "#3B82F6", labelBackgroundColor: "#2563EB" },
-          horzLine: { color: "#3B82F6", labelBackgroundColor: "#2563EB" },
+          vertLine: { color: CHART.cross, labelBackgroundColor: CHART.crossLabel },
+          horzLine: { color: CHART.cross, labelBackgroundColor: CHART.crossLabel },
         },
       });
       const series = chart.addCandlestickSeries({
-        upColor: "#22C55E",
-        downColor: "#EF4444",
-        wickUpColor: "#22C55E",
-        wickDownColor: "#EF4444",
+        upColor: CHART.up,
+        downColor: CHART.down,
+        wickUpColor: CHART.up,
+        wickDownColor: CHART.down,
         borderVisible: false,
       });
       chartRef.current = chart;
@@ -85,7 +90,7 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
         pendingRef.current = null;
         series.setData(data);
         lastBarRef.current = data[data.length - 1] ?? null;
-        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, data.length - 90), to: data.length + 4 });
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, data.length - CHART.visible), to: data.length + CHART.overscroll });
       }
       ro = new ResizeObserver((entries) => {
         const rect = entries[0]?.contentRect;
@@ -115,7 +120,7 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
     setError(null);
     lastBarRef.current = null;
 
-    apiCandles(symbol, interval, 200)
+    apiCandles(symbol, interval, CANDLES_LIMIT)
       .then(({ candles }) => {
         if (cancelled) return;
         const data = candles.map(toBar);
@@ -124,7 +129,7 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
           lastBarRef.current = data[data.length - 1] ?? null;
           chartRef.current
             .timeScale()
-            .setVisibleLogicalRange({ from: Math.max(0, data.length - 90), to: data.length + 4 });
+            .setVisibleLogicalRange({ from: Math.max(0, data.length - CHART.visible), to: data.length + CHART.overscroll });
         } else {
           pendingRef.current = data;
         }
@@ -167,7 +172,7 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
       return;
     }
     // Ignore les prix aberrants (ne doivent jamais déformer le graphique).
-    if (livePrice > last.close * 2 || livePrice < last.close * 0.5) return;
+    if (livePrice > last.close * CHART.spikeHi || livePrice < last.close * CHART.spikeLo) return;
     try {
       const bar = {
         time: last.time,
@@ -198,8 +203,8 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
       series.createPriceLine({
         price: pl.price,
         color: pl.color,
-        lineWidth: 1,
-        lineStyle: 2,
+        lineWidth: CHART.lineWidth,
+        lineStyle: CHART.lineStyle,
         axisLabelVisible: true,
         title: pl.title,
       })
@@ -207,27 +212,23 @@ export function PriceChart({ symbol, interval, tickCandle, livePrice, priceLines
   }, [priceLines]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-ligne bg-carte">
-      <div ref={containerRef} className="h-full w-full" role="img" aria-label="Graphique en bougies" />
+    <div className={TRADER.chartCard}>
+      <div ref={containerRef} className={CHART.fill} role="img" aria-label="Graphique en bougies" />
 
       {loading && (
-        <div className="absolute inset-0 flex items-end gap-1 p-4" aria-label="Chargement du graphique...">
-          {[55, 70, 45, 80, 60, 75, 50, 65, 72, 58, 66, 48].map((h, i) => (
-            <div key={i} className="skeleton flex-1 rounded" style={{ height: `${h}%` }} />
+        <div className={CHART.load} aria-label="Chargement du graphique...">
+          {SKELETON_BARS.map((h, i) => (
+            <div key={i} className={CHART.bar} style={{ height: `${h}%` }} />
           ))}
         </div>
       )}
 
       {error && !loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-carte/95 p-6 text-center">
-          <p className="text-base">{error}</p>
-          <button
-            type="button"
-            onClick={() => setReloadKey((k) => k + 1)}
-            className="min-h-[48px] rounded-xl border border-ligne bg-fond px-5 text-base font-semibold active:bg-ligne"
-          >
+        <div className={CHART.errBox}>
+          <p className={CHART.errText}>{error}</p>
+          <Btn variant="card" onClick={() => setReloadKey((k) => k + 1)}>
             Réessayer
-          </button>
+          </Btn>
         </div>
       )}
     </div>

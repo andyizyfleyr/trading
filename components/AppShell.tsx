@@ -7,11 +7,13 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiSettle } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
+import { CLOCK_SYNC_MS, NEXT_PARAM, ROUTES } from "@/lib/config";
+import { HEADER, SHELL } from "@/lib/design";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
 import { WalletIcon } from "./Icons";
 
-const CHROMELESS = ["/connexion", "/inscription", "/bienvenue"];
+const CHROMELESS = [ROUTES.login, ROUTES.signup, ROUTES.welcome];
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -19,21 +21,21 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   if (!loading && !user) {
-    router.replace(`/connexion?next=${encodeURIComponent(pathname)}`);
+    router.replace(`${ROUTES.login}?${NEXT_PARAM}=${encodeURIComponent(pathname)}`);
     return (
-      <div className="mx-auto flex max-w-xl flex-col lg:max-w-3xl gap-3 p-4">
-        <div className="skeleton h-40 rounded-2xl" />
-        <div className="skeleton h-24 rounded-2xl" />
+      <div className={SHELL.loadBox}>
+        <div className={SHELL.loadBig} />
+        <div className={SHELL.loadSmall} />
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-xl flex-col lg:max-w-3xl gap-3 p-4" aria-label="Chargement...">
-        <div className="skeleton h-40 rounded-2xl" />
-        <div className="skeleton h-24 rounded-2xl" />
-        <div className="skeleton h-24 rounded-2xl" />
+      <div className={SHELL.loadBox} aria-label="Chargement...">
+        <div className={SHELL.loadBig} />
+        <div className={SHELL.loadSmall} />
+        <div className={SHELL.loadSmall} />
       </div>
     );
   }
@@ -46,29 +48,28 @@ function Header() {
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
 
   return (
-    <header className="safe-top sticky top-0 z-40 border-b border-ligne bg-fond/95 backdrop-blur">
-      <div className="mx-auto flex h-12 max-w-xl items-center justify-between gap-2 px-4 lg:max-w-6xl lg:px-6">
-        <Link href="/" className="flex items-center gap-1.5" aria-label="Accueil Trader">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-carte text-sm font-extrabold">
-            <span className="text-hausse">▲</span>
-            <span className="text-baisse">▼</span>
+    <header className={HEADER.bar}>
+      <div className={HEADER.wrap}>
+        <Link href={ROUTES.trader} className={HEADER.logo} aria-label="Accueil Trader">
+          <span className={HEADER.mark} aria-hidden="true">
+            <span className={HEADER.markUp}>▲</span>
+            <span className={HEADER.markDown}>▼</span>
           </span>
-          <span className="text-base font-extrabold tracking-tight">TradeFacile</span>
+          <span className={HEADER.name}>TradeFacile</span>
         </Link>
-
-        <div className="flex items-center gap-1.5">
+        <div className={HEADER.side}>
           <Link
-            href="/profil"
-            className="flex min-h-[40px] items-center gap-1.5 rounded-xl border border-ligne bg-carte px-2.5 text-sm font-bold tabular-nums"
+            href={ROUTES.profile}
+            className={HEADER.pill}
             aria-label={`Mon solde : ${user ? fmtMoney(user.balance) : "..."}. Aller au profil.`}
           >
-            <WalletIcon className="h-4 w-4 text-action" />
+            <WalletIcon className={HEADER.pillIcon} />
             {user ? fmtMoney(user.balance) : "…"}
           </Link>
           <Link
-            href="/profil"
+            href={ROUTES.profile}
             aria-label="Mon profil"
-            className="hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex"
+            className={HEADER.avatar}
           >
             {initial}
           </Link>
@@ -109,7 +110,7 @@ function BalanceSync() {
     };
 
     sync();
-    const timer = setInterval(sync, 30000);
+    const timer = setInterval(sync, CLOCK_SYNC_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") sync();
     };
@@ -131,15 +132,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const bare = CHROMELESS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (bare) {
-    return <div className="min-h-dvh bg-fond text-texte">{children}</div>;
+    return <div className={SHELL.bare}>{children}</div>;
   }
 
   return (
-    <div className="min-h-dvh bg-fond text-texte lg:pl-[280px]">
+    <div className={`${SHELL.root} ${SHELL.desktop}`}>
       <BalanceSync />
       <Sidebar />
       <Header />
-      <main className="mx-auto max-w-xl px-4 pb-28 pt-3 lg:max-w-6xl lg:px-6 lg:pb-10">{children}</main>
+      <main className={SHELL.main}>{children}</main>
       <BottomNav />
     </div>
   );
