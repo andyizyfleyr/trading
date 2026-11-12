@@ -15,7 +15,7 @@ import {
   TRADES_PAGE_LIMIT,
   VIBRATE,
 } from "@/lib/config";
-import { BTN, FLEX, SHEET, TRADER } from "@/lib/design";
+import { FLEX, SHEET, TRADER } from "@/lib/design";
 import { fmtGain, fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS, RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
@@ -97,7 +97,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const [draftTime, setDraftTime] = useState("");
   const [offsetMs, setOffsetMs] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [serverPending, setServerPending] = useState<ApiTrade | null>(null);
   const [scheduledList, setScheduledList] = useState<ApiTrade[]>([]);
   const [tick, setTick] = useState(() => Date.now());
   const [hidden, setHidden] = useState(false);
@@ -354,7 +353,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         });
         vibrate(VIBRATE.action);
         onBalance?.(res.balance);
-        setServerPending(res.scheduled);
+        pickNow(); // La mise rejoint la liste « Programmé(es) » ci-dessus.
         void refreshScheduled();
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Programmation impossible pour le moment.");
@@ -372,7 +371,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     try {
       const res = await apiCancelScheduled(id);
       onBalance?.(res.balance);
-      setServerPending((p) => (p?.id === id ? null : p));
       await refreshScheduled();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Annulation impossible pour le moment.");
@@ -435,28 +433,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           <p className={TRADER.waitNote}>
             Reste sur cette page jusqu&apos;au départ.
           </p>
-        </div>
-      ) : serverPending ? (
-        /* Mise programmée sur le serveur : part même appli fermée */
-        <div role="status" className={TRADER.doneBox}>
-          <p className={TRADER.doneTitle}>Programmé ✓</p>
-          <p className={TRADER.doneText}>
-            {serverPending.direction === "UP" ? "ACHAT ▲" : "VENTE ▼"}{" "}
-            {fmtMoney(serverPending.amount)} {symbolDisplay(serverPending.symbol)} à{" "}
-            {fmtSlot(slotOf(serverPending))}
-          </p>
-          <p className={TRADER.doneNote}>
-            Partira tout seul à l&apos;heure, même si tu quittes l&apos;app.
-          </p>
-          <div className={TRADER.doneBtns}>
-            <Btn variant="ghost" onClick={() => setServerPending(null)} className={BTN.block}>
-              OK
-            </Btn>
-            <Btn variant="red" onClick={() => cancelScheduled(serverPending.id)} className={BTN.block}>
-              Annuler
-            </Btn>
-          </div>
-          <p className={TRADER.waitNote}>Annuler = mise remboursée.</p>
         </div>
       ) : (
         <>
@@ -616,12 +592,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           )}
 
-          {chosenSlot != null && (
-            <p className={TRADER.hintOk}>
-              Appuie sur ACHAT ou VENTE : la mise partira toute seule à {fmtSlot(chosenSlot)}
-              {isOtc(symbol) ? ", même si tu quittes l'app." : "."}
-            </p>
-          )}
           {chosenSlot == null && (quand === BAD_TIME || quandStale) && (
             <p className={TRADER.hintErr}>
               {quand === BAD_TIME
