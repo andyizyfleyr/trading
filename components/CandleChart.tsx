@@ -136,6 +136,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       const r = box.getBoundingClientRect();
       const d = window.devicePixelRatio || 1;
       // Changer width/height efface tout : seulement si la taille a bougé.
+      // Sinon on efface à la main (sans cela, chaque redessin se superpose
+      // au précédent : pastilles et lignes fantômes partout).
       const w = Math.max(1, Math.round(r.width * d));
       const h = Math.max(1, Math.round(r.height * d));
       if (cv.width !== w || cv.height !== h) {
@@ -143,6 +145,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
         cv.height = h;
       }
       ctx.setTransform(d, 0, 0, d, 0, 0);
+      ctx.clearRect(0, 0, r.width, r.height);
       const W = r.width;
       const H = r.height;
       const pw = CHART.axisW;
