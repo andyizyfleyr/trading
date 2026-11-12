@@ -3,66 +3,58 @@
 import type { ApiTrade } from "@/lib/types";
 import { fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
 import { RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
-import { BTN, CARD, LAYOUT, RESULT, RING, TONE, TRADE, TRADER } from "@/lib/design";
+import { BTN, CARD, ENCOURS, RESULT, RING, TRADE } from "@/lib/design";
 import { Btn } from "./ui";
 import { CountdownRing } from "./CountdownRing";
 
-/* ---------- Prédiction en cours (compacte, pour panneau) ---------- */
+/* ---------- Prédiction en cours (compacte, 2 lignes + trait vert/rouge) ---------- */
 
 export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: number | null }) {
   const isUp = trade.direction === "UP";
-  const winning =
-    price == null || price === trade.openPrice
-      ? null
-      : isUp
-        ? price > trade.openPrice
-        : price < trade.openPrice;
+  // Écart prix actuel − prix de départ : la flèche suit le prix,
+  // la couleur (vert/rouge) dit si le trade gagne ou perd.
+  const diff = price == null ? null : price - trade.openPrice;
+  const score = diff == null ? 0 : diff * (isUp ? 1 : -1);
+  const winning = score > 0 ? true : score < 0 ? false : null;
+  const tone = winning == null ? ENCOURS.toneFlat : winning ? ENCOURS.toneWin : ENCOURS.toneLoss;
+  const toneText =
+    winning == null ? ENCOURS.textFlat : winning ? ENCOURS.textWin : ENCOURS.textLoss;
+  const arrow = diff == null || diff === 0 ? "" : diff > 0 ? "▲ " : "▼ ";
+  // Estimation : gain net (+85 %) si ça gagne, mise perdue sinon, « = » si égalité.
+  const est =
+    winning == null
+      ? "="
+      : winning
+        ? `+${fmtMoney(trade.amount * RULES.WIN_PAYOUT_RATIO)}`
+        : `−${fmtMoney(trade.amount)}`;
 
   return (
-    <div className={CARD.active}>
-      <div className={RESULT.row}>
-        <CountdownRing closesAt={trade.closesAt} durationSec={trade.durationSec} size={RING.card} />
-        <div className={LAYOUT.cardMain}>
-          <div className={LAYOUT.cardHead}>
-            <span className={isUp ? TONE.up : TONE.down}>
-              {isUp ? "ACHAT ▲" : "VENTE ▼"}
-            </span>
-            <span className={TRADE.name}>{symbolDisplay(trade.symbol)}</span>
-            <span className={TRADE.dur}>{durationLabel(trade.durationSec)}</span>
-            {isOtc(trade.symbol) && (
-              <span className={TRADER.tag}>
-                JEU
-              </span>
-            )}
-          </div>
-          <div className={TRADE.stats}>
-            <div>
-              <p className={TRADE.statLabel}>Mise</p>
-              <p className={TRADE.statVal}>{fmtMoney(trade.amount)}</p>
-            </div>
-            <div>
-              <p className={TRADE.statLabel}>Départ</p>
-              <p className={TRADE.statVal}>{fmtPrice(trade.openPrice)}</p>
-            </div>
-            <div>
-              <p className={TRADE.statLabel}>Actuel</p>
-              <p
-                className={`${TRADE.statVal} ${
-                  winning == null ? "" : winning ? TRADE.statUp : TRADE.statDown
-                }`}
-              >
-                {price == null ? (
-                  "…"
-                ) : (
-                  <>
-                    {winning == null ? "" : winning ? "▲ " : "▼ "}
-                    {fmtPrice(price)}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
+    <div className={`${ENCOURS.card} ${tone}`}>
+      <CountdownRing
+        closesAt={trade.closesAt}
+        durationSec={trade.durationSec}
+        size={RING.mini}
+        compact
+      />
+      <div className={ENCOURS.mid}>
+        <div className={ENCOURS.mid1}>
+          <span className={isUp ? ENCOURS.dirUp : ENCOURS.dirDown}>
+            {isUp ? "ACHAT ▲" : "VENTE ▼"}
+          </span>
+          <span>
+            {symbolDisplay(trade.symbol)} · {durationLabel(trade.durationSec)}
+          </span>
         </div>
+        <p className={ENCOURS.mid2}>
+          Mise <b className={ENCOURS.mid2B}>{fmtMoney(trade.amount)}</b> · Départ{" "}
+          <b className={ENCOURS.mid2B}>{fmtPrice(trade.openPrice)}</b>
+        </p>
+      </div>
+      <div className={ENCOURS.right}>
+        <p className={`${ENCOURS.cur} ${toneText}`}>
+          {price == null ? "…" : `${arrow}${fmtPrice(price)}`}
+        </p>
+        <p className={`${ENCOURS.est} ${toneText}`}>{est}</p>
       </div>
     </div>
   );
