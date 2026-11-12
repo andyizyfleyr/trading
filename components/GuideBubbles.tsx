@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { QUICK_AMOUNTS, STORE } from "@/lib/config";
+import { FLEX, GUIDE } from "@/lib/design";
+import { DURATIONS, RULES, SYMBOLS, durationLabel } from "@/lib/symbols";
 import { Btn } from "./ui";
+
+const GAMES_LIST = SYMBOLS.map((s) => s.base).join(", ");
+const DURATIONS_LIST = DURATIONS.map((d) => durationLabel(d)).join(", ");
 
 const STEPS = [
   {
     id: "guide-symbol",
     title: "1. Choisis un jeu",
-    text: "Touche « Lucky 7 » pour ouvrir la liste des 3 jeux : Lucky 7, Jackpot et Turbo (badge JEU).",
+    text: `Touche « ${SYMBOLS[0].base} » pour ouvrir la liste des ${SYMBOLS.length} jeux : ${GAMES_LIST} (badge JEU).`,
   },
   {
     id: "guide-chart",
@@ -17,12 +23,12 @@ const STEPS = [
   {
     id: "guide-duration",
     title: "3. Choisis une durée",
-    text: "3 secondes, 10 secondes, 30 secondes, 1 minute ou 5 minutes. À la fin du compte à rebours, on compare le prix de fin au prix de départ.",
+    text: `${DURATIONS_LIST}. À la fin du compte à rebours, on compare le prix de fin au prix de départ.`,
   },
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: "Tape un montant ou touche 10, 50, 100 ou Max (tout ton solde). Gain : mise + 85 %.",
+    text: `Tape un montant ou touche ${QUICK_AMOUNTS.join(", ")} ou Max (tout ton solde). Gain : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
   },
   {
     id: "guide-buttons",
@@ -30,8 +36,6 @@ const STEPS = [
     text: "ACHAT ▲ si ça monte, VENTE ▼ si ça descend. Tes prédictions en cours s'affichent avec leur compte à rebours.",
   },
 ];
-
-const GUIDE_KEY = "tf_guide";
 
 /** Premier trade guidé : bulles d'aide pas à pas. */
 export function GuideBubbles({
@@ -57,7 +61,7 @@ export function GuideBubbles({
 
   const finish = () => {
     try {
-      window.localStorage.setItem(GUIDE_KEY, "1");
+      window.localStorage.setItem(STORE.guide, "1");
     } catch {
       /* ignore */
     }
@@ -70,21 +74,21 @@ export function GuideBubbles({
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-0 z-40 bg-fond/60" aria-hidden="true" />
-      <div className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-xl lg:bottom-8">
-        <div className="anim-in rounded-2xl border border-action bg-carte p-4 shadow-2xl">
-          <p className="text-sm font-semibold text-doux">
+      <div className={GUIDE.veil} aria-hidden="true" />
+      <div className={GUIDE.pos}>
+        <div className={GUIDE.card}>
+          <p className={GUIDE.step}>
             Premier trade guidé · {step + 1}/{STEPS.length}
           </p>
-          <p className="mt-1 text-lg font-extrabold">{current.title}</p>
-          <p className="mt-1 text-base text-texte">{current.text}</p>
-          <div className="mt-3 flex gap-2">
-            <Btn variant="ghost" onClick={finish} className="flex-1">
+          <p className={GUIDE.title}>{current.title}</p>
+          <p className={GUIDE.text}>{current.text}</p>
+          <div className={GUIDE.btns}>
+            <Btn variant="ghost" onClick={finish} className={FLEX.fill}>
               Passer
             </Btn>
             <Btn
               onClick={() => (last ? finish() : setStep((s) => s + 1))}
-              className="flex-[2]"
+              className={FLEX.wide}
             >
               {last ? "C'est parti !" : "Suivant"}
             </Btn>
@@ -98,7 +102,7 @@ export function GuideBubbles({
 export function hasSeenGuide(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    return window.localStorage.getItem(GUIDE_KEY) === "1";
+    return window.localStorage.getItem(STORE.guide) === "1";
   } catch {
     return true;
   }

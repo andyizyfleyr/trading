@@ -27,8 +27,9 @@ textarea {
 
 body {
   @apply bg-fond text-texte;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Zones sûres (encoches, gestes) */

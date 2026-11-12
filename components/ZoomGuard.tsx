@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { DOUBLE_TAP_MS } from "@/lib/config";
 
 /**
  * Bloque le zoom par pincement et le double-tap sur iPhone/iPad, qui ignorent

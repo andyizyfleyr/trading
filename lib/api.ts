@@ -10,8 +10,10 @@ import type {
   ApiTrade,
   ApiUser,
 } from "./types";
+import { STORE } from "./config";
+import { SYMBOLS } from "./symbols";
 
-const TOKEN_KEY = "tf_token";
+const TOKEN_KEY = STORE.token;
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -116,6 +118,14 @@ export const apiGetPrice = async (symbol: string): Promise<number> => {
     `/api/price?symbol=${encodeURIComponent(symbol)}`
   );
   return d.price;
+};
+
+/** Heure du serveur (pour tirer à la seconde pile, latence déduite par l'appelant). */
+export const apiServerTime = async (): Promise<number> => {
+  const d = await request<{ symbol: string; price: number; time: number }>(
+    `/api/price?symbol=${encodeURIComponent(SYMBOLS[0].id)}`
+  );
+  return d.time;
 };
 
 // --- Prédictions ---

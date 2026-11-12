@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ROUTES } from "@/lib/config";
+import { NAV } from "@/lib/design";
 import { ChartIcon, HistoryIcon } from "./Icons";
 
 const TABS = [
-  { href: "/", label: "Trader", Icon: ChartIcon },
-  { href: "/historique", label: "Historique", Icon: HistoryIcon },
+  { href: ROUTES.trader, label: "Trader", Icon: ChartIcon },
+  { href: ROUTES.history, label: "Historique", Icon: HistoryIcon },
 ];
 
 /** Barre du bas fixe, compacte : 2 onglets dans la zone du pouce. */
@@ -14,29 +16,21 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Navigation principale"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-ligne bg-fond/95 backdrop-blur lg:hidden"
-    >
-      <div className="mx-auto grid max-w-xl grid-cols-2">
+    <nav aria-label="Navigation principale" className={NAV.bar}>
+      <div className={NAV.grid}>
         {TABS.map(({ href, label, Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active =
+            href === ROUTES.trader ? pathname === ROUTES.trader : pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors duration-200 ${
-                active ? "text-white" : "text-doux active:text-texte"
-              }`}
+              className={`${NAV.tab} ${active ? NAV.on : NAV.off}`}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className={NAV.icon} />
               <span>{label}</span>
-              <span
-                className={`h-1 w-6 rounded-full transition-colors duration-200 ${
-                  active ? "bg-action" : "bg-transparent"
-                }`}
-              />
+              {active && <span className={NAV.tick} aria-hidden="true" />}
             </Link>
           );
         })}

@@ -7,10 +7,18 @@ import { BottomSheet, Btn } from "@/components/ui";
 import { LogoutIcon, MinusIcon, PlusIcon, RefreshIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { apiDeposit, apiReset, apiWithdraw, ApiError } from "@/lib/api";
+import {
+  DEPOSIT_OPTIONS,
+  RESET_CONFIRM_MS,
+  ROUTES,
+  STORE,
+  VIBRATE,
+  WITHDRAW_OPTIONS,
+} from "@/lib/config";
+import { ICON, PROFILE, SHEET, SIDE } from "@/lib/design";
 import { fmtMoney } from "@/lib/format";
+import { RULES } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
-
-const CALM_KEY = "tf_calme";
 
 export default function ProfilPage() {
   const { user, setBalance, logout } = useAuth();
@@ -23,7 +31,7 @@ export default function ProfilPage() {
 
   useEffect(() => {
     try {
-      setCalm(window.localStorage.getItem(CALM_KEY) === "1");
+      setCalm(window.localStorage.getItem(STORE.calm) === "1");
     } catch {
       /* ignore */
     }
@@ -34,7 +42,7 @@ export default function ProfilPage() {
   // remettrait le solde à 10 000 par surprise.
   useEffect(() => {
     if (!confirmReset) return;
-    const t = setTimeout(() => setConfirmReset(false), 5000);
+    const t = setTimeout(() => setConfirmReset(false), RESET_CONFIRM_MS);
     return () => clearTimeout(t);
   }, [confirmReset]);
 
@@ -42,7 +50,7 @@ export default function ProfilPage() {
     const next = !calm;
     setCalm(next);
     try {
-      window.localStorage.setItem(CALM_KEY, next ? "1" : "0");
+      window.localStorage.setItem(STORE.calm, next ? "1" : "0");
     } catch {
       /* ignore */
     }
@@ -55,7 +63,7 @@ export default function ProfilPage() {
     try {
       const { user: updated } = await fn();
       setBalance(updated.balance);
-      vibrate(15);
+      vibrate(VIBRATE.tap);
       setSheet(null);
       setMessage({ kind: "ok", text: okText });
     } catch (err) {
@@ -70,24 +78,24 @@ export default function ProfilPage() {
 
   const handleLogout = () => {
     logout();
-    router.replace("/connexion");
+    router.replace(ROUTES.login);
   };
 
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
 
   return (
     <RequireAuth>
-      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:gap-3">
-        <h1 className="text-lg font-extrabold lg:col-span-2">Profil</h1>
+      <div className={PROFILE.root}>
+        <h1 className={PROFILE.title}>Profil</h1>
 
         {/* Identité + solde */}
-        <div className="flex items-center gap-2.5 rounded-xl border border-ligne bg-carte p-2.5 lg:col-span-2">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-extrabold text-white">
+        <div className={PROFILE.idCard}>
+          <span className={PROFILE.avatar}>
             {initial}
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{user?.email}</p>
-            <p className="text-xl font-extrabold tabular-nums">
+          <div className={SIDE.acctMain}>
+            <p className={PROFILE.mail}>{user?.email}</p>
+            <p className={PROFILE.balance}>
               {user ? fmtMoney(user.balance) : "…"}
             </p>
           </div>
@@ -96,22 +104,20 @@ export default function ProfilPage() {
         {message && (
           <p
             role="status"
-            className={`anim-in rounded-xl px-3 py-1.5 text-center text-sm font-medium lg:col-span-2 ${
-              message.kind === "ok" ? "bg-hausse/10 text-hausse" : "bg-baisse/10 text-baisse"
-            }`}
+            className={message.kind === "ok" ? PROFILE.msgOk : PROFILE.msgErr}
           >
             {message.text}
           </p>
         )}
 
         {/* Ajouter / Retirer : ouvrent un panneau */}
-        <div className="grid grid-cols-2 gap-2">
-          <Btn variant="card" onClick={() => setSheet("deposit")} className="flex min-h-[52px] items-center justify-center gap-1.5 text-base">
-            <PlusIcon className="h-5 w-5 text-hausse" />
+        <div className={PROFILE.addRow}>
+          <Btn variant="card" onClick={() => setSheet("deposit")} className={PROFILE.bigBtn}>
+            <PlusIcon className={ICON.lg} />
             Ajouter
           </Btn>
-          <Btn variant="card" onClick={() => setSheet("withdraw")} className="flex min-h-[52px] items-center justify-center gap-1.5 text-base">
-            <MinusIcon className="h-5 w-5 text-baisse" />
+          <Btn variant="card" onClick={() => setSheet("withdraw")} className={PROFILE.bigBtn}>
+            <MinusIcon className={ICON.lg} />
             Retirer
           </Btn>
         </div>
@@ -126,16 +132,12 @@ export default function ProfilPage() {
               return;
             }
             setConfirmReset(false);
-            run(() => apiReset(), "Solde remis à 10 000.");
+            run(() => apiReset(), `Solde remis à ${fmtMoney(RULES.START_BALANCE)}.`);
           }}
-          className={`flex min-h-[48px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors duration-200 disabled:opacity-50 ${
-            confirmReset
-              ? "border-baisse text-baisse"
-              : "border-ligne bg-carte text-texte active:bg-ligne"
-          }`}
+          className={confirmReset ? PROFILE.resetConfirm : PROFILE.resetIdle}
         >
-          <RefreshIcon className="h-4 w-4" />
-          {confirmReset ? "Toucher encore pour confirmer" : "Recommencer à 10 000"}
+          <RefreshIcon className={ICON.md} />
+          {confirmReset ? "Toucher encore pour confirmer" : `Recommencer à ${fmtMoney(RULES.START_BALANCE)}`}
         </button>
 
         {/* Préférences */}
@@ -144,15 +146,13 @@ export default function ProfilPage() {
           role="switch"
           aria-checked={calm}
           onClick={toggleCalm}
-          className="flex min-h-[52px] items-center justify-between gap-3 rounded-xl border border-ligne bg-carte px-3 text-left"
+          className={PROFILE.prefRow}
         >
-          <span className="text-sm font-medium">Réduire les animations</span>
+          <span className={PROFILE.prefLabel}>Réduire les animations</span>
           <span
-            className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors duration-200 ${
-              calm ? "justify-end bg-hausse" : "justify-start bg-ligne"
-            }`}
+            className={calm ? PROFILE.calmOn : PROFILE.calmOff}
           >
-            <span className="h-5 w-5 rounded-full bg-white" />
+            <span className={PROFILE.calmKnob} />
           </span>
         </button>
 
@@ -160,48 +160,48 @@ export default function ProfilPage() {
         <Btn
           variant="ghost"
           onClick={handleLogout}
-          className="flex min-h-[48px] items-center justify-center gap-2 border-baisse/50 text-sm text-baisse"
+          className={PROFILE.logout}
         >
-          <LogoutIcon className="h-4 w-4" />
+          <LogoutIcon className={ICON.md} />
           Se déconnecter
         </Btn>
       </div>
 
       {/* Panneau : ajouter au solde (aucun paiement réel) */}
       <BottomSheet open={sheet === "deposit"} onClose={() => setSheet(null)} title="Ajouter au solde">
-        <div className="flex flex-col gap-2 pb-2">
-          {[1000, 5000, 10000].map((v) => (
+        <div className={SHEET.list2}>
+          {DEPOSIT_OPTIONS.map((v) => (
             <Btn
               key={v}
               variant="card"
               disabled={busy}
               onClick={() => run(() => apiDeposit(v), `+${fmtMoney(v)} ajoutés.`)}
-              className="flex items-center justify-center gap-1.5 tabular-nums"
+              className={PROFILE.optBtn}
             >
-              <PlusIcon className="h-5 w-5 text-hausse" />
+              <PlusIcon className={ICON.lg} />
               {fmtMoney(v)}
             </Btn>
           ))}
-          <p className="text-center text-xs text-doux">Fonds d&apos;entraînement. Aucun paiement réel, jamais.</p>
+          <p className={PROFILE.sheetNote}>Fonds d&apos;entraînement. Aucun paiement réel, jamais.</p>
         </div>
       </BottomSheet>
 
       {/* Panneau : retirer du solde */}
       <BottomSheet open={sheet === "withdraw"} onClose={() => setSheet(null)} title="Retirer du solde">
-        <div className="flex flex-col gap-2 pb-2">
-          {[1000, 5000].map((v) => (
+        <div className={SHEET.list2}>
+          {WITHDRAW_OPTIONS.map((v) => (
             <Btn
               key={v}
               variant="card"
               disabled={busy}
               onClick={() => run(() => apiWithdraw(v), `-${fmtMoney(v)} retirés.`)}
-              className="flex items-center justify-center gap-1.5 tabular-nums"
+              className={PROFILE.optBtn}
             >
-              <MinusIcon className="h-5 w-5 text-baisse" />
+              <MinusIcon className={ICON.lg} />
               {fmtMoney(v)}
             </Btn>
           ))}
-          <p className="text-center text-xs text-doux">Pour te fixer une limite de jeu.</p>
+          <p className={PROFILE.sheetNote}>Pour te fixer une limite de jeu.</p>
         </div>
       </BottomSheet>
     </RequireAuth>

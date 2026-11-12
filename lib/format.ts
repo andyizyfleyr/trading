@@ -1,6 +1,15 @@
 /** Formatages : français simple, chiffres à largeur fixe (via CSS tabular-nums). */
 
-const moneyFmt = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+const LOCALE = "fr-FR";
+/** Seuils d'ordre de grandeur pour les décimales des prix. */
+const PRICE_BIG = 100;
+const PRICE_UNIT = 1;
+/** Décimales : gros prix (1000,00), moyens (7,7770), petits (0,12345). */
+const DEC_BIG = 2;
+const DEC_MID = 4;
+const DEC_SMALL = 5;
+
+const moneyFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: DEC_BIG });
 
 export function fmtMoney(n: number): string {
   return moneyFmt.format(Number(n) || 0);
@@ -9,8 +18,8 @@ export function fmtMoney(n: number): string {
 /** Prix avec un nombre de décimales adapté à l'ordre de grandeur. */
 export function fmtPrice(p: number): string {
   const v = Number(p) || 0;
-  const d = v >= 100 ? 2 : v >= 1 ? 4 : 5;
-  return new Intl.NumberFormat("fr-FR", {
+  const d = v >= PRICE_BIG ? DEC_BIG : v >= PRICE_UNIT ? DEC_MID : DEC_SMALL;
+  return new Intl.NumberFormat(LOCALE, {
     minimumFractionDigits: d,
     maximumFractionDigits: d,
   }).format(v);
@@ -26,7 +35,7 @@ export function fmtSigned(n: number): string {
 
 export function fmtTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
   } catch {
     return "";
   }
@@ -34,7 +43,7 @@ export function fmtTime(iso: string): string {
 
 export function fmtDateTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("fr-FR", {
+    return new Date(iso).toLocaleString(LOCALE, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -45,6 +54,27 @@ export function fmtDateTime(iso: string): string {
   }
 }
 
-export function symbolBase(symbol: string): string {
-  return symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+/** Compte à rebours « MM:SS » (mises programmées, signaux). */
+export function fmtRemain(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Compte à rebours court : « 1:05 » ou « 42s » (bouton flottant, En cours). */
+export function fmtRemainShort(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  if (s >= 60) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return `${s}s`;
+}
+
+/** Heure locale avec la seconde exacte : « 14:32:00 ». */
+export function fmtSlot(slotSec: number): string {
+  const d = new Date(slotSec * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
+}
+
+/** Heure courte locale : « 14:32 ». */
+export function fmtHM(slotSec: number): string {
+  const d = new Date(slotSec * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
