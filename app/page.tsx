@@ -255,6 +255,18 @@ export default function TraderPage() {
             livePrice={isOtc(symbol) ? price : null}
             toast={toast}
           />
+          {/* Pastille « N en cours » en bas à gauche du graphique (maquette). */}
+          {openTrades.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTradesOpen(true)}
+              aria-label={`Voir les ${openTrades.length} prédictions en cours`}
+              className={TRADER.pill}
+            >
+              <span className={TRADER.pillDot} aria-hidden="true" />
+              {openTrades.length} en cours
+            </button>
+          )}
         </div>
 
         {/* Paris + En cours (colonne de droite sur desktop) */}
@@ -298,19 +310,6 @@ export default function TraderPage() {
           )}
         </div>
       </div>
-
-      {/* Bouton flottant : prédictions en cours (masqué si aucune) */}
-      {openTrades.length > 0 && !encoursVisible && results.length === 0 && (
-        <button
-          type="button"
-          onClick={() => setTradesOpen(true)}
-          aria-label={`Voir les ${openTrades.length} prédictions en cours`}
-          className={TRADER.floatBtn}
-        >
-          <span className={TRADER.floatDot} aria-hidden="true" />
-          {openTrades.length} · {fmtRemainShort(nearestMs)}
-        </button>
-      )}
 
       {/* Panneau : choix de l'actif */}
       <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title="Choisir un jeu">
@@ -370,13 +369,17 @@ export default function TraderPage() {
         }
       >
         <div className={ENCOURS.list}>
-          {sortedOpen.map((trade) => (
-            <ActiveTradeCard
-              key={trade.id}
-              trade={trade}
-              price={trade.symbol === symbol ? price : null}
-            />
-          ))}
+          {sortedOpen.length === 0 ? (
+            <p className={ENCOURS.empty}>Aucun trade en cours</p>
+          ) : (
+            sortedOpen.map((trade) => (
+              <ActiveTradeCard
+                key={trade.id}
+                trade={trade}
+                price={trade.symbol === symbol ? price : null}
+              />
+            ))
+          )}
         </div>
       </BottomSheet>
 

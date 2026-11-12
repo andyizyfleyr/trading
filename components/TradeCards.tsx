@@ -1,7 +1,7 @@
 "use client";
 
 import type { ApiTrade } from "@/lib/types";
-import { fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
+import { fmtGain, fmtMoney, fmtPrice, fmtSigned } from "@/lib/format";
 import { RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import { BTN, CARD, ENCOURS, RESULT, RING, TRADE } from "@/lib/design";
 import { Btn } from "./ui";
@@ -25,7 +25,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
     winning == null
       ? "="
       : winning
-        ? `+${fmtMoney(trade.amount * RULES.WIN_PAYOUT_RATIO)}`
+        ? `+${fmtGain(trade.amount * RULES.WIN_PAYOUT_RATIO)}`
         : `−${fmtMoney(trade.amount)}`;
 
   return (

@@ -162,7 +162,7 @@ export const TRADER = {
   assetRight: "flex items-center gap-1.5",
   assetPrice: "text-[13px] font-bold tabular-nums text-doux",
   chevron: "h-3.5 w-3.5 text-doux",
-  chartBox: "min-h-[120px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0",
+  chartBox: "relative min-h-[120px] flex-1 lg:col-start-1 lg:row-start-2 lg:min-h-0",
   chartCard: "relative h-full w-full overflow-hidden rounded-xl border border-ligne bg-carte",
   sideCol:
     "shrink-0 lg:col-start-2 lg:row-start-2 lg:flex lg:min-h-0 lg:flex-col lg:gap-3 lg:overflow-y-auto",
@@ -207,9 +207,8 @@ export const TRADER = {
   signalClock: "text-sm font-extrabold tabular-nums",
   lateBox: "anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center",
   lateText: "text-[13px] font-bold text-baisse",
-  floatBtn:
-    "anim-in fixed bottom-[3.75rem] right-4 z-30 flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-extrabold tabular-nums text-white shadow-xl active:bg-blue-700 lg:hidden",
-  floatDot: "pulse-dot h-2.5 w-2.5 rounded-full bg-white",
+  pill: "absolute bottom-2 left-2 z-[3] flex h-[26px] items-center gap-1.5 rounded-full border border-ligne bg-puce px-2.5 text-[11px] font-bold tabular-nums text-texte lg:hidden",
+  pillDot: "h-1.5 w-1.5 rounded-full bg-action",
   openPanel: "flex flex-col gap-2 rounded-xl border border-ligne bg-carte p-3",
   openHead: "flex items-center justify-between gap-2 text-sm",
   openTitle: "font-extrabold",
@@ -237,7 +236,8 @@ export const ENCOURS = {
   sumB: "font-bold text-texte",
   close:
     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-[13px] text-texte",
-  list: "flex flex-col gap-1.5 pb-2",
+  list: "flex flex-col gap-1.5",
+  empty: "px-2 py-[14px] text-center text-xs text-doux",
   card: "grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne border-l-[3px] bg-fond px-2.5 py-[7px]",
   toneFlat: "border-l-doux",
   toneWin: "border-l-hausse",
@@ -261,9 +261,9 @@ export const ENCOURS = {
 
 export const SHEET = {
   root: "fixed inset-0 z-50 lg:flex lg:items-center lg:justify-center lg:p-6",
-  fade: "anim-fade absolute inset-0 bg-fond/70",
-  box: "sheet-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[82dvh] w-full max-w-[520px] flex-col rounded-t-3xl border-t border-ligne bg-carte px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 lg:relative lg:inset-auto lg:mx-0 lg:max-h-[85vh] lg:max-w-md lg:rounded-3xl lg:border lg:pb-4 lg:pt-3 lg:shadow-2xl",
-  handle: "mx-auto mb-1 h-1.5 w-12 shrink-0 rounded-full bg-ligne lg:hidden",
+  fade: "anim-fade absolute inset-0 bg-black/50",
+  box: "sheet-in absolute inset-x-0 bottom-0 mx-auto flex max-h-[70dvh] w-full max-w-[520px] flex-col rounded-t-[18px] border-x border-t border-ligne bg-carte px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-1.5 lg:relative lg:inset-auto lg:mx-0 lg:max-h-[85vh] lg:max-w-md lg:rounded-3xl lg:border lg:pb-4 lg:pt-3 lg:shadow-2xl",
+  handle: "mx-auto mb-2 h-1 w-[34px] shrink-0 rounded-full bg-ligne lg:hidden",
   head: "flex min-h-[44px] shrink-0 items-center justify-between gap-2",
   title: "text-sm font-extrabold",
   close: "flex h-9 w-9 items-center justify-center rounded-full bg-fond text-doux active:text-texte",

@@ -16,7 +16,7 @@ import {
   VIBRATE,
 } from "@/lib/config";
 import { BTN, FLEX, SHEET, TRADER } from "@/lib/design";
-import { fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
+import { fmtGain, fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS, RULES, durationLabel, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
@@ -623,7 +623,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  ACHAT ▲<small className={TRADER.goGain}>Gain +{fmtMoney(gain)}</small>
+                  ACHAT ▲<small className={TRADER.goGain}>Gain +{fmtGain(gain)}</small>
                 </>
               )}
             </button>
@@ -640,7 +640,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  VENTE ▼<small className={TRADER.goGain}>Gain +{fmtMoney(gain)}</small>
+                  VENTE ▼<small className={TRADER.goGain}>Gain +{fmtGain(gain)}</small>
                 </>
               )}
             </button>
