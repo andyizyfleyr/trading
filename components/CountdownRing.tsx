@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import { RING_TICK_MS, RING_URGENT_MS } from "@/lib/config";
 import { LAYOUT, RING, RINGTEXT } from "@/lib/design";
+import { fmtRemainShort } from "@/lib/format";
 
 /** Compte à rebours circulaire basé sur l'heure de fin serveur. */
 export function CountdownRing({
   closesAt,
   durationSec,
   size = RING.big,
+  compact = false,
 }: {
   closesAt: string;
   durationSec: number;
   size?: number;
+  compact?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -29,8 +32,8 @@ export function CountdownRing({
   const urgent = remaining <= RING_URGENT_MS;
 
   const big = size >= RING.bigFrom;
-  const stroke = big ? RING.strokeBig : RING.strokeSmall;
-  const r = (size - stroke) / 2;
+  const stroke = compact ? RING.strokeMini : big ? RING.strokeBig : RING.strokeSmall;
+  const r = compact ? RING.miniR : (size - stroke) / 2;
   const c = 2 * Math.PI * r;
 
   const label =
@@ -61,7 +64,7 @@ export function CountdownRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={urgent ? RING.urgent : RING.line}
+          stroke={compact ? RING.miniLine : urgent ? RING.urgent : RING.line}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -70,10 +73,16 @@ export function CountdownRing({
         />
       </svg>
       <div className={LAYOUT.ringCenter}>
-        <span className={big ? RINGTEXT.numBig : RINGTEXT.numSmall}>
-          {remaining <= 0 ? "…" : secs >= 60 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : secs}
-        </span>
-        <span className={big ? RINGTEXT.unitBig : RINGTEXT.unitSmall}>{remaining <= 0 ? "résultat…" : secs >= 60 ? "min" : "sec"}</span>
+        {compact ? (
+          <span className={RINGTEXT.numMini}>{fmtRemainShort(remaining)}</span>
+        ) : (
+          <>
+            <span className={big ? RINGTEXT.numBig : RINGTEXT.numSmall}>
+              {remaining <= 0 ? "…" : secs >= 60 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : secs}
+            </span>
+            <span className={big ? RINGTEXT.unitBig : RINGTEXT.unitSmall}>{remaining <= 0 ? "résultat…" : secs >= 60 ? "min" : "sec"}</span>
+          </>
+        )}
       </div>
     </div>
   );

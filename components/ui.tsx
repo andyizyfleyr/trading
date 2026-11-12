@@ -92,12 +92,15 @@ export function BottomSheet({
   title,
   children,
   hideTitle = false,
+  header,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   hideTitle?: boolean;
+  /** En-tête sur mesure (remplace le titre + bouton fermer par défaut). */
+  header?: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -119,17 +122,19 @@ export function BottomSheet({
       <div className={SHEET.fade} onClick={onClose} />
       <div className={SHEET.box}>
         <div className={SHEET.handle} aria-hidden="true" />
-        <div className={SHEET.head}>
-          {hideTitle ? <span aria-hidden="true" /> : <p className={SHEET.title}>{title}</p>}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            className={SHEET.close}
-          >
-            <XIcon className={SHEET.closeIcon} />
-          </button>
-        </div>
+        {header ?? (
+          <div className={SHEET.head}>
+            {hideTitle ? <span aria-hidden="true" /> : <p className={SHEET.title}>{title}</p>}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className={SHEET.close}
+            >
+              <XIcon className={SHEET.closeIcon} />
+            </button>
+          </div>
+        )}
         <div className={SHEET.body}>{children}</div>
       </div>
     </div>

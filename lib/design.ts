@@ -58,9 +58,13 @@ export const RING = {
   bigFrom: 76,
   strokeBig: 8,
   strokeSmall: 6,
-  /** Tailles utilisées : défaut (grand) et carte. */
+  /** Taille par défaut (grande). */
   big: 84,
-  card: 60,
+  /** Mini-anneau compact (« En cours ») : 38 px, rayon 15, trait 3,5, bleu. */
+  mini: 38,
+  miniR: 15,
+  strokeMini: 3.5,
+  miniLine: INK.primary,
 } as const;
 
 /** Tailles d'icônes. */
@@ -211,9 +215,6 @@ export const TRADER = {
   openTitle: "font-extrabold",
   openSoon: "font-bold tabular-nums text-action",
   openStaked: "-mt-1 text-[11px] tabular-nums text-doux",
-  openRow: "flex items-center justify-between gap-2 rounded-xl bg-fond px-3 py-2 text-sm",
-  openCount: "font-bold tabular-nums",
-  openMises: "tabular-nums text-doux",
   moreResults: "text-center text-[13px] font-semibold text-doux",
   waitBtn: "mt-1.5 w-full font-extrabold",
   formWrap: "lg:shrink-0",
@@ -224,6 +225,36 @@ export const TRADER = {
   toastHide: "-translate-y-[30px] opacity-0",
   toastWin: "text-hausse",
   toastLoss: "text-baisse",
+} as const;
+
+/* ---------- « En cours » compact (maquette) ---------- */
+
+export const ENCOURS = {
+  head: "mb-2 flex items-center gap-2",
+  title: "text-[15px] font-extrabold",
+  badge: "rounded-full bg-primary px-[7px] py-[2px] text-[11px] font-extrabold text-white",
+  sum: "ml-auto text-right text-[11px] text-doux",
+  sumB: "font-bold text-texte",
+  close:
+    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-[13px] text-texte",
+  list: "flex flex-col gap-1.5 pb-2",
+  card: "grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne border-l-[3px] bg-fond px-2.5 py-[7px]",
+  toneFlat: "border-l-doux",
+  toneWin: "border-l-hausse",
+  /** Rouge maquette (#E5322D, comme les bougies baissières du graphique). */
+  toneLoss: "border-l-[#E5322D]",
+  mid: "min-w-0",
+  mid1: "flex items-center gap-1.5 text-xs font-bold",
+  dirUp: "rounded-[5px] bg-[#0F3A20] px-1.5 py-0.5 text-[10px] font-extrabold text-hausse",
+  dirDown: "rounded-[5px] bg-[#451413] px-1.5 py-0.5 text-[10px] font-extrabold text-[#FF6B66]",
+  mid2: "mt-1 text-[11px] text-doux",
+  mid2B: "font-semibold text-texte",
+  right: "text-right tabular-nums",
+  cur: "text-[13px] font-extrabold",
+  est: "mt-[3px] text-[11px] font-bold",
+  textFlat: "text-texte",
+  textWin: "text-hausse",
+  textLoss: "text-[#E5322D]",
 } as const;
 
 /* ---------- Panneaux (bottom sheets) ---------- */
@@ -266,7 +297,6 @@ export const BTN = {
 
 export const CARD = {
   base: "rounded-xl border border-ligne bg-carte p-3",
-  active: "anim-in rounded-xl border border-ligne bg-carte p-2",
   result: "anim-in rounded-xl border border-transparent p-3",
 } as const;
 
@@ -305,11 +335,6 @@ export const TONE = {
 /* ---------- Cartes de prédiction ---------- */
 
 export const TRADE = {
-  name: "text-[13px] font-bold",
-  dur: "text-[11px] font-semibold text-doux",
-  stats: "mt-1 grid grid-cols-3 gap-1 text-center tabular-nums",
-  statLabel: "text-[11px] leading-tight text-doux",
-  statVal: "text-[13px] font-bold leading-tight",
   statUp: "text-hausse",
   statDown: "text-baisse",
   resultTitle: "text-sm font-semibold",
@@ -324,6 +349,7 @@ export const TRADE = {
 export const RINGTEXT = {
   numBig: "text-lg font-extrabold tabular-nums leading-none",
   numSmall: "text-base font-extrabold tabular-nums leading-none",
+  numMini: "text-[10px] font-extrabold tabular-nums leading-none",
   unitBig: "text-xs font-semibold text-doux",
   unitSmall: "text-[10px] font-semibold text-doux",
 } as const;
@@ -512,7 +538,6 @@ export const TIME = {
 /* ---------- Tons de résultat ---------- */
 
 export const RESULT = {
-  row: "flex items-center gap-2.5",
   col: "flex flex-col items-center gap-1 text-center",
   winText: "text-hausse",
   winBg: "bg-hausse/15",
@@ -530,8 +555,6 @@ export const LAYOUT = {
   /** L'anneau démarre en haut (le cercle SVG démarre à droite par défaut). */
   ringFlip: "-rotate-90",
   ringCenter: "absolute inset-0 flex flex-col items-center justify-center",
-  cardMain: "min-w-0 flex-1",
-  cardHead: "flex items-center gap-1.5",
   helpWrap: "inline-flex",
   field: "block",
 } as const;

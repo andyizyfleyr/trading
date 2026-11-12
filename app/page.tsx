@@ -26,7 +26,7 @@ import {
   TRADES_REFRESH_MS,
   VIBRATE,
 } from "@/lib/config";
-import { SHEET, STACK, TRADER } from "@/lib/design";
+import { ENCOURS, SHEET, STACK, TRADER } from "@/lib/design";
 import { fmtMoney, fmtPrice, fmtRemainShort } from "@/lib/format";
 import { SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
@@ -345,22 +345,31 @@ export default function TraderPage() {
         </div>
       </BottomSheet>
 
-      {/* Panneau : prédictions en cours */}
+      {/* Panneau : prédictions en cours (compact : résumé dans l'en-tête) */}
       <BottomSheet
         open={encoursVisible}
         onClose={() => setTradesOpen(false)}
         title={`En cours (${openTrades.length})`}
-      >
-        <div className={SHEET.list2}>
-          <div className={TRADER.openRow}>
-            <span className={TRADER.openCount}>
-              {sortedOpen.length} prédiction{sortedOpen.length > 1 ? "s" : ""}
-            </span>
-            <span className={TRADER.openMises}>Mises {fmtMoney(totalStaked)}</span>
-            <span className={TRADER.openSoon}>
-              Fin dans {fmtRemainShort(nearestMs)}
-            </span>
+        header={
+          <div className={ENCOURS.head}>
+            <h2 className={ENCOURS.title}>En cours</h2>
+            <span className={ENCOURS.badge}>{sortedOpen.length}</span>
+            <p className={ENCOURS.sum}>
+              Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
+              <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
+            </p>
+            <button
+              type="button"
+              onClick={() => setTradesOpen(false)}
+              aria-label="Fermer"
+              className={ENCOURS.close}
+            >
+              ✕
+            </button>
           </div>
+        }
+      >
+        <div className={ENCOURS.list}>
           {sortedOpen.map((trade) => (
             <ActiveTradeCard
               key={trade.id}
