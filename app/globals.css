@@ -98,6 +98,22 @@ body {
   }
 }
 
+/* Mini-bougies du splash : ça respire pendant le chargement */
+.splash-candle {
+  transform-origin: bottom;
+  animation: splash-candle 1s ease-in-out infinite alternate;
+}
+@keyframes splash-candle {
+  from {
+    transform: scaleY(0.25);
+    opacity: 0.5;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
 /* Anneau du compte à rebours */
 .ring-anim {
   transition:

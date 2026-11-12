@@ -117,6 +117,20 @@ export const SHELL = {
   offline: "shrink-0 bg-vente px-3 py-1.5 text-center text-xs font-bold text-white",
 } as const;
 
+/* ---------- Écran d'ouverture (pendant le chargement) ---------- */
+
+export const SPLASH = {
+  root: "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-fond px-8 text-center transition-opacity",
+  mark: "flex h-16 w-16 items-center justify-center gap-1 rounded-2xl bg-carte text-2xl font-extrabold",
+  up: "text-hausse",
+  down: "text-baisse",
+  name: "text-xl font-extrabold tracking-tight",
+  candles: "mt-2 flex h-10 items-end gap-1.5",
+  candle: "splash-candle w-2 rounded-full",
+  loading: "text-xs font-bold text-doux",
+  tip: "min-h-[32px] max-w-[260px] text-[11px] leading-snug text-doux",
+} as const;
+
 export const HEADER = {
   bar: "safe-top sticky top-0 z-40 border-b border-ligne bg-fond/95 backdrop-blur",
   wrap: "mx-auto flex h-11 max-w-xl items-center justify-between gap-2 px-3 lg:max-w-6xl lg:px-6",
