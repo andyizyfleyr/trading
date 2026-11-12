@@ -111,14 +111,28 @@ export function fmtDay(iso: string): string {
   }
 }
 
-/** Heure locale avec la seconde exacte : « 14:32:00 ». */
+/**
+ * Heure locale avec la seconde exacte : « 14h32:00 » (signaux, attente).
+ * Le « h » distingue les heures des durées « 01:00 » (sinon « 05:00 » =
+ * 5 minutes ou 5h du matin selon la case : incompréhensible).
+ */
 export function fmtSlot(slotSec: number): string {
   const d = new Date(slotSec * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:00`;
+  return `${String(d.getHours()).padStart(2, "0")}h${String(d.getMinutes()).padStart(2, "0")}:00`;
 }
 
-/** Heure courte locale : « 14:32 ». */
+/** Heure courte locale : « 14h32 » (cases, listes, messages). */
 export function fmtHM(slotSec: number): string {
+  const d = new Date(slotSec * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}h${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * Heure « 14:32 » (avec deux-points) : axe du graphique (convention des
+ * graphiques de trading) et valeur interne du choix d'heure (stable,
+ * jamais affichée telle quelle).
+ */
+export function fmtHM24(slotSec: number): string {
   const d = new Date(slotSec * 1000);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
