@@ -11,6 +11,7 @@ import {
   SCHEDULED_REFRESH_MS,
   SHOT_DELAY_MS,
   SIGNAL_TICK_MS,
+  STORE,
   TIME_SLOT_COUNT,
   TRADES_PAGE_LIMIT,
   VIBRATE,
@@ -18,7 +19,7 @@ import {
 import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
 import { vibrate } from "@/lib/vibrate";
-import { DURATIONS, RULES, SYMBOLS, isOtc, symbolDisplay } from "@/lib/symbols";
+import { DURATIONS, RULES, SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
 import { BottomSheet, Btn } from "./ui";
 import { TimePickerPanel } from "./TimePicker";
@@ -87,10 +88,31 @@ function slotFromTime(v: string): number | null {
   return slot;
 }
 
+/** Minuteur + Investissement sauvegardés (survivent au refresh, à la déconnexion, à la fermeture). */
+function loadOrderPrefs(): { durationSec: number; amountStr: string } {
+  const fallback = { durationSec: DEFAULT_DURATION_SEC, amountStr: String(DEFAULT_BET) };
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(STORE.order);
+    if (!raw) return fallback;
+    const prefs = JSON.parse(raw) as { durationSec?: unknown; amountStr?: unknown };
+    const durationSec = isDuration(prefs.durationSec) ? prefs.durationSec : DEFAULT_DURATION_SEC;
+    const saved = typeof prefs.amountStr === "string" ? prefs.amountStr.trim() : "";
+    const amountStr =
+      saved !== "" && Number.isFinite(Number(saved.replace(",", ".")))
+        ? prefs.amountStr as string
+        : String(DEFAULT_BET);
+    return { durationSec, amountStr };
+  } catch {
+    return fallback;
+  }
+}
+
 /** Panneau d'ordres façon Quotex : jeu + programmation, Minuteur, Investissement, Gain potentiel, ACHAT/VENTE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, onPickAsset }: Props) {
-  const [durationSec, setDurationSec] = useState<number>(initialDuration ?? DEFAULT_DURATION_SEC);
-  const [amountStr, setAmountStr] = useState(String(DEFAULT_BET));
+  const [prefs] = useState(loadOrderPrefs);
+  const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
+  const [amountStr, setAmountStr] = useState(prefs.amountStr);
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signalNow, setSignalNow] = useState(() => Date.now());
@@ -127,6 +149,16 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   useEffect(() => {
     if (initialDuration != null) setDurationSec(initialDuration);
   }, [initialDuration]);
+
+  // Chaque choix (Minuteur, Investissement) est sauvegardé aussitôt :
+  // on le retrouve après un refresh, une déconnexion ou la fermeture.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORE.order, JSON.stringify({ durationSec, amountStr }));
+    } catch {
+      /* stockage indisponible : choix perdu à la fermeture */
+    }
+  }, [durationSec, amountStr]);
 
   // Décompte du signal : quand appuyer sur le bouton conseillé.
   useEffect(() => {
