@@ -28,7 +28,7 @@ const STEPS = [
   {
     id: "guide-amount",
     title: "4. Choisis ta mise",
-    text: `Tape un montant, ajuste avec \u2212 et +, ou touche BASCULEZ pour changer de mise ronde. D\u00e9boursement : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
+    text: `Tape un montant ou ajuste avec \u2212 et +. Gain potentiel : mise + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} %.`,
   },
   {
     id: "guide-buttons",
