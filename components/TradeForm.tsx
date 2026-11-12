@@ -120,7 +120,8 @@ function parseAmount(raw: string): number | null {
 
 /** « HH:MM » → prochaine occurrence (aujourd'hui, ou demain si l'heure est passée). */
 function slotFromTime(v: string, fromMs: number): number | null {
-  const m = /^(\d{2}):(\d{2})$/.exec(v);
+  // Tolère « 18:18 » (valeur interne) comme « 18h18 » (affichage).
+  const m = /^(\d{2})[:h](\d{2})$/.exec(v);
   if (!m) return null;
   const day = new Date(fromMs);
   day.setHours(Number(m[1]), Number(m[2]), 0, 0);

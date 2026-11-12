@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT, CANDLES_REFRESH_MS } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
-import { fmtHM, fmtRemain } from "@/lib/format";
+import { fmtHM24, fmtRemain } from "@/lib/format";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
@@ -268,7 +268,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
         const x = Math.min(Math.max(idx * cw + cw / 2, CHART.timeEdge), W - pw - CHART.timeEdge);
         ctx.moveTo(x, plotBottom);
         ctx.lineTo(x, plotBottom + CHART.tickLen);
-        ctx.fillText(fmtHM(data[idx].time), x, H - CHART.timePad);
+        ctx.fillText(fmtHM24(data[idx].time), x, H - CHART.timePad);
       }
       ctx.stroke();
       ctx.textAlign = "left";

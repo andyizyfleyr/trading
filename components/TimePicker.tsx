@@ -3,11 +3,12 @@
 import { useMemo } from "react";
 import { TIME_SLOT_BOOK_MARGIN_MS, TIME_SLOT_COUNT, TIME_SLOT_STEP_MIN } from "@/lib/config";
 import { BTN, ORDER, STACK } from "@/lib/design";
-import { fmtHM } from "@/lib/format";
+import { fmtHM, fmtHM24 } from "@/lib/format";
 import { Btn } from "./ui";
 
 function parseHM(v: string): { hour: number; minute: number } | null {
-  const m = /^(\d{2}):(\d{2})$/.exec(v);
+  // Tolère « 18:18 » (valeur interne) comme « 18h18 » (affichage).
+  const m = /^(\d{2})[:h](\d{2})$/.exec(v);
   if (!m) return null;
   const hour = Number(m[1]);
   const minute = Number(m[2]);
@@ -62,7 +63,8 @@ export function TimePickerPanel({
   const selectedTomorrow = selected != null && isNextDay(selected, nowMs);
 
   // Retoucher l'heure choisie = la désélectionner.
-  const toggle = (slot: number) => onChange(slot === selected ? "" : fmtHM(slot));
+  // La valeur reste « HH:MM » (stable) ; seul l'affichage dit « 18h18 ».
+  const toggle = (slot: number) => onChange(slot === selected ? "" : fmtHM24(slot));
 
   return (
     <div className={STACK.c2}>
@@ -76,7 +78,7 @@ export function TimePickerPanel({
               type="button"
               onClick={() => toggle(s)}
               aria-pressed={active}
-              aria-label={isNextDay(s, Date.now()) ? `demain ${label}` : label}
+              aria-label={isNextDay(s, nowMs) ? `demain ${label}` : label}
               className={active ? ORDER.cellOn : ORDER.cellOff}
             >
               {label}
@@ -85,11 +87,11 @@ export function TimePickerPanel({
         })}
       </div>
       <Btn onClick={onConfirm} className={BTN.block}>
-        {value === ""
+        {value === "" || selected == null
           ? "Revenir à Maintenant"
           : selectedTomorrow
-            ? `Valider demain ${value} →`
-            : `Valider ${value} →`}
+            ? `Valider demain ${fmtHM(selected)} →`
+            : `Valider ${fmtHM(selected)} →`}
       </Btn>
     </div>
   );
