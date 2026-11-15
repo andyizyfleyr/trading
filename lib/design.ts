@@ -28,7 +28,15 @@ export const INK = {
 
 /** Réglages du graphique maison (canvas) : grille, bougies, prix. */
 export const CHART = {
-  visible: 70,
+  /** Largeur d'une bougie : 9 px par défaut (lisible), 3 à 28 au zoom. */
+  stepDef: 9,
+  stepMin: 3,
+  stepMax: 28,
+  /** Glisser moins de 24 px = toucher (double-toucher = retour au direct). */
+  tapSlop: 24,
+  /** Point vivant : 150 ms par image ; le prix glisse vers sa cible en 350 ms. */
+  pulseMs: 150,
+  tweenMs: 350,
   axisW: 44,
   axisBottom: 18,
   gridLines: 6,
@@ -49,7 +57,9 @@ export const CHART = {
   bar: "skeleton flex-1 rounded",
   errBox: "absolute inset-0 flex flex-col items-center justify-center gap-3 bg-carte/95 p-6 text-center",
   errText: "text-base",
-  canvas: "block h-full w-full",
+  canvas: "block h-full w-full touch-none cursor-grab select-none active:cursor-grabbing",
+  liveBtn:
+    "absolute bottom-6 right-2 z-[2] rounded-full border border-ligne bg-puce px-2.5 py-1 text-[11px] font-bold text-texte shadow-lg active:bg-ligne",
 } as const;
 
 /** Anneau de compte à rebours. */
