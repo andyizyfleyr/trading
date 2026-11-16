@@ -18,6 +18,7 @@ import {
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
+import { convertToUsd, convertUsd, roundCurrency, type CurrencyCode } from "@/lib/money";
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
@@ -136,20 +137,26 @@ function slotFromTime(v: string, fromMs: number): number | null {
   return slot;
 }
 
-/** Durée + Investissement sauvegardés (survivent au refresh, à la déconnexion, à la fermeture). */
-function loadOrderPrefs(): { durationSec: number; amountStr: string } {
-  const fallback = { durationSec: DEFAULT_DURATION_SEC, amountStr: String(DEFAULT_BET) };
+/**
+ * Durée + Investissement sauvegardés (survivent au refresh, à la déconnexion,
+ * à la fermeture). Le montant est dans la devise du moment : si la devise
+ * a changé depuis (ou sauvegarde d'avant la mise en devise), on repart
+ * du défaut plutôt que de relire un montant dans la mauvaise unité.
+ */
+function loadOrderPrefs(currency: CurrencyCode): { durationSec: number; amountStr: string } {
+  const fallback = { durationSec: DEFAULT_DURATION_SEC, amountStr: String(convertUsd(DEFAULT_BET, currency)) };
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(STORE.order);
     if (!raw) return fallback;
-    const prefs = JSON.parse(raw) as { durationSec?: unknown; amountStr?: unknown };
+    const prefs = JSON.parse(raw) as { durationSec?: unknown; amountStr?: unknown; currency?: unknown };
+    if (prefs.currency !== currency) return fallback;
     const durationSec = isDuration(prefs.durationSec) ? prefs.durationSec : DEFAULT_DURATION_SEC;
     const saved = typeof prefs.amountStr === "string" ? prefs.amountStr.trim() : "";
     const amountStr =
       saved !== "" && Number.isFinite(Number(saved.replace(",", ".")))
         ? prefs.amountStr as string
-        : String(DEFAULT_BET);
+        : String(convertUsd(DEFAULT_BET, currency));
     return { durationSec, amountStr };
   } catch {
     return fallback;
@@ -160,7 +167,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const { currency, money } = useMoney();
   const { t } = useLang();
-  const [prefs] = useState(loadOrderPrefs);
+  const [prefs] = useState(() => loadOrderPrefs(currency));
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
   const [placing, setPlacing] = useState<"UP" | "DOWN" | null>(null);
@@ -187,11 +194,21 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // on le retrouve après un refresh, une déconnexion ou la fermeture.
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORE.order, JSON.stringify({ durationSec, amountStr }));
+      window.localStorage.setItem(STORE.order, JSON.stringify({ durationSec, amountStr, currency }));
     } catch {
       /* stockage indisponible : choix perdu à la fermeture */
     }
-  }, [durationSec, amountStr]);
+  }, [durationSec, amountStr, currency]);
+
+  // Devise changée dans le profil : le champ repart du défaut converti
+  // (l'ancien montant était dans l'ancienne devise, il ne veut plus rien dire).
+  const currencyRef = useRef(currency);
+  useEffect(() => {
+    if (currencyRef.current !== currency) {
+      currencyRef.current = currency;
+      setAmountStr(String(convertUsd(DEFAULT_BET, currency)));
+    }
+  }, [currency]);
 
   // Décompte du signal : quand appuyer sur le bouton conseillé.
   useEffect(() => {
@@ -342,19 +359,24 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
+  // Le champ parle la devise de l'utilisateur (« 10 » = 10 €) ; tout le
+  // reste (contrôles, API, base) parle USD : amountUsd fait le passage.
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
+  const amountUsd = amount == null ? null : convertToUsd(amount, currency);
   // Ce qu'on touche si ça gagne : mise + bénéfice (mise × 1,85).
   const payout =
-    amount != null && amount > 0 ? Math.round(amount * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
+    amountUsd != null && amountUsd > 0 ? Math.round(amountUsd * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
 
-  // Pas des boutons − / + : la mise minimum.
+  // Pas des boutons − / + : la mise minimum, dans la devise affichée.
   const stepBet = (dir: 1 | -1) => {
-    const cur = amount != null && amount > 0 ? Math.round(amount) : DEFAULT_BET;
+    const step = convertUsd(RULES.MIN_BET, currency);
+    const cap = convertUsd(maxBet, currency);
+    const cur = amount != null && amount > 0 ? amount : convertUsd(DEFAULT_BET, currency);
     const next =
       dir > 0
-        ? Math.min(Math.floor(maxBet), cur + RULES.MIN_BET)
-        : Math.max(RULES.MIN_BET, cur - RULES.MIN_BET);
-    setAmountStr(String(Math.max(0, next)));
+        ? Math.min(cap, cur + step)
+        : Math.max(step, cur - step);
+    setAmountStr(String(Math.max(0, roundCurrency(next, currency))));
   };
 
   // Jeu affiché dans le panneau (pastille + nom + gain).
@@ -365,7 +387,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     direction: "UP" | "DOWN",
     ov?: { amount?: number; durationSec?: number; symbol?: string }
   ) => {
-    const amt = ov?.amount ?? amount;
+    // ov.amount (mise programmée, Rejouer) est déjà en USD ; sinon le
+    // champ est dans la devise : on le convertit avant tout contrôle.
+    const amt = ov?.amount ?? amountUsd;
     setError(null);
     if (!online) {
       setError(t("Hors ligne : reconnectez-vous pour jouer."));
@@ -418,20 +442,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         setError(t("Hors ligne : reconnectez-vous pour jouer."));
         return;
       }
-      if (amount == null || amount <= 0) {
+      if (amountUsd == null || amountUsd <= 0) {
         setError(t("Entrez un montant de mise."));
         return;
       }
-      if (amount < RULES.MIN_BET) {
+      if (amountUsd < RULES.MIN_BET) {
         setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
         return;
       }
-      if (amount > maxBet) {
+      if (amountUsd > maxBet) {
         setError(t("Solde insuffisant pour cette mise."));
         return;
       }
       firedRef.current = false;
-      setPending({ direction, amount, durationSec, symbol, slot: Math.floor(signal.atMs / 1000) });
+      setPending({ direction, amount: amountUsd, durationSec, symbol, slot: Math.floor(signal.atMs / 1000) });
       return;
     }
     await schedule(direction);
@@ -472,15 +496,15 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError(t("Hors ligne : reconnectez-vous pour jouer."));
       return;
     }
-    if (amount == null || amount <= 0) {
+    if (amountUsd == null || amountUsd <= 0) {
       setError(t("Entrez un montant de mise."));
       return;
     }
-    if (amount < RULES.MIN_BET) {
+    if (amountUsd < RULES.MIN_BET) {
       setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
       return;
     }
-    if (amount > maxBet) {
+    if (amountUsd > maxBet) {
       setError(t("Solde insuffisant pour cette mise."));
       return;
     }
@@ -490,7 +514,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         const res = await apiScheduleTrade({
           symbol,
           direction,
-          amount,
+          amount: amountUsd,
           durationSec,
           slot,
         });
@@ -506,7 +530,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     firedRef.current = false;
-    setPending({ direction, amount, durationSec, symbol, slot });
+    setPending({ direction, amount: amountUsd, durationSec, symbol, slot });
   };
 
   // Envoi précis sur l'appareil : dès que l'heure pile (+150 ms) arrive, la mise part.
@@ -532,7 +556,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     if (!replay || replay.nonce === replayNonceRef.current) return;
     replayNonceRef.current = replay.nonce;
     setDurationSec(replay.durationSec);
-    setAmountStr(String(replay.amount));
+    // Rejouer arrive en USD (trade terminé) : on réaffiche dans la devise.
+    setAmountStr(String(convertUsd(replay.amount, currency)));
     pickNow();
     void place(replay.direction, { amount: replay.amount, durationSec: replay.durationSec });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -640,11 +665,6 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                   <PlusIcon className={ORDER.stepIcon} />
                 </button>
               </div>
-              {/* Le champ est en USD (stockage) : on rappelle l'équivalent
-                  dans la devise de l'utilisateur (affichage seul). */}
-              {currency !== "USD" && amount != null && amount > 0 && (
-                <span className={ORDER.minSub}>≈ {money(amount)}</span>
-              )}
             </div>
           </div>
 
