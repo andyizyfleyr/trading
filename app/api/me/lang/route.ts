@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { toApiUser } from "@/lib/trade-shape";
 import { isLang } from "@/lib/i18n";
 
@@ -28,8 +29,10 @@ export async function PUT(req: NextRequest) {
     return fail("LANGUE_INVALIDE", "Choisissez fr, en ou es.", 400, lang);
   }
 
+  // Copie locale : le raffinement de type ne traverse pas la fermeture.
+  const nextLang = body.lang;
   try {
-    const rows = await db().update(users).set({ lang: body.lang }).where(eq(users.id, userId)).returning();
+    const rows = await withSchema(() => db().update(users).set({ lang: nextLang }).where(eq(users.id, userId)).returning());
     const user = rows[0];
     if (!user) return UNAUTHORIZED(lang);
     return ok({ user: toApiUser(user) });

@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { hashPassword, isValidEmail, normalizeEmail, signToken } from "@/lib/auth";
 import { fail, ok } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { isUniqueViolation, toApiUser } from "@/lib/trade-shape";
 import { PASSWORD_MIN } from "@/lib/config";
 
@@ -48,11 +49,13 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(body.password);
-    const [created] = await db()
-      .insert(users)
-      // Solde de départ 0 : l'utilisateur le recharge via « Ajouter » (aucun cadeau auto).
-      .values({ email, passwordHash, balance: 0, currency: "USD" })
-      .returning();
+    const [created] = await withSchema(() =>
+      db()
+        .insert(users)
+        // Solde de départ 0 : l'utilisateur le recharge via « Ajouter » (aucun cadeau auto).
+        .values({ email, passwordHash, balance: 0, currency: "USD" })
+        .returning()
+    );
 
     const token = await signToken(created.id);
     return ok({ token, user: toApiUser(created) }, 201);

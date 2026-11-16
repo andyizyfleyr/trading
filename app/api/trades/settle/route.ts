@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (expired.length === 0 && dueLegs.length === 0) {
-      const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+      const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
       return ok({ settled: [], combos: [], pending: 0, balance: round2(me[0]?.balance ?? 0) });
     }
 
@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
       legsByCombo.set(leg.comboId, list);
     }
 
-    const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     return ok({
       settled: settled.map(toApiTrade),
       combos: settledCombos.map((c) => toApiCombo(c, legsByCombo.get(c.id) ?? [])),

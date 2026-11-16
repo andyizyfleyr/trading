@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { tr } from "@/lib/i18n";
 import { toApiUser } from "@/lib/trade-shape";
 import { formatMoney } from "@/lib/money";
@@ -42,11 +43,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const rows = await db()
-      .update(users)
-      .set({ balance: sql`${users.balance} + ${amount}` })
-      .where(eq(users.id, userId))
-      .returning();
+    const rows = await withSchema(() =>
+      db()
+        .update(users)
+        .set({ balance: sql`${users.balance} + ${amount}` })
+        .where(eq(users.id, userId))
+        .returning()
+    );
     const user = rows[0];
     if (!user) return UNAUTHORIZED(lang);
     return ok({ user: toApiUser(user) });

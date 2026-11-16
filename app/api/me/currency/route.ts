@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { toApiUser } from "@/lib/trade-shape";
 import { countryCurrency, isCurrency } from "@/lib/money";
 
@@ -48,11 +49,13 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const rows = await db()
-      .update(users)
-      .set(patch)
-      .where(eq(users.id, userId))
-      .returning();
+    const rows = await withSchema(() =>
+      db()
+        .update(users)
+        .set(patch)
+        .where(eq(users.id, userId))
+        .returning()
+    );
     const user = rows[0];
     if (!user) return UNAUTHORIZED(lang);
     return ok({ user: toApiUser(user) });

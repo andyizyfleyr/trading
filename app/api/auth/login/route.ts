@@ -7,6 +7,7 @@ import { LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS } from "@/lib/config";
 import { fail, ok } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
+import { withSchema } from "@/lib/schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
   const email = normalizeEmail(body.email);
 
   try {
-    const rows = await db().select().from(users).where(eq(users.email, email)).limit(1);
+    const rows = await withSchema(() => db().select().from(users).where(eq(users.email, email)).limit(1));
     const user = rows[0];
     if (!user) {
       recordFailure(ip);

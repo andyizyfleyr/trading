@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { toApiUser } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return UNAUTHORIZED(lang);
 
   try {
-    const rows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const rows = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     const user = rows[0];
     if (!user) return UNAUTHORIZED(lang);
     return ok({ user: toApiUser(user) });

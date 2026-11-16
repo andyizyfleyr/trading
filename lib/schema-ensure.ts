@@ -50,20 +50,24 @@ export async function ensureSchema(): Promise<void> {
   }
 }
 
-function isMissingTable(err: unknown): boolean {
+function isMissingSchema(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /relation .* does not exist/i.test(msg);
+  // Table absente (« relation ... does not exist ») OU colonne absente
+  // (« column ... does not exist », ex. users.lang après un déploiement) :
+  // dans les deux cas, l'alignement du schéma peut réparer.
+  return /relation .* does not exist/i.test(msg) || /column .* does not exist/i.test(msg);
 }
 
 /**
- * Exécute fn ; si les tables des combinés manquent, les crée puis rejoue
- * une seule fois. Toute autre erreur (ou nouvel échec) remonte aussitôt.
+ * Exécute fn ; si le schéma est en retard (table ou colonne manquante),
+ * l'aligne puis rejoue une seule fois. Toute autre erreur (ou nouvel
+ * échec) remonte aussitôt.
  */
 export async function withSchema<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
-    if (!isMissingTable(err)) throw err;
+    if (!isMissingSchema(err)) throw err;
     await ensureSchema();
     return await fn();
   }
