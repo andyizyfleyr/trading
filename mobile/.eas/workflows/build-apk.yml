@@ -9,8 +9,8 @@ on:
 
 jobs:
   build_android:
-    name: Build Android APK
+    name: Build Android APK (Release)
     type: build
     params:
       platform: android
-      profile: preview
+      profile: production

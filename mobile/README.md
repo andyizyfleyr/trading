@@ -49,12 +49,12 @@ Le workflow `.github/workflows/android-apk.yml` compile l'APK release Android (`
 
 ### 2. Build via Expo Workflows / EAS Build (cloud Expo, zéro setup local)
 
-- **Expo Workflows (automatique sur push `main`)** : `mobile/.eas/workflows/build-apk.yml` lance un build Android APK sur `expo.dev` avec le profil `preview` (`withoutCredentials: true`).
+- **Expo Workflows (automatique sur push `main`)** : `mobile/.eas/workflows/build-apk.yml` lance un build Android APK signé en release sur `expo.dev` avec le profil `production` (le profil `preview` avec `withoutCredentials: true` reste disponible pour un test sans keystore).
 - **EAS Build CLI** :
   ```sh
   cd mobile
   npx eas-cli login
-  npx eas-cli build --platform android --profile preview
+  npx eas-cli build --platform android --profile production
   ```
 
 ### 3. Build local Android (JDK 17 + Android SDK)
