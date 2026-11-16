@@ -452,6 +452,10 @@ export const PROFILE = {
   msgOk: "anim-in rounded-xl bg-hausse/10 px-3 py-1.5 text-center text-[13px] font-medium text-hausse lg:col-span-2",
   msgErr: "anim-in rounded-xl bg-baisse/10 px-3 py-1.5 text-center text-[13px] font-medium text-baisse lg:col-span-2",
   addRow: "grid grid-cols-2 gap-2",
+  curBox: "grid grid-cols-2 gap-2 rounded-xl border border-ligne bg-carte p-2.5 lg:col-span-2",
+  curLabel: "flex min-w-0 flex-col gap-1 text-[11px] font-bold text-doux",
+  curSelect:
+    "h-9 min-w-0 rounded-[10px] border border-ligne bg-puce px-2 text-[13px] font-bold text-texte outline-none focus:border-action",
   prefRow:
     "flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border border-ligne bg-carte px-3 text-left",
   prefLabel: "text-[13px] font-medium",

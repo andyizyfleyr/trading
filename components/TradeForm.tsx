@@ -17,7 +17,8 @@ import {
   VIBRATE,
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
-import { fmtDurMS, fmtHM, fmtMoney, fmtRemain, fmtSlot } from "@/lib/format";
+import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS, RULES, SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
 import type { ApiTrade } from "@/lib/types";
@@ -69,6 +70,7 @@ export function ScheduledTrades({
   trades: ApiTrade[];
   onCancel: (id: number) => void;
 }) {
+  const { money } = useMoney();
   if (trades.length === 0) return null;
   return (
     <div className={TRADER.soonBox}>
@@ -79,7 +81,7 @@ export function ScheduledTrades({
         {trades.map((t) => (
           <li key={t.id} className={TRADER.soonRow}>
             <span className={TRADER.soonMain}>
-              {t.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {fmtMoney(t.amount)}{" "}
+              {t.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {money(t.amount)}{" "}
               <span className={TRADER.soonSub}>
                 {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
               </span>
@@ -152,6 +154,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
 
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
+  const { money } = useMoney();
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
@@ -540,7 +543,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         /* Mise programmée sur l'appareil : attente de l'heure choisie */
         <div role="status" className={TRADER.waitBox}>
           <p className={TRADER.waitTitle}>
-            {pending.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {fmtMoney(pending.amount)} à{" "}
+            {pending.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {money(pending.amount)} à{" "}
             {fmtSlot(pending.slot)}
           </p>
           <p className={TRADER.waitClock}>
@@ -639,7 +642,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           <div className={ORDER.debRow}>
             <span className={ORDER.debLabel}>Gain potentiel</span>
             <span className={ORDER.debDots} aria-hidden="true" />
-            <span className={ORDER.debVal}>{fmtMoney(payout)}</span>
+            <span className={ORDER.debVal}>{money(payout)}</span>
           </div>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}

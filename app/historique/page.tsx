@@ -8,7 +8,8 @@ import { useServerOffset } from "@/hooks/useServerOffset";
 import { apiMyStats, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_RETRY_MS, SETTLE_TICK_MS } from "@/lib/config";
 import { HISTORY, STACK } from "@/lib/design";
-import { fmtDateTime, fmtDay, fmtGain, fmtGamePrice, fmtMoney, fmtRemainShort, fmtTime } from "@/lib/format";
+import { fmtDateTime, fmtDay, fmtGamePrice, fmtRemainShort, fmtTime } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
 import type { ApiStats, ApiTrade } from "@/lib/types";
 
@@ -22,6 +23,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 /** Ligne compacte : sens + jeu + mise + prix, résultat + heure à droite. */
 function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
+  const { money } = useMoney();
   const isUp = trade.direction === "UP";
   const open = trade.status === "OPEN";
   const won = trade.result === "WIN";
@@ -31,9 +33,9 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
   const right = open
     ? `Fin ${fmtRemainShort(new Date(trade.closesAt).getTime() - now)}`
     : won
-      ? `+${fmtGain(gain)}`
+      ? `+${money(gain)}`
       : lost
-        ? `−${fmtMoney(trade.amount)}`
+        ? `−${money(trade.amount)}`
         : "±0";
 
   return (
@@ -47,7 +49,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
       <div className={HISTORY.hmid}>
         {symbolDisplay(trade.symbol)} <span className={HISTORY.hsub}>· {durationLabel(trade.durationSec)}</span>
         <p className={HISTORY.hmeta}>
-          Mise {fmtMoney(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
+          Mise {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
           {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
         </p>
       </div>
@@ -62,6 +64,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
 }
 
 export default function HistoriquePage() {
+  const { money } = useMoney();
   const { setBalance } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
   const [asset, setAsset] = useState<string>("all");
@@ -272,7 +275,7 @@ export default function HistoriquePage() {
           </div>
           <div className={HISTORY.stat}>
             <b className={`${HISTORY.statNum} ${net >= 0 ? HISTORY.statUp : HISTORY.statDown}`}>
-              {net > 0 ? `+${fmtGain(net)}` : net < 0 ? `−${fmtGain(Math.abs(net))}` : fmtGain(0)}
+              {net > 0 ? `+${money(net)}` : net < 0 ? `−${money(Math.abs(net))}` : money(0)}
             </b>
             <span className={HISTORY.statLabel}>Net</span>
           </div>

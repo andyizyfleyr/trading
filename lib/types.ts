@@ -4,6 +4,10 @@ export interface ApiUser {
   id: number;
   email: string;
   balance: number;
+  /** Devise d'affichage (USD, EUR, XOF…) — tout est stocké en USD. */
+  currency: string;
+  /** Pays (code : BJ, FR…) ou null si non choisi. */
+  country: string | null;
   createdAt: string;
 }
 

@@ -5,7 +5,9 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
+import { formatMoney } from "@/lib/money";
 import { RULES } from "@/lib/symbols";
+import { userCurrency } from "@/lib/user-currency";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +28,10 @@ export async function POST(req: NextRequest) {
 
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount < RULES.MIN_DEPOSIT || amount > RULES.MAX_DEPOSIT) {
+    const cur = await userCurrency(userId);
     return fail(
       "MONTANT_INVALIDE",
-      `Le montant doit être entre ${RULES.MIN_DEPOSIT} et ${RULES.MAX_DEPOSIT}.`,
+      `Le montant doit être entre ${formatMoney(RULES.MIN_DEPOSIT, cur)} et ${formatMoney(RULES.MAX_DEPOSIT, cur)}.`,
       400
     );
   }

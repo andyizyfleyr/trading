@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const [created] = await db()
       .insert(users)
       // Solde de départ 0 : l'utilisateur le recharge via « Ajouter » (aucun cadeau auto).
-      .values({ email, passwordHash, balance: 0 })
+      .values({ email, passwordHash, balance: 0, currency: "USD" })
       .returning();
 
     const token = await signToken(created.id);

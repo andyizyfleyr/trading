@@ -15,6 +15,8 @@ export function toApiUser(u: User): ApiUser {
     id: u.id,
     email: u.email,
     balance: round2(u.balance ?? 0),
+    currency: u.currency ?? "USD",
+    country: u.country ?? null,
     createdAt: u.createdAt ? iso(u.createdAt) : new Date().toISOString(),
   };
 }

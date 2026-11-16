@@ -31,7 +31,8 @@ import {
   VIBRATE,
 } from "@/lib/config";
 import { ENCOURS, SHEET, TRADER } from "@/lib/design";
-import { fmtMoney, fmtRemainShort } from "@/lib/format";
+import { fmtRemainShort } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, isDuration, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 import type { ApiTrade } from "@/lib/types";
@@ -48,6 +49,7 @@ function loadSymbol(): string {
 }
 
 export default function TraderPage() {
+  const { money } = useMoney();
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>(() => loadSymbol());
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
@@ -232,8 +234,8 @@ export default function TraderPage() {
           // seul le dernier résultat s'affiche.
           if (res.settled.length === 1) {
             const s = res.settled[0];
-            if (s.result === "WIN") say(`Gagné +${fmtMoney(s.payout ?? 0)}`, "win");
-            else if (s.result === "LOSS") say(`Perdu −${fmtMoney(s.amount)}`, "loss");
+            if (s.result === "WIN") say(`Gagné +${money(s.payout ?? 0)}`, "win");
+            else if (s.result === "LOSS") say(`Perdu −${money(s.amount)}`, "loss");
             else say("Égalité : mise rendue", null);
           } else {
             const won = res.settled.filter((s) => s.result === "WIN").length;
@@ -262,7 +264,7 @@ export default function TraderPage() {
       setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
       say(
-        `${trade.direction === "UP" ? "Hausse" : "Baisse"} ${fmtMoney(trade.amount)} · ${trade.durationSec} s`,
+        `${trade.direction === "UP" ? "Hausse" : "Baisse"} ${money(trade.amount)} · ${trade.durationSec} s`,
         null
       );
     },
@@ -370,10 +372,10 @@ export default function TraderPage() {
                       </p>
                     </div>
                     <p className={TRADER.openStaked}>
-                      {sortedOpen.length > 0 && <>Mises {fmtMoney(totalStaked)}</>}
+                      {sortedOpen.length > 0 && <>Mises {money(totalStaked)}</>}
                       {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
                       {scheduledUp.length > 0 && (
-                        <>Programmé(es) {fmtMoney(scheduledStaked)}</>
+                        <>Programmé(es) {money(scheduledStaked)}</>
                       )}
                     </p>
                     {sortedOpen.map((trade) => (
@@ -447,7 +449,7 @@ export default function TraderPage() {
                 <p className={ENCOURS.sum}>
                   {sortedOpen.length > 0 && (
                     <>
-                      Mises <b className={ENCOURS.sumB}>{fmtMoney(totalStaked)}</b> · Fin dans{" "}
+                      Mises <b className={ENCOURS.sumB}>{money(totalStaked)}</b> · Fin dans{" "}
                       <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
                     </>
                   )}
@@ -455,7 +457,7 @@ export default function TraderPage() {
                   {scheduledUp.length > 0 && (
                     <>
                       Programmé(es){" "}
-                      <b className={ENCOURS.sumB}>{fmtMoney(scheduledStaked)}</b>
+                      <b className={ENCOURS.sumB}>{money(scheduledStaked)}</b>
                       {sortedOpen.length === 0 && (
                         <>
                           {" "}· Départ dans{" "}
@@ -502,7 +504,7 @@ export default function TraderPage() {
           <div className={ENCOURS.head}>
             <h2 className={ENCOURS.title}>Résultat</h2>
             <p className={ENCOURS.sum}>
-              Solde <b className={ENCOURS.sumB}>{fmtMoney(user?.balance ?? 0)}</b>
+              Solde <b className={ENCOURS.sumB}>{money(user?.balance ?? 0)}</b>
             </p>
             <button
               type="button"

@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useOnline } from "@/hooks/useOnline";
 import { apiSettle } from "@/lib/api";
-import { fmtMoney } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { CLOCK_SYNC_MS, NEXT_PARAM, ROUTES } from "@/lib/config";
 import { HEADER, SHELL } from "@/lib/design";
 import { BottomNav } from "./BottomNav";
@@ -52,6 +52,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function Header() {
+  const { money } = useMoney();
   const { user } = useAuth();
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
 
@@ -69,10 +70,10 @@ function Header() {
           <Link
             href={ROUTES.profile}
             className={HEADER.pill}
-            aria-label={`Mon solde : ${user ? fmtMoney(user.balance) : "..."}. Aller au profil.`}
+            aria-label={`Mon solde : ${user ? money(user.balance) : "..."}. Aller au profil.`}
           >
             <WalletIcon className={HEADER.pillIcon} />
-            {user ? fmtMoney(user.balance) : "…"}
+            {user ? money(user.balance) : "…"}
           </Link>
           <Link
             href={ROUTES.profile}

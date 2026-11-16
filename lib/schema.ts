@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   balance: doublePrecision("balance").notNull().default(0),
+  /** Devise d'affichage (tout est stocké en USD). Pays ou null. */
+  currency: text("currency").notNull().default("USD"),
+  country: text("country"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
