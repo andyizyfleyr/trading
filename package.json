@@ -22,6 +22,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20.16.0",
     "@types/react": "^19.3.0",
