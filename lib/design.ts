@@ -131,10 +131,7 @@ export const SHELL = {
 
 export const SPLASH = {
   root: "fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-fond px-8 text-center transition-opacity",
-  mark: "flex h-16 w-16 items-center justify-center gap-1 rounded-2xl bg-carte text-2xl font-extrabold",
-  up: "text-hausse",
-  down: "text-baisse",
-  candles: "mt-2 flex h-10 items-end gap-1.5",
+  candles: "flex h-10 items-end gap-1.5",
   candle: "splash-candle w-2 rounded-full",
 } as const;
 
