@@ -250,7 +250,8 @@ function load(filePath) {
   return mod.exports;
 }
 
-const App = load(path.join(ROOT, 'App.js')).default;
+const ENTRY = process.env.APP_ENTRY ? path.join(ROOT, process.env.APP_ENTRY) : path.join(ROOT, 'App.js');
+const App = load(ENTRY).default;
 
 async function flush() {
   await act(async () => {
