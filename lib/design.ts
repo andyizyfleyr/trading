@@ -134,11 +134,8 @@ export const SPLASH = {
   mark: "flex h-16 w-16 items-center justify-center gap-1 rounded-2xl bg-carte text-2xl font-extrabold",
   up: "text-hausse",
   down: "text-baisse",
-  name: "text-xl font-extrabold tracking-tight",
   candles: "mt-2 flex h-10 items-end gap-1.5",
   candle: "splash-candle w-2 rounded-full",
-  loading: "text-xs font-bold text-doux",
-  tip: "min-h-[32px] max-w-[260px] text-[11px] leading-snug text-doux",
 } as const;
 
 export const HEADER = {
@@ -241,7 +238,6 @@ export const ORDER = {
   debLabel: "shrink-0 text-[13px] text-doux",
   debDots: "min-w-0 flex-1 border-b-2 border-dotted border-doux/60",
   debVal: "shrink-0 text-[13px] font-bold tabular-nums text-hausse",
-  netNote: "mt-0.5 text-right text-[11px] leading-tight text-doux",
   secTitle: "mb-1 text-sm font-extrabold",
   goRow: "grid grid-cols-2 gap-2",
   go: "flex h-[52px] items-center justify-between rounded-[10px] px-4 text-[15px] font-extrabold text-white transition-transform duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
