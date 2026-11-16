@@ -25,6 +25,8 @@ export const STORE = {
   order: "tf_order",
   /** Langue (fr/en/es) : immédiate + marche déconnecté, syncée au compte. */
   lang: "tf_lang",
+  /** Devise devinée pour les visiteurs (géolocalisation, sans compte). */
+  geo: "tf_geo",
 } as const;
 
 /** Paramètres du lien « Préparer ma mise » (signaux → trader). */

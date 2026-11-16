@@ -1,7 +1,7 @@
 /**
  * Devises et pays (affichage uniquement : TOUT est stocké en USD en base,
  * 1 unité = 1 $. On ne convertit qu'au moment d'afficher).
- * Symbole APRÈS le montant, style 1xBet : « 1 000 F », « 9,20 € ».
+ * Symbole APRÈS le montant, style 1xBet : « 1 000 FCFA », « 9,20 € ».
  */
 import type { Lang } from "./i18n";
 
@@ -26,9 +26,9 @@ interface CurrencyInfo {
 export const CURRENCIES: Record<CurrencyCode, CurrencyInfo> = {
   USD: { symbol: "$", decimals: 2, perUsd: 1, label: "Dollar américain" },
   EUR: { symbol: "€", decimals: 2, perUsd: EUR_PER_USD, label: "Euro" },
-  // Franc CFA BCEAO : parité FIXE avec l'euro (1 € = 655,957 F, UEMOA) :
+  // Franc CFA BCEAO : parité FIXE avec l'euro (1 € = 655,957 FCFA, UEMOA) :
   // dérivé du taux euro, jamais approximatif.
-  XOF: { symbol: "F", decimals: 0, perUsd: EUR_PER_USD * 655.957, label: "Franc CFA (UEMOA)" },
+  XOF: { symbol: "FCFA", decimals: 0, perUsd: EUR_PER_USD * 655.957, label: "Franc CFA (UEMOA)" },
   GBP: { symbol: "£", decimals: 2, perUsd: 0.79, label: "Livre sterling" },
   // Monnaies flottantes : taux fixes à réviser quand le marché dérive.
   NGN: { symbol: "₦", decimals: 0, perUsd: 1530, label: "Naira" },
@@ -107,8 +107,8 @@ export function roundCurrency(value: number, currency: CurrencyCode): number {
 }
 
 /**
- * Formate un montant USD dans la devise : « 1 000 F », « 9,20 € »
- * (ponctuation selon la langue : « 1,000 F » en anglais).
+ * Formate un montant USD dans la devise : « 1 000 FCFA », « 9,20 € »
+ * (ponctuation selon la langue : « 1,000 FCFA » en anglais).
  * Les PRIX des jeux/marchés ne passent JAMAIS ici (fmtGamePrice).
  */
 export function formatMoney(usd: number, currency: CurrencyCode, lang: Lang = "fr"): string {

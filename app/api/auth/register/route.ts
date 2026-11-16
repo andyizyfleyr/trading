@@ -7,6 +7,7 @@ import { fail, ok } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
 import { withSchema } from "@/lib/schema-ensure";
 import { isUniqueViolation, toApiUser } from "@/lib/trade-shape";
+import { countryCurrencyOrDefault, countryLang, headerCountry, knownCountry } from "@/lib/geo";
 import { PASSWORD_MIN } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +50,20 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(body.password);
+    // Pays, devise et langue devinés (géolocalisation) : modifiables ensuite.
+    const geo = headerCountry((n) => req.headers.get(n));
     const [created] = await withSchema(() =>
       db()
         .insert(users)
         // Solde de départ 0 : l'utilisateur le recharge via « Ajouter » (aucun cadeau auto).
-        .values({ email, passwordHash, balance: 0, currency: "USD" })
+        .values({
+          email,
+          passwordHash,
+          balance: 0,
+          currency: countryCurrencyOrDefault(geo),
+          country: knownCountry(geo),
+          lang: countryLang(geo),
+        })
         .returning()
     );
 
