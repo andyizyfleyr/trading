@@ -1,1 +1,42 @@
-{"expo":{"name":"TradeFacile","slug":"tradefacile-mobile","version":"1.0.0","orientation":"portrait","icon":"./assets/icon.png","userInterfaceStyle":"automatic","androidStatusBar":{"barStyle":"light-content","backgroundColor":"#1C1F2E","translucent":false},"splash":{"image":"./assets/splash.png","resizeMode":"contain","backgroundColor":"#1C1F2E"},"android":{"package":"com.tradefacile.mobile","versionCode":1,"adaptiveIcon":{"foregroundImage":"./assets/adaptive-icon.png","backgroundColor":"#0c1122"}},"ios":{"bundleIdentifier":"com.tradefacile.mobile","supportsTablet":true},"assetBundlePatterns":["**/*"]}}
+{
+  "expo": {
+    "name": "TradeFacile",
+    "slug": "tradefacile-mobile",
+    "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#1C1F2E",
+      "translucent": false
+    },
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1C1F2E"
+    },
+    "updates": {
+      "enabled": true,
+      "url": "https://tradefacile-sand.vercel.app/api/updates",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "android": {
+      "package": "com.tradefacile.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0c1122"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.tradefacile.mobile",
+      "supportsTablet": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}

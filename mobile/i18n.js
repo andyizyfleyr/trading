@@ -308,7 +308,15 @@ export const STRINGS_EN = {
   "à": "at",
   "▲ monte · ▼ descend": "▲ up · ▼ down",
   "Mode clair": "Light mode",
-  "Mode sombre": "Dark mode"
+  "Mode sombre": "Dark mode",
+  "Mises à jour automatiques": "Automatic updates",
+  "Nouvelle version prête": "New version ready",
+  "Redémarrer": "Restart",
+  "Vérifier": "Check",
+  "Vérification…": "Checking…",
+  "Application à jour.": "App is up to date.",
+  "Mises à jour OTA actives dans l'APK Android.": "OTA updates are active in the Android APK.",
+  "Impossible de vérifier les mises à jour.": "Unable to check for updates."
 };
 export const STRINGS_ES = {
   "+{amt} ajoutés.": "+{amt} añadidos.",
@@ -599,7 +607,15 @@ export const STRINGS_ES = {
   "à": "a las",
   "▲ monte · ▼ descend": "▲ sube · ▼ baja",
   "Mode clair": "Modo claro",
-  "Mode sombre": "Modo oscuro"
+  "Mode sombre": "Modo oscuro",
+  "Mises à jour automatiques": "Actualizaciones automáticas",
+  "Nouvelle version prête": "Nueva versión lista",
+  "Redémarrer": "Reiniciar",
+  "Vérifier": "Comprobar",
+  "Vérification…": "Comprobando…",
+  "Application à jour.": "Aplicación actualizada.",
+  "Mises à jour OTA actives dans l'APK Android.": "Actualizaciones OTA activas en el APK Android.",
+  "Impossible de vérifier les mises à jour.": "No se pueden comprobar las actualizaciones."
 };
 function interpolate(text, vars) {
   if (!vars) return text;
