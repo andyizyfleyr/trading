@@ -97,7 +97,8 @@ const svgList = [...svgNamed].sort();
 const svgImportSpecs = svgList.map((n) => (n === 'Text' ? 'Text as _SvgText' : n));
 const svgExportEntries = svgList.map((n) => (n === 'Text' ? 'Text: _SvgText' : n));
 
-const output = `// TradeFacile mobile — Fichier unique pour Expo Snack (SDK 52).
+const output = `/* eslint-disable */
+// TradeFacile mobile — Fichier unique pour Expo Snack (SDK 52).
 // Généré automatiquement depuis mobile/ via : node scripts/build-snack.cjs
 // Dépendances Snack (package.json) :
 //   "big-integer": "^1.6.52",

@@ -177,6 +177,9 @@ export default function App() {
 
   // Bouton retour Android.
   useEffect(() => {
+    if (Platform.OS !== 'android' || !BackHandler || typeof BackHandler.addEventListener !== 'function') {
+      return undefined;
+    }
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (token && screen !== 'Trader') {
         setScreen('Trader');
@@ -188,7 +191,9 @@ export default function App() {
       }
       return false;
     });
-    return () => sub.remove();
+    return () => {
+      if (sub && typeof sub.remove === 'function') sub.remove();
+    };
   }, [token, screen, authScreen]);
 
   const setLang = useCallback(
@@ -218,7 +223,7 @@ export default function App() {
   }, []);
 
   const handleAuthSuccess = useCallback(async (newToken, newUser) => {
-    await SecureStore.setItemAsync(CONFIG.STORE.token, newToken);
+    await SecureStore.setItemAsync(CONFIG.STORE.token, newToken).catch(() => {});
     configureApi({ token: newToken });
     setToken(newToken);
     setUser(newUser);
