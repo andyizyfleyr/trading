@@ -6,7 +6,6 @@ import { hashPassword, isValidEmail, normalizeEmail, signToken } from "@/lib/aut
 import { fail, ok } from "@/lib/respond";
 import { isUniqueViolation, toApiUser } from "@/lib/trade-shape";
 import { PASSWORD_MIN } from "@/lib/config";
-import { RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +48,8 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hashPassword(body.password);
     const [created] = await db()
       .insert(users)
-      .values({ email, passwordHash, balance: RULES.START_BALANCE })
+      // Solde de départ 0 : l'utilisateur le recharge via « Ajouter » (aucun cadeau auto).
+      .values({ email, passwordHash, balance: 0 })
       .returning();
 
     const token = await signToken(created.id);

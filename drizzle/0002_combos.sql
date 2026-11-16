@@ -28,3 +28,7 @@ CREATE TABLE IF NOT EXISTS "combo_legs" (
 );
 CREATE INDEX IF NOT EXISTS "combo_legs_combo_idx" ON "combo_legs" ("combo_id");
 CREATE INDEX IF NOT EXISTS "combo_legs_open_idx" ON "combo_legs" ("status", "closes_at");
+
+-- Fini les 10 000 offerts : les nouveaux comptes commencent à 0
+-- (les comptes existants gardent leur solde, seul le défaut change).
+ALTER TABLE "users" ALTER COLUMN "balance" SET DEFAULT 0;

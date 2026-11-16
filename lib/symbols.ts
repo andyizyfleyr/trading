@@ -70,10 +70,13 @@ export function isInterval(v: unknown): v is Interval {
 
 /** Règles du jeu (rappelées ici, appliquées côté serveur uniquement). */
 export const RULES = {
-  /** Solde de départ */
-  START_BALANCE: 10000,
   /** Mise minimum (pas de plafond : jusqu'à tout le solde) */
   MIN_BET: 10,
+  /** Recharge du solde : entre 100 et 50 000 par ajout */
+  MIN_DEPOSIT: 100,
+  MAX_DEPOSIT: 50000,
+  /** Retrait du solde : 100 minimum */
+  MIN_WITHDRAW: 100,
   /** Gain en cas de bonne prédiction : mise + 85 % */
   WIN_PAYOUT_RATIO: 0.85,
   /** Limite : 20 prédictions par minute et par utilisateur */

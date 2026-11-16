@@ -2,10 +2,11 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 
 /**
- * Tables des combinés (même contenu que drizzle/0002_combos.sql).
- * Créées toutes seules au premier appel qui en a besoin : le bac à sable
+ * Alignement du schéma (même contenu que drizzle/0002_combos.sql) :
+ * tables des combinés + solde par défaut à 0 (fini les 10 000 offerts).
+ * Appliqué tout seul au premier appel qui en a besoin : le bac à sable
  * ne peut pas joindre Neon, donc aucune migration manuelle n'est possible.
- * CREATE/INDEX IF NOT EXISTS : ré-appeler ne fait jamais rien.
+ * IF NOT EXISTS / SET DEFAULT : ré-appeler ne fait jamais rien.
  */
 export const COMBO_TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "combos" (
@@ -33,6 +34,8 @@ export const COMBO_TABLE_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS "combo_legs_combo_idx" ON "combo_legs" ("combo_id")`,
   `CREATE INDEX IF NOT EXISTS "combo_legs_open_idx" ON "combo_legs" ("status", "closes_at")`,
+  // Les comptes existants gardent leur solde : seul le défaut change (10 000 → 0).
+  `ALTER TABLE "users" ALTER COLUMN "balance" SET DEFAULT 0`,
 ];
 
 /** Crée les tables des combinés si elles manquent (sans toucher au reste). */

@@ -4,20 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RequireAuth } from "@/components/AppShell";
 import { BottomSheet, Btn } from "@/components/ui";
-import { LogoutIcon, MinusIcon, PlusIcon, RefreshIcon } from "@/components/Icons";
+import { LogoutIcon, MinusIcon, PlusIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
-import { apiDeposit, apiReset, apiWithdraw, ApiError } from "@/lib/api";
-import {
-  DEPOSIT_OPTIONS,
-  RESET_CONFIRM_MS,
-  ROUTES,
-  STORE,
-  VIBRATE,
-  WITHDRAW_OPTIONS,
-} from "@/lib/config";
+import { apiDeposit, apiWithdraw, ApiError } from "@/lib/api";
+import { DEPOSIT_OPTIONS, ROUTES, STORE, VIBRATE, WITHDRAW_OPTIONS } from "@/lib/config";
 import { ICON, PROFILE, SHEET, SIDE } from "@/lib/design";
 import { fmtMoney } from "@/lib/format";
-import { RULES } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
 
 export default function ProfilPage() {
@@ -26,7 +18,6 @@ export default function ProfilPage() {
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | null>(null);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [calm, setCalm] = useState(false);
 
   useEffect(() => {
@@ -36,15 +27,6 @@ export default function ProfilPage() {
       /* ignore */
     }
   }, []);
-
-  // La confirmation « Recommencer » s'annule au bout de 5 secondes :
-  // sans cela, un second toucher accidentel, même bien plus tard,
-  // remettrait le solde à 10 000 par surprise.
-  useEffect(() => {
-    if (!confirmReset) return;
-    const t = setTimeout(() => setConfirmReset(false), RESET_CONFIRM_MS);
-    return () => clearTimeout(t);
-  }, [confirmReset]);
 
   const toggleCalm = () => {
     const next = !calm;
@@ -121,27 +103,6 @@ export default function ProfilPage() {
             Retirer
           </Btn>
         </div>
-
-        {/* Recommencer */}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            if (!confirmReset) {
-              setConfirmReset(true);
-              return;
-            }
-            setConfirmReset(false);
-            run(() => apiReset(), `Solde remis à ${fmtMoney(RULES.START_BALANCE)}.`);
-          }}
-          className={confirmReset ? PROFILE.resetConfirm : PROFILE.resetIdle}
-        >
-          <RefreshIcon className={ICON.md} />
-          {confirmReset ? "Toucher encore pour confirmer" : `Recommencer à ${fmtMoney(RULES.START_BALANCE)}`}
-        </button>
-        <p className={PROFILE.sheetNote}>
-          Seul le solde repart à {fmtMoney(RULES.START_BALANCE)} : ton historique est conservé.
-        </p>
 
         {/* Préférences */}
         <button

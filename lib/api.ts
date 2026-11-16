@@ -125,8 +125,6 @@ export const apiMe = () => request<{ user: ApiUser }>("/api/me");
 
 // --- Compte ---
 
-export const apiReset = () => request<{ user: ApiUser }>("/api/me/reset", { method: "POST" });
-
 export const apiDeposit = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/deposit", { method: "POST", body: { amount } });
 

@@ -47,7 +47,7 @@ npm run db:push
 npm run dev
 ```
 
-Ouvrez http://localhost:3000 — créez un compte, vous commencez avec **10 000**.
+Ouvrez http://localhost:3000 — créez un compte (solde à 0), puis rechargez via « Ajouter » dans le profil.
 
 ## Déploiement sur Vercel
 
@@ -59,7 +59,7 @@ Ouvrez http://localhost:3000 — créez un compte, vous commencez avec **10 000*
 
 | Règle | Valeur |
 |---|---|
-| Solde de départ | 10 000 |
+| Solde de départ | 0 (recharge via « Ajouter ») |
 | Mise minimum / maximum | 10 / tout le solde |
 | Durées | 3 s, 10 s, 30 s, 1 min, 5 min |
 | Prix d'ouverture / clôture | Prix du jeu rejoué par le serveur à la seconde pile |
@@ -93,7 +93,6 @@ Format unique :
 | POST | `/api/auth/register` | `{email, password}` → `{token, user}` (201) |
 | POST | `/api/auth/login` | `{email, password}` → `{token, user}` |
 | GET | `/api/me` | Profil + solde |
-| POST | `/api/me/reset` | Solde remis à 10 000 |
 | POST | `/api/me/deposit` | `{amount}` 100–50 000, ajout au solde |
 | POST | `/api/me/withdraw` | `{amount}` ≥ 100, retrait du solde |
 | GET | `/api/me/stats` | Victoires, défaites, taux de réussite, gains nets, rang |
