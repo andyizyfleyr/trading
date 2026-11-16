@@ -3,6 +3,7 @@
  * 1 unité = 1 $. On ne convertit qu'au moment d'afficher).
  * Symbole APRÈS le montant, style 1xBet : « 1 000 ₣ », « 9,20 € ».
  */
+import Decimal from "decimal.js";
 import type { Lang } from "./i18n";
 
 /** Ponctuation des nombres selon la langue (1 000 / 1,000 / 1000). */
@@ -108,13 +109,16 @@ export function roundCurrency(value: number, currency: CurrencyCode): number {
 
 /** Gain théorique dans l'unité saisie, sans arrondir en USD entre les calculs. */
 export function potentialPayout(amount: number | null, ratio: number): number {
-  return amount != null && amount > 0 ? amount * (1 + ratio) : 0;
+  // Les nombres binaires peuvent transformer 1,85 × 1000 en 1849,999….
+  return amount != null && amount > 0 ? new Decimal(amount).mul(new Decimal(1).plus(ratio)).toNumber() : 0;
 }
 
 /** Formate un montant déjà exprimé dans la devise, sans nouvelle conversion. */
 export function formatCurrency(amount: number, currency: CurrencyCode, lang: Lang = "fr"): string {
   const info = CURRENCIES[currency];
-  return `${numFmt(info.decimals, lang).format(amount)} ${info.symbol}`;
+  // Couper vers zéro plutôt qu'arrondir ; Decimal évite les erreurs binaires.
+  const visible = new Decimal(amount).toDecimalPlaces(info.decimals, Decimal.ROUND_DOWN).toNumber();
+  return `${numFmt(info.decimals, lang).format(visible)} ${info.symbol}`;
 }
 
 /**
@@ -123,5 +127,6 @@ export function formatCurrency(amount: number, currency: CurrencyCode, lang: Lan
  * Les PRIX des jeux/marchés ne passent JAMAIS ici (fmtGamePrice).
  */
 export function formatMoney(usd: number, currency: CurrencyCode, lang: Lang = "fr"): string {
-  return formatCurrency(convertUsd(usd, currency), currency, lang);
+  // Ne pas arrondir en USD ou lors de la conversion avant l'affichage.
+  return formatCurrency(new Decimal(usd).mul(CURRENCIES[currency].perUsd).toNumber(), currency, lang);
 }
