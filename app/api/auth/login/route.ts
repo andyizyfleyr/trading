@@ -95,6 +95,9 @@ export async function POST(req: NextRequest) {
     const token = await signToken(user.id);
     return ok({ token, user: toApiUser(user) });
   } catch (err) {
+    // Journal serverless (visible dans les logs Vercel) : sans ça, impossible
+    // de savoir pourquoi une connexion échoue en production.
+    console.error("[login]", err instanceof Error ? err.message : err);
     if (err instanceof Error && err.message.includes("DATABASE_URL")) {
       return fail("ERREUR_SERVEUR", "Service temporairement indisponible.", 500, lang);
     }
