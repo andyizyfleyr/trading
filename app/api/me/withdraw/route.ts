@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const cur = await userCurrency(userId);
     return fail(
       "MONTANT_INVALIDE",
-      tr(lang, "Le montant minimum est de {x}.", { x: formatMoney(RULES.MIN_WITHDRAW, cur) }),
+      tr(lang, "Le montant minimum est de {x}.", { x: formatMoney(RULES.MIN_WITHDRAW, cur, lang) }),
       400
     ,
       lang

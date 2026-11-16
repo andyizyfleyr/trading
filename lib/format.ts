@@ -3,37 +3,42 @@ import type { Lang } from "./i18n";
 import { tr } from "./i18n";
 import { symbolDecimals } from "./symbols";
 
-const LOCALE = "fr-FR";
-/** Localisation des dates selon la langue (mois « nov. » / « Nov » / « nov »). */
+/** Localisation des nombres et dates selon la langue (1 000 / 1,000 / 1000). */
 const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
 /** Décimales des montants (1000, 42,5). */
 const DEC_BIG = 2;
 
-const moneyFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: DEC_BIG });
+const fmtCache = new Map<string, Intl.NumberFormat>();
+
+/** Formateur partagé (créé une fois par langue/décimales). */
+function numFmt(lang: Lang, min: number, max: number): Intl.NumberFormat {
+  const key = `${lang}:${min}:${max}`;
+  let fmt = fmtCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(LOCALES[lang] ?? LOCALES.fr, {
+      minimumFractionDigits: min,
+      maximumFractionDigits: max,
+    });
+    fmtCache.set(key, fmt);
+  }
+  return fmt;
+}
 
 /**
  * Prix d'un jeu avec SES décimales (Lucky 7 : 3, Jackpot et Turbo : 2),
  * comme l'axe du graphique. Même formateur pour les écarts (mouvements).
  */
-const gameFmt2 = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const gameFmt3 = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: 3,
-  maximumFractionDigits: 3,
-});
-
-export function fmtGamePrice(symbol: string, p: number): string {
+export function fmtGamePrice(symbol: string, p: number, lang: Lang = "fr"): string {
   const v = Number(p) || 0;
-  return (symbolDecimals(symbol) >= 3 ? gameFmt3 : gameFmt2).format(v);
+  const dec = symbolDecimals(symbol) >= 3 ? 3 : 2;
+  return numFmt(lang, dec, dec).format(v);
 }
 
 /** Montant signé : +340 / -400 / ±0 */
-export function fmtSigned(n: number): string {
+export function fmtSigned(n: number, lang: Lang = "fr"): string {
   const v = Math.round(Number(n) || 0);
-  if (v > 0) return `+${moneyFmt.format(v)}`;
-  if (v < 0) return `-${moneyFmt.format(Math.abs(v))}`;
+  if (v > 0) return `+${numFmt(lang, 0, DEC_BIG).format(v)}`;
+  if (v < 0) return `-${numFmt(lang, 0, DEC_BIG).format(Math.abs(v))}`;
   return "±0";
 }
 
