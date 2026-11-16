@@ -14,12 +14,14 @@ export const dynamic = "force-dynamic";
  * Possible seulement si la mise n'est pas encore partie.
  * La mise est remboursée aussitôt.
  */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const lang = reqLang(req);
   const userId = await requireUserId(req);
   if (!userId) return UNAUTHORIZED(lang);
 
-  const id = Number(params.id);
+  // Next 15+ : params est une promesse (à attendre).
+  const { id: rawId } = await params;
+  const id = Number(rawId);
   if (!Number.isInteger(id) || id <= 0) {
     return fail("REQUETE_INVALIDE", "Programmation introuvable.", 404, lang);
   }
