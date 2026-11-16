@@ -638,7 +638,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               </button>
             </div>
             <div id="guide-amount" className={ORDER.box}>
-              {/* Unité du champ rappelée : « Investissement (FCFA) ». */}
+              {/* Unité du champ rappelée : « Investissement (₣) ». */}
               <span className={ORDER.boxLabel}>{t("Investissement")} ({CURRENCIES[currency].symbol})</span>
               <div className={ORDER.invRow}>
                 <button

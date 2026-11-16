@@ -32,7 +32,7 @@ function fetchGeo(): Promise<CurrencyCode | null> {
 }
 
 /**
- * Montants dans la devise de l'utilisateur : money(100) → « 60 348 FCFA ».
+ * Montants dans la devise de l'utilisateur : money(100) → « 60 348 ₣ ».
  * Tout est stocké en USD : la conversion n'a lieu qu'à l'affichage.
  * Sans compte : devise devinée (géolocalisation), sinon USD.
  * La ponctuation suit la langue (1 000 / 1,000 / 1000).
