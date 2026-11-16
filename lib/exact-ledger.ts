@@ -1,4 +1,5 @@
 import { addExact, decimalFraction, multiplyExact, subtractExact, type ExactMoney } from "./exact-money";
+import { RULES } from "./symbols";
 
 /** Compare deux fractions sans conversion en nombre flottant. */
 export function compareExact(a: ExactMoney, b: ExactMoney): number {
@@ -23,5 +24,5 @@ export function creditExact(balance: ExactMoney, amount: ExactMoney): ExactMoney
 export function tradePayoutExact(stake: ExactMoney, result: "WIN" | "LOSS" | "TIE"): ExactMoney {
   if (compareExact(stake, decimalFraction("0")) <= 0) throw new Error("Mise invalide");
   if (result === "LOSS") return decimalFraction("0");
-  return result === "TIE" ? stake : multiplyExact(stake, decimalFraction("1.85"));
+  return result === "TIE" ? stake : multiplyExact(stake, addExact(decimalFraction("1"), decimalFraction(String(RULES.WIN_PAYOUT_RATIO))));
 }

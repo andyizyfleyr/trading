@@ -1,7 +1,7 @@
 /**
  * Calculs monétaires rationnels : une fraction conserve toute la précision,
  * même quand une conversion produit une infinité de décimales.
- * Ce module ne change pas encore le stockage ni les opérations existantes.
+ * Les API stockent ces fractions en base ; seules les présentations sont tronquées.
  */
 import type { CurrencyCode } from "./money";
 

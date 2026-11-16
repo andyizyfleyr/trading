@@ -1,15 +1,15 @@
 import { NextRequest } from "next/server";
-import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
 import { withSchema } from "@/lib/schema-ensure";
 import { tr } from "@/lib/i18n";
-import { toApiUser } from "@/lib/trade-shape";
 import { formatMoney } from "@/lib/money";
 import { RULES } from "@/lib/symbols";
+import { exactBalanceChange } from "@/lib/exact-balance";
+import { decimalFraction } from "@/lib/exact-money";
+import Decimal from "decimal.js";
 import { userCurrency } from "@/lib/user-currency";
 
 export const dynamic = "force-dynamic";
@@ -43,18 +43,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const rows = await withSchema(() =>
-      db()
-        .update(users)
-        .set({ balance: sql`${users.balance} - ${amount}` })
-        .where(and(eq(users.id, userId), gte(users.balance, amount)))
-        .returning()
-    );
-    const user = rows[0];
-    if (!user) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour ce retrait.", 400, lang);
+    // Un seul UPDATE atomique : la fraction exacte reste la source du solde.
+    const moved = await withSchema(() => db().execute(exactBalanceChange(userId, decimalFraction(new Decimal(amount).toFixed()), "debit")));
+    if (moved.rows.length === 0) {
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette opération.", 400, lang);
     }
-    return ok({ user: toApiUser(user) });
+    const row = moved.rows[0];
+    return ok({ user: {
+      id: Number(row.id), email: String(row.email), balance: Number(row.balance),
+      balanceExact: { numerator: String(row.numerator), denominator: String(row.denominator) },
+      currency: String(row.currency), country: row.country == null ? null : String(row.country),
+      lang: String(row.lang), createdAt: new Date(String(row.created_at)).toISOString(),
+    } });
   } catch {
     return fail("ERREUR_SERVEUR", "Retrait impossible pour le moment.", 500, lang);
   }

@@ -30,6 +30,7 @@ export function exactBalanceChange(userId: number, amount: ExactMoney, direction
     UPDATE users SET balance_numerator = reduced.n, balance_denominator = reduced.d,
       balance = (reduced.n / reduced.d)::double precision
     FROM reduced WHERE users.id = reduced.id
-    RETURNING users.balance, users.balance_numerator::text AS numerator,
+    RETURNING users.id, users.email, users.currency, users.country, users.lang, users.created_at,
+      users.balance, users.balance_numerator::text AS numerator,
       users.balance_denominator::text AS denominator`;
 }

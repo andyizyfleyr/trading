@@ -8,7 +8,7 @@ import { fmtHM24 } from "@/lib/format";
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
-import type { ApiCandle } from "@/lib/types";
+import type { ApiCandle, ApiExactMoney } from "@/lib/types";
 import { Btn } from "./ui";
 
 const SKELETON_BARS = [55, 70, 45, 80, 60, 75, 50, 65, 72, 58, 66, 48];
@@ -32,6 +32,7 @@ interface Props {
   toast: ChartToast | null;
   /** Mise du trade en cours le plus proche (pastille sur la ligne du prix). */
   stake?: number | null;
+  stakeExact?: ApiExactMoney | null;
 }
 
 /** Vue du graphique : largeur d'une bougie + bougies cachées à droite (0 = direct). */
@@ -65,7 +66,7 @@ function reduceMotion(): boolean {
  * Comme les vrais graphiques de trading : glisser pour défiler dans
  * l'historique, molette/pincement pour zoomer, double-toucher pour revenir.
  */
-export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake }: Props) {
+export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake, stakeExact }: Props) {
   const { t } = useLang();
   const { currency, money } = useMoney();
   const boxRef = useRef<HTMLDivElement>(null);
@@ -162,6 +163,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
   shownRef.current = shown;
   const stakeRef = useRef(stake ?? null);
   stakeRef.current = stake ?? null;
+  const stakeExactRef = useRef(stakeExact ?? null);
+  stakeExactRef.current = stakeExact ?? null;
   const viewRef = useRef(view);
   viewRef.current = view;
   const phaseRef = useRef(phase);
@@ -253,6 +256,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       tip.time,
       disp.toFixed(5),
       stakeShown == null ? "-" : stakeShown,
+      stakeExactRef.current?.numerator ?? "-",
+      stakeExactRef.current?.denominator ?? "-",
       currency,
       phaseRef.current,
       W,
@@ -374,7 +379,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
     const pillW = pw - 4;
     const pillH = 18;
     if (stakeShown != null) {
-      const txt = money(stakeShown);
+      const txt = money(stakeShown, stakeExactRef.current);
       const cw2 = ctx.measureText(txt).width + 12;
       const cx = pillX - 4 - cw2;
       if (cx >= 0) {

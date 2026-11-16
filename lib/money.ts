@@ -5,6 +5,8 @@
  */
 import Decimal from "decimal.js";
 import type { Lang } from "./i18n";
+import { exactFromUsd, fraction, truncateExact } from "./exact-money";
+import type { ApiExactMoney } from "./types";
 
 /** Ponctuation des nombres selon la langue (1 000 / 1,000 / 1000). */
 const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
@@ -85,26 +87,23 @@ function numFmt(decimals: number, lang: Lang): Intl.NumberFormat {
   return fmt;
 }
 
-/** Convertit des dollars vers la devise (arrondi à ses décimales). */
+/** Convertit pour préremplir un champ, en coupant les décimales non affichées. */
 export function convertUsd(usd: number, currency: CurrencyCode): number {
   const info = CURRENCIES[currency];
-  const f = 10 ** info.decimals;
-  return Math.round(Number(usd) * info.perUsd * f) / f;
+  return new Decimal(usd).mul(info.perUsd).toDecimalPlaces(info.decimals, Decimal.ROUND_DOWN).toNumber();
 }
 
 /**
  * Convertit un montant tapé dans la devise vers des dollars (champ de
- * mise → API). Arrondi aux centimes : la base stocke des USD à 2 décimales.
+ * mise → contrôles locaux). L'envoi conserve la fraction exacte séparément.
  */
 export function convertToUsd(amount: number, currency: CurrencyCode): number {
-  const usd = Number(amount) / CURRENCIES[currency].perUsd;
-  return Math.round(usd * 100) / 100;
+  return Number(amount) / CURRENCIES[currency].perUsd;
 }
 
-/** Arrondit à la précision d'affichage de la devise (boutons − / +). */
+/** Coupe à la précision du champ (boutons − / +), sans arrondir. */
 export function roundCurrency(value: number, currency: CurrencyCode): number {
-  const f = 10 ** CURRENCIES[currency].decimals;
-  return Math.round(Number(value) * f) / f;
+  return new Decimal(value).toDecimalPlaces(CURRENCIES[currency].decimals, Decimal.ROUND_DOWN).toNumber();
 }
 
 /** Gain théorique dans l'unité saisie, sans arrondir en USD entre les calculs. */
@@ -119,6 +118,19 @@ export function formatCurrency(amount: number, currency: CurrencyCode, lang: Lan
   // Couper vers zéro plutôt qu'arrondir ; Decimal évite les erreurs binaires.
   const visible = new Decimal(amount).toDecimalPlaces(info.decimals, Decimal.ROUND_DOWN).toNumber();
   return `${numFmt(info.decimals, lang).format(visible)} ${info.symbol}`;
+}
+
+/** Affiche une fraction USD exacte sans convertir les chiffres en flottants. */
+export function formatExactMoney(value: ApiExactMoney, currency: CurrencyCode, lang: Lang = "fr"): string {
+  const info = CURRENCIES[currency];
+  const amount = exactFromUsd(fraction(BigInt(value.numerator), BigInt(value.denominator)), currency);
+  const digits = truncateExact(amount, info.decimals);
+  const [integer, decimal] = digits.split(".");
+  const negative = integer.startsWith("-");
+  const whole = BigInt(negative ? integer.slice(1) : integer);
+  const grouped = new Intl.NumberFormat(LOCALES[lang] ?? LOCALES.fr, { maximumFractionDigits: 0 }).format(whole);
+  const separator = (1.1).toLocaleString(LOCALES[lang] ?? LOCALES.fr).replace(/\d/g, "");
+  return `${negative ? "-" : ""}${grouped}${decimal === undefined ? "" : separator + decimal} ${info.symbol}`;
 }
 
 /**

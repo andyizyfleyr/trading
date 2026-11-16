@@ -44,12 +44,12 @@ export default function ProfilPage() {
     document.documentElement.classList.toggle("calme", next);
   };
 
-  const run = async (fn: () => Promise<{ user: { balance: number } }>, okText: string) => {
+  const run = async (fn: () => Promise<{ user: { balance: number; balanceExact?: import("@/lib/types").ApiExactMoney } }>, okText: string) => {
     setBusy(true);
     setMessage(null);
     try {
       const { user: updated } = await fn();
-      setBalance(updated.balance);
+      setBalance(updated.balance, updated.balanceExact);
       vibrate(VIBRATE.tap);
       setSheet(null);
       setMessage({ kind: "ok", text: okText });
@@ -83,7 +83,7 @@ export default function ProfilPage() {
           <div className={SIDE.acctMain}>
             <p className={PROFILE.mail}>{user?.email}</p>
             <p className={PROFILE.balance}>
-              {user ? money(user.balance) : "…"}
+              {user ? money(user.balance, user.balanceExact) : "…"}
             </p>
           </div>
         </div>

@@ -4,6 +4,7 @@ import {
   text,
   integer,
   doublePrecision,
+  numeric,
   timestamp,
 } from "drizzle-orm/pg-core";
 
@@ -13,6 +14,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   balance: doublePrecision("balance").notNull().default(0),
+  balanceNumerator: numeric("balance_numerator").notNull().default("0"),
+  balanceDenominator: numeric("balance_denominator").notNull().default("1"),
   /** Devise d'affichage (tout est stocké en USD). Pays ou null. */
   currency: text("currency").notNull().default("USD"),
   country: text("country"),
@@ -31,6 +34,10 @@ export const trades = pgTable("trades", {
   /** UP = le prix va monter (HAUSSE), DOWN = le prix va descendre (BAISSE) */
   direction: text("direction").notNull(),
   amount: doublePrecision("amount").notNull(),
+  amountNumerator: numeric("amount_numerator"),
+  amountDenominator: numeric("amount_denominator"),
+  payoutNumerator: numeric("payout_numerator"),
+  payoutDenominator: numeric("payout_denominator"),
   openPrice: doublePrecision("open_price").notNull(),
   closePrice: doublePrecision("close_price"),
   durationSec: integer("duration_sec").notNull(),
@@ -50,6 +57,10 @@ export const combos = pgTable("combos", {
     .notNull()
     .references(() => users.id),
   amount: doublePrecision("amount").notNull(),
+  amountNumerator: numeric("amount_numerator"),
+  amountDenominator: numeric("amount_denominator"),
+  payoutNumerator: numeric("payout_numerator"),
+  payoutDenominator: numeric("payout_denominator"),
   /** OPEN | SETTLED */
   status: text("status").notNull().default("OPEN"),
   /** WIN | LOSS | TIE (null tant que OPEN) */

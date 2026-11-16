@@ -12,7 +12,8 @@ import { fmtDateTime, fmtDay, fmtGamePrice, fmtRemainShort, fmtTime } from "@/li
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
-import type { ApiStats, ApiTrade } from "@/lib/types";
+import type { ApiExactMoney, ApiStats, ApiTrade } from "@/lib/types";
+import { addExact, decimalFraction, fraction, subtractExact } from "@/lib/exact-money";
 
 type Filter = "all" | "open" | "settled";
 
@@ -31,9 +32,9 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
   const right = open
     ? t("Fin {x}", { x: fmtRemainShort(new Date(trade.closesAt).getTime() - now) })
     : won
-      ? `+${money(gain)}`
+      ? `+${money(gain, trade.payoutExact)}`
       : lost
-        ? `−${money(trade.amount)}`
+        ? `−${money(trade.amount, trade.amountExact)}`
         : "±0";
 
   return (
@@ -47,7 +48,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
       <div className={HISTORY.hmid}>
         {symbolDisplay(trade.symbol)} <span className={HISTORY.hsub}>· {durationLabel(trade.durationSec)}</span>
         <p className={HISTORY.hmeta}>
-          {t("Mise")} {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice, lang)} →{" "}
+          {t("Mise")} {money(trade.amount, trade.amountExact)} · {fmtGamePrice(trade.symbol, trade.openPrice, lang)} →{" "}
           {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice, lang) : "…"}
         </p>
       </div>
@@ -103,7 +104,7 @@ export default function HistoriquePage() {
         // Clôture d'abord ce qui est arrivé à échéance.
         try {
           const s = await apiSettle();
-          setBalance(s.balance);
+          setBalance(s.balance, s.balanceExact);
         } catch {
           /* on affiche quand même l'historique */
         }
@@ -209,7 +210,19 @@ export default function HistoriquePage() {
     .reduce((s, t) => s + ((t.payout ?? 0) - t.amount), 0);
   const settledCount = stats?.settled ?? finished.length;
   const winRate = stats ? stats.winRate : finished.length === 0 ? 0 : Math.round((localWins / finished.length) * 100);
-  const net = stats?.pnl ?? Math.round((wonAmount + lostAmount) * 100) / 100;
+  const net = stats?.pnl ?? (wonAmount + lostAmount);
+  let fallbackExact = decimalFraction("0");
+  let hasExact = true;
+  for (const trade of finished) {
+    if (trade.result !== "WIN" && trade.result !== "LOSS") continue;
+    if (!trade.amountExact || !trade.payoutExact) { hasExact = false; break; }
+    fallbackExact = addExact(fallbackExact, subtractExact(
+      fraction(BigInt(trade.payoutExact.numerator), BigInt(trade.payoutExact.denominator)),
+      fraction(BigInt(trade.amountExact.numerator), BigInt(trade.amountExact.denominator)),
+    ));
+  }
+  const netExact: ApiExactMoney | undefined = stats?.pnlExact ?? (hasExact
+    ? { numerator: fallbackExact.numerator.toString(), denominator: fallbackExact.denominator.toString() } : undefined);
 
   // Exporte les terminées en CSV dans le presse-papiers (maquette).
   const exportCsv = async () => {
@@ -274,7 +287,7 @@ export default function HistoriquePage() {
           </div>
           <div className={HISTORY.stat}>
             <b className={`${HISTORY.statNum} ${net >= 0 ? HISTORY.statUp : HISTORY.statDown}`}>
-              {net > 0 ? `+${money(net)}` : net < 0 ? `−${money(Math.abs(net))}` : money(0)}
+              {net > 0 ? `+${money(net, netExact)}` : net < 0 ? `−${money(Math.abs(net), netExact ? { ...netExact, numerator: netExact.numerator.replace(/^-/, "") } : undefined)}` : money(0)}
             </b>
             <span className={HISTORY.statLabel}>{t("Net")}</span>
           </div>

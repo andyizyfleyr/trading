@@ -1,4 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
+import { addExact, decimalFraction } from "./exact-money";
+import { RULES } from "./symbols";
 
 /**
  * Clôture une prédiction et crédite le solde en une seule requête atomique.
@@ -10,8 +12,10 @@ export function exactSettleTradeQuery(userId: number, tradeId: number, result: "
       !Number.isFinite(closePrice) || closePrice <= 0 || !Number.isFinite(now.getTime())) {
     throw new Error("Clôture invalide");
   }
-  const factorN = result === "WIN" ? 185 : result === "TIE" ? 1 : 0;
-  const factorD = result === "WIN" ? 100 : 1;
+  const factor = result === "WIN" ? addExact(decimalFraction("1"), decimalFraction(String(RULES.WIN_PAYOUT_RATIO)))
+    : decimalFraction(result === "TIE" ? "1" : "0");
+  const factorN = factor.numerator.toString();
+  const factorD = factor.denominator.toString();
   return sql`
     WITH eligible AS (
       SELECT id, user_id, amount_numerator * ${factorN}::numeric AS n,

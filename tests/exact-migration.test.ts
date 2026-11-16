@@ -58,3 +58,13 @@ test("un dénominateur invalide bloque une nouvelle migration", async () => {
     await db.exec("ROLLBACK");
   } finally { await db.close(); }
 });
+
+test("la migration automatique s'exécute en une transaction serveur", async () => {
+  const { EXACT_MIGRATION } = await import("../lib/exact-migration");
+  const db = await createDatabase();
+  try {
+    await db.exec(EXACT_MIGRATION);
+    const row = await db.query<{ n: string; d: string }>(`SELECT balance_numerator::text n, balance_denominator::text d FROM users WHERE id=1`);
+    assert.deepEqual(row.rows[0], { n: "10025", d: "100" });
+  } finally { await db.close(); }
+});

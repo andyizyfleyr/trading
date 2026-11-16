@@ -10,6 +10,7 @@ import type {
   ApiStats,
   ApiTrade,
   ApiUser,
+  ApiExactMoney,
 } from "./types";
 import { API_TIMEOUT_MS, STORE } from "./config";
 import { SYMBOLS } from "./symbols";
@@ -183,26 +184,28 @@ export const apiScheduleTrade = (input: {
   symbol: string;
   direction: "UP" | "DOWN";
   amount: number;
+  amountExact?: ApiExactMoney;
   durationSec: number;
   slot: number;
 }) =>
-  request<{ scheduled: ApiTrade; balance: number }>("/api/scheduled", {
+  request<{ scheduled: ApiTrade; balance: number; balanceExact?: ApiExactMoney }>("/api/scheduled", {
     method: "POST",
     body: input,
   });
 
 export const apiCancelScheduled = (id: number) =>
-  request<{ balance: number }>(`/api/scheduled/${id}`, { method: "DELETE" });
+  request<{ balance: number; balanceExact?: ApiExactMoney }>(`/api/scheduled/${id}`, { method: "DELETE" });
 
 export const apiOpenTrade = (input: {
   symbol: string;
   direction: "UP" | "DOWN";
   amount: number;
+  amountExact?: ApiExactMoney;
   durationSec: number;
-}) => request<{ trade: ApiTrade; balance: number }>("/api/trades", { method: "POST", body: input });
+}) => request<{ trade: ApiTrade; balance: number; balanceExact?: ApiExactMoney }>("/api/trades", { method: "POST", body: input });
 
 export const apiSettle = (ids?: number[]) =>
-  request<{ settled: ApiTrade[]; combos: ApiCombo[]; pending: number; balance: number }>(
+  request<{ settled: ApiTrade[]; combos: ApiCombo[]; pending: number; balance: number; balanceExact?: ApiExactMoney }>(
     "/api/trades/settle",
     {
       method: "POST",

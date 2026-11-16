@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, count, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { comboLegs, combos, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
@@ -8,7 +8,11 @@ import { reqLang } from "@/lib/respond";
 import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
-import { round2, toApiCombo } from "@/lib/trade-shape";
+import { toApiCombo } from "@/lib/trade-shape";
+import { comboFromSql, parseStake } from "@/lib/exact-api";
+import { compareExact } from "@/lib/exact-ledger";
+import { decimalFraction } from "@/lib/exact-money";
+import { exactOpenComboQuery, type ExactComboLeg } from "@/lib/exact-combo";
 import { withSchema } from "@/lib/schema-ensure";
 import { getPrice, MarketError } from "@/lib/market";
 import { isDuration, isSymbol, RULES } from "@/lib/symbols";
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
   const userId = await requireUserId(req);
   if (!userId) return UNAUTHORIZED(lang);
 
-  let body: { amount?: unknown; legs?: unknown };
+  let body: { amount?: unknown; amountExact?: unknown; legs?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -114,18 +118,13 @@ export async function POST(req: NextRequest) {
     dirs.set(game, l.direction);
   }
 
-  const amount = round2(Number(body.amount));
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
-  }
-  if (amount < RULES.MIN_BET) {
+  let stake;
+  try { stake = parseStake(body, await userCurrency(userId)); }
+  catch { return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang); }
+  if (compareExact(stake, decimalFraction("0")) <= 0) return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
+  if (compareExact(stake, decimalFraction(String(RULES.MIN_BET))) < 0) {
     const cur = await userCurrency(userId);
-    return fail(
-      "MISE_TROP_PETITE",
-      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur, lang) }),
-      400,
-      lang
-    );
+    return fail("MISE_TROP_PETITE", tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur, lang) }), 400, lang);
   }
 
   try {
@@ -150,11 +149,6 @@ export async function POST(req: NextRequest) {
     const user = userRows[0];
     if (!user) return UNAUTHORIZED(lang);
 
-    const balance = round2(user.balance ?? 0);
-    if (amount > balance) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
-    }
-
     // Prix serveurs AVANT de débiter (un prix indisponible = pas de débit).
     // Un seul appel par jeu (deux jambes sur le même jeu partagent le prix).
     const symbols = Array.from(new Set(legs.map((l) => (l as { symbol: string }).symbol)));
@@ -173,43 +167,17 @@ export async function POST(req: NextRequest) {
     }
     const openedAt = new Date();
 
-    // Retire la mise du solde de façon atomique.
-    const debited = await db()
-      .update(users)
-      .set({ balance: sql`${users.balance} - ${amount}` })
-      .where(and(eq(users.id, userId), gte(users.balance, amount)))
-      .returning({ balance: users.balance });
-    if (debited.length === 0) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
-    }
-
-    const [created] = await db()
-      .insert(combos)
-      .values({ userId, amount, status: "OPEN" })
-      .returning();
-    const inserted = await db()
-      .insert(comboLegs)
-      .values(
-        legs.map((leg) => {
-          const l = leg as { symbol: string; direction: "UP" | "DOWN"; durationSec: number };
-          return {
-            comboId: created.id,
-            symbol: l.symbol,
-            direction: l.direction,
-            openPrice: prices.get(l.symbol) ?? 0,
-            durationSec: l.durationSec,
-            status: "OPEN",
-            openedAt,
-            closesAt: new Date(openedAt.getTime() + l.durationSec * 1000),
-          };
-        })
-      )
-      .returning();
-
-    return ok(
-      { combo: toApiCombo(created, inserted), balance: round2(debited[0].balance ?? 0) },
-      201
-    );
+    const exactLegs: ExactComboLeg[] = legs.map((leg) => {
+      const l = leg as { symbol: string; direction: "UP" | "DOWN"; durationSec: number };
+      return { symbol: l.symbol, direction: l.direction, openPrice: prices.get(l.symbol)!, durationSec: l.durationSec,
+        openedAt: openedAt.toISOString(), closesAt: new Date(openedAt.getTime() + l.durationSec * 1000).toISOString() };
+    });
+    const opened = await withSchema(() => db().execute(exactOpenComboQuery(userId, stake, exactLegs)));
+    const row = opened.rows[0];
+    if (!row) return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
+    return ok({ combo: comboFromSql(row), balance: Number(row.balance), balanceExact: {
+      numerator: String(row.numerator), denominator: String(row.denominator),
+    } }, 201);
   } catch {
     return fail("ERREUR_SERVEUR", "Combiné impossible pour le moment.", 500, lang);
   }

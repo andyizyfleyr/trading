@@ -4,6 +4,7 @@ import type { ApiTrade } from "@/lib/types";
 import { fmtGamePrice, fmtSigned } from "@/lib/format";
 import { useMoney } from "@/hooks/useMoney";
 import { useLang } from "@/lib/lang-context";
+import { addExact, decimalFraction, fraction, multiplyExact } from "@/lib/exact-money";
 import { RULES, durationLabel, symbolDisplay } from "@/lib/symbols";
 import { ENCOURS, RESULT, RING } from "@/lib/design";
 import { CountdownRing } from "./CountdownRing";
@@ -23,13 +24,19 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
   const toneText =
     winning == null ? ENCOURS.textFlat : winning ? ENCOURS.textWin : ENCOURS.textLoss;
   const arrow = diff == null || diff === 0 ? "" : diff > 0 ? "▲ " : "▼ ";
+  // Le calcul reste exact même quand la mise en USD a une infinité de décimales.
+  const gainExact = trade.amountExact ? multiplyExact(
+    fraction(BigInt(trade.amountExact.numerator), BigInt(trade.amountExact.denominator)),
+    addExact(decimalFraction("1"), decimalFraction(String(RULES.WIN_PAYOUT_RATIO)))
+  ) : null;
+  const wireGain = gainExact ? { numerator: gainExact.numerator.toString(), denominator: gainExact.denominator.toString() } : undefined;
   // Estimation : mise + bénéfice (×1,85) si ça gagne, mise perdue sinon, « = » si égalité.
   const est =
     winning == null
       ? "="
       : winning
-        ? `+${money(trade.amount * (1 + RULES.WIN_PAYOUT_RATIO))}`
-        : `−${money(trade.amount)}`;
+        ? `+${money(trade.amount * (1 + RULES.WIN_PAYOUT_RATIO), wireGain)}`
+        : `−${money(trade.amount, trade.amountExact)}`;
 
   return (
     <div className={`${ENCOURS.card} ${tone}`}>
@@ -49,7 +56,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
           </span>
         </div>
         <p className={ENCOURS.mid2}>
-          {t("Mise")} <b className={ENCOURS.mid2B}>{money(trade.amount)}</b> · {t("Départ")}{" "}
+          {t("Mise")} <b className={ENCOURS.mid2B}>{money(trade.amount, trade.amountExact)}</b> · {t("Départ")}{" "}
           <b className={ENCOURS.mid2B}>{fmtGamePrice(trade.symbol, trade.openPrice, lang)}</b>
         </p>
       </div>
@@ -76,7 +83,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
   const title = won ? t("Prédiction gagnée") : lost ? t("Prédiction ratée") : t("Égalité : mise rendue");
   // Gagné : ce qu'on a touché (mise + bénéfice, 100 → 185).
   const amount =
-    won ? `+${money(trade.payout ?? 0)}` : lost ? `−${money(trade.amount)}` : fmtSigned(0);
+    won ? `+${money(trade.payout ?? 0, trade.payoutExact)}` : lost ? `−${money(trade.amount, trade.amountExact)}` : fmtSigned(0);
   const moveArrow = move == null || move === 0 ? "" : move > 0 ? "▲ " : "▼ ";
 
   return (
@@ -117,7 +124,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </p>
       </div>
       <button type="button" onClick={onReplay} className={RESULT.again}>
-        {t("Rejouer")} · {money(trade.amount)} {isUp ? "▲" : "▼"}
+        {t("Rejouer")} · {money(trade.amount, trade.amountExact)} {isUp ? "▲" : "▼"}
       </button>
     </>
   );

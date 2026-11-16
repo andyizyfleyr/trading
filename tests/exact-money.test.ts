@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { addExact, decimalFraction, divideExact, exactFromUsd, exactToUsd, multiplyExact, subtractExact, truncateExact } from "../lib/exact-money";
-import type { CurrencyCode } from "../lib/money";
+import { formatExactMoney, type CurrencyCode } from "../lib/money";
 
 const d = decimalFraction;
 
@@ -34,4 +34,13 @@ test("débit et remboursement préservent le solde, affichage coupé vers zéro"
   assert.equal(truncateExact(d("12.999"), 2), "12.99");
   assert.throws(() => divideExact(d("1"), d("0")));
   assert.throws(() => d("Infinity"));
+});
+
+test("affichage localisé d'une fraction exacte, y compris les grands nombres", () => {
+  const usd = exactToUsd(d("100.00"), "EUR");
+  const wire = { numerator: usd.numerator.toString(), denominator: usd.denominator.toString() };
+  assert.equal(formatExactMoney(wire, "EUR", "fr"), "100,00 €");
+  assert.equal(formatExactMoney(wire, "EUR", "en"), "100.00 €");
+  assert.equal(formatExactMoney({ numerator: "-12999", denominator: "1000" }, "USD", "fr"), "-12,99 $");
+  assert.equal(formatExactMoney({ numerator: "123456789012345678901234567890", denominator: "1" }, "USD", "en"), "123,456,789,012,345,678,901,234,567,890.00 $");
 });
