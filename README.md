@@ -159,3 +159,7 @@ drizzle/0001_init.sql Schéma SQL de référence
   (heures de fin serveur) et clôturées au retour de la connexion.
 - **Éthique** : pas de pression artificielle, pas de confettis, pas de séries
   de victoires mises en avant ; aide « ? » sur chaque terme.
+
+## Application Android Expo
+
+Le projet mobile Expo SDK 52 est dans [`mobile/`](mobile/README.md). Cette première version embarque le site dans une WebView pour reprendre son interface ; les instructions Snack et APK sont dans son README.

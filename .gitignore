@@ -23,3 +23,7 @@ drizzle/meta/
 *.pem
 .vercel
 tsconfig.tsbuildinfo
+
+# Exports Expo (générés)
+mobile/dist/
+mobile/.expo/
