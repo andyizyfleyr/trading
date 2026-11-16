@@ -5,6 +5,7 @@ import { comboLegs, combos, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiCombo } from "@/lib/trade-shape";
+import { withComboTables } from "@/lib/combo-tables";
 import { getPrice, MarketError } from "@/lib/market";
 import { isDuration, isSymbol, RULES } from "@/lib/symbols";
 
@@ -21,17 +22,21 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
 
   try {
-    const rows = await db()
-      .select()
-      .from(combos)
-      .where(eq(combos.userId, userId))
-      .orderBy(desc(combos.createdAt))
-      .limit(limit);
-    const ids = rows.map((c) => c.id);
-    const legs =
-      ids.length === 0
-        ? []
-        : await db().select().from(comboLegs).where(inArray(comboLegs.comboId, ids));
+    // Tables créées toutes seules au premier appel si elles manquent.
+    const { rows, legs } = await withComboTables(async () => {
+      const rows = await db()
+        .select()
+        .from(combos)
+        .where(eq(combos.userId, userId))
+        .orderBy(desc(combos.createdAt))
+        .limit(limit);
+      const ids = rows.map((c) => c.id);
+      const legs =
+        ids.length === 0
+          ? []
+          : await db().select().from(comboLegs).where(inArray(comboLegs.comboId, ids));
+      return { rows, legs };
+    });
     const byCombo = new Map<number, typeof legs>();
     for (const leg of legs) {
       const list = byCombo.get(leg.comboId) ?? [];
@@ -113,11 +118,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // Limite : 20 combinés par minute et par utilisateur (anti-rafale).
+    // Premier accès aux tables : les crée au besoin (la suite suit).
     const since = new Date(Date.now() - 60_000);
-    const recent = await db()
-      .select({ n: count() })
-      .from(combos)
-      .where(and(eq(combos.userId, userId), gt(combos.createdAt, since)));
+    const recent = await withComboTables(() =>
+      db()
+        .select({ n: count() })
+        .from(combos)
+        .where(and(eq(combos.userId, userId), gt(combos.createdAt, since)))
+    );
     if ((recent[0]?.n ?? 0) >= RULES.MAX_TRADES_PER_MINUTE) {
       return fail(
         "LIMITE_ATTEINTE",

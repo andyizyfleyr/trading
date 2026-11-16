@@ -5,6 +5,7 @@ import { comboLegs, combos, trades, users, type ComboLeg, type Trade } from "@/l
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiCombo, toApiTrade } from "@/lib/trade-shape";
+import { withComboTables } from "@/lib/combo-tables";
 import { getPrice } from "@/lib/market";
 import { otcPriceAt } from "@/lib/otc";
 import { isOtc, RULES } from "@/lib/symbols";
@@ -63,27 +64,31 @@ export async function POST(req: NextRequest) {
       .limit(50);
 
     // Jambes de combinés échues (combinés encore OPEN uniquement).
-    const openCombos = await db()
-      .select()
-      .from(combos)
-      .where(and(eq(combos.userId, userId), eq(combos.status, "OPEN")))
-      .limit(20);
-    const openComboIds = openCombos.map((c) => c.id);
-    const dueLegs: ComboLeg[] =
-      openComboIds.length === 0
-        ? []
-        : await db()
-            .select()
-            .from(comboLegs)
-            .where(
-              and(
-                inArray(comboLegs.comboId, openComboIds),
-                eq(comboLegs.status, "OPEN"),
-                lte(comboLegs.closesAt, now)
+    // Tables créées toutes seules au premier appel si elles manquent.
+    const { openCombos, dueLegs } = await withComboTables(async () => {
+      const fetched = await db()
+        .select()
+        .from(combos)
+        .where(and(eq(combos.userId, userId), eq(combos.status, "OPEN")))
+        .limit(20);
+      const fetchedIds = fetched.map((c) => c.id);
+      const due: ComboLeg[] =
+        fetchedIds.length === 0
+          ? []
+          : await db()
+              .select()
+              .from(comboLegs)
+              .where(
+                and(
+                  inArray(comboLegs.comboId, fetchedIds),
+                  eq(comboLegs.status, "OPEN"),
+                  lte(comboLegs.closesAt, now)
+                )
               )
-            )
-            .orderBy(desc(comboLegs.closesAt))
-            .limit(50);
+              .orderBy(desc(comboLegs.closesAt))
+              .limit(50);
+      return { openCombos: fetched, dueLegs: due };
+    });
 
     if (expired.length === 0 && dueLegs.length === 0) {
       const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
