@@ -2,13 +2,41 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 
 /**
- * Alignement du schéma (cumul de drizzle/0002 + 0003 + 0004, rejouable sans risque) :
- * tables des combinés, solde par défaut à 0, colonnes devise/pays/langue.
+ * Alignement du schéma (cumul de drizzle/0001 + 0002 + 0003 + 0004, rejouable
+ * sans risque) : base users/trades PUIS combinés, solde par défaut à 0,
+ * colonnes devise/pays/langue. L'ordre compte (clés étrangères).
+ * Sans la base, une table users absente ne pouvait jamais se réparer
+ * (combos référence users) et tout tombait en erreur 500.
  * Appliqué tout seul au premier appel qui en a besoin : le bac à sable
  * ne peut pas joindre Neon, donc aucune migration manuelle n'est possible.
  * IF NOT EXISTS / SET DEFAULT : ré-appeler ne fait jamais rien.
  */
 export const SCHEMA_STATEMENTS = [
+  // Base (drizzle/0001) : d'abord users, puis trades qui la référence.
+  `CREATE TABLE IF NOT EXISTS "users" (
+    "id" SERIAL PRIMARY KEY,
+    "email" TEXT NOT NULL UNIQUE,
+    "password_hash" TEXT NOT NULL,
+    "balance" DOUBLE PRECISION NOT NULL DEFAULT 10000,
+    "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS "trades" (
+    "id" SERIAL PRIMARY KEY,
+    "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
+    "symbol" TEXT NOT NULL,
+    "direction" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "open_price" DOUBLE PRECISION NOT NULL,
+    "close_price" DOUBLE PRECISION,
+    "duration_sec" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "result" TEXT,
+    "payout" DOUBLE PRECISION,
+    "opened_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+    "closes_at" TIMESTAMP NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS "trades_user_idx" ON "trades" ("user_id", "opened_at" DESC)`,
+  `CREATE INDEX IF NOT EXISTS "trades_open_idx" ON "trades" ("user_id", "status", "closes_at")`,
   `CREATE TABLE IF NOT EXISTS "combos" (
     "id" SERIAL PRIMARY KEY,
     "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
