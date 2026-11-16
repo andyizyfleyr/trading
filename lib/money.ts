@@ -92,6 +92,21 @@ export function convertUsd(usd: number, currency: CurrencyCode): number {
 }
 
 /**
+ * Convertit un montant tapé dans la devise vers des dollars (champ de
+ * mise → API). Arrondi aux centimes : la base stocke des USD à 2 décimales.
+ */
+export function convertToUsd(amount: number, currency: CurrencyCode): number {
+  const usd = Number(amount) / CURRENCIES[currency].perUsd;
+  return Math.round(usd * 100) / 100;
+}
+
+/** Arrondit à la précision d'affichage de la devise (boutons − / +). */
+export function roundCurrency(value: number, currency: CurrencyCode): number {
+  const f = 10 ** CURRENCIES[currency].decimals;
+  return Math.round(Number(value) * f) / f;
+}
+
+/**
  * Formate un montant USD dans la devise : « 1 000 F », « 9,20 € »
  * (ponctuation selon la langue : « 1,000 F » en anglais).
  * Les PRIX des jeux/marchés ne passent JAMAIS ici (fmtGamePrice).
