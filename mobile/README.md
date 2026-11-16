@@ -47,13 +47,15 @@ Le workflow `.github/workflows/android-apk.yml` compile l'APK release Android (`
   `https://github.com/andyizyfleyr/trading/releases/download/apk-latest/TradeFacile.apk`
 - Pour signer avec un keystore de production personnalisé, ajoutez les secrets GitHub `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` et `ANDROID_KEY_PASSWORD`.
 
-### 2. Build via EAS Build (cloud Expo)
+### 2. Build via Expo Workflows / EAS Build (cloud Expo, zéro setup local)
 
-```sh
-cd mobile
-npx eas-cli login
-npx eas-cli build --platform android --profile production
-```
+- **Expo Workflows (automatique sur push `main`)** : `mobile/.eas/workflows/build-apk.yml` lance un build Android APK sur `expo.dev` avec le profil `preview` (`withoutCredentials: true`).
+- **EAS Build CLI** :
+  ```sh
+  cd mobile
+  npx eas-cli login
+  npx eas-cli build --platform android --profile preview
+  ```
 
 ### 3. Build local Android (JDK 17 + Android SDK)
 
