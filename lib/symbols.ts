@@ -80,4 +80,9 @@ export const RULES = {
   MAX_TRADES_PER_MINUTE: 20,
   /** Limite : 50 mises programmées maximum par utilisateur */
   MAX_SCHEDULED: 50,
+  /** Combiné : 2 à 5 jambes, toutes doivent gagner (cote = 1,85 ^ jambes) */
+  COMBO_MIN_LEGS: 2,
+  COMBO_MAX_LEGS: 5,
+  /** Combiné : total touché plafonné (mise × cote, au-delà on touche ce plafond) */
+  COMBO_MAX_PAYOUT: 5000000,
 } as const;

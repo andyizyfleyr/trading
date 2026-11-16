@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { trades, users, type Trade } from "@/lib/schema";
+import { comboLegs, combos, trades, users, type ComboLeg, type Trade } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
-import { round2, toApiTrade } from "@/lib/trade-shape";
+import { round2, toApiCombo, toApiTrade } from "@/lib/trade-shape";
 import { getPrice } from "@/lib/market";
 import { otcPriceAt } from "@/lib/otc";
 import { isOtc, RULES } from "@/lib/symbols";
@@ -28,6 +28,8 @@ function judge(direction: string, openPrice: number, closePrice: number): TradeR
  * - Bonne prédiction : mise + 85 % de gain (mise × 1,85 rendue au solde)
  * - Mauvaise prédiction : rien rendu
  * - Égalité : mise rendue
+ * Clôt aussi les combinés : jambes jugées comme des prédictions, une jambe
+ * perdue = combiné perdu aussitôt, sinon mise × 1,85 ^ jambes gagnées.
  */
 export async function POST(req: NextRequest) {
   const userId = await requireUserId(req);
@@ -60,14 +62,39 @@ export async function POST(req: NextRequest) {
       .orderBy(desc(trades.closesAt))
       .limit(50);
 
-    if (expired.length === 0) {
+    // Jambes de combinés échues (combinés encore OPEN uniquement).
+    const openCombos = await db()
+      .select()
+      .from(combos)
+      .where(and(eq(combos.userId, userId), eq(combos.status, "OPEN")))
+      .limit(20);
+    const openComboIds = openCombos.map((c) => c.id);
+    const dueLegs: ComboLeg[] =
+      openComboIds.length === 0
+        ? []
+        : await db()
+            .select()
+            .from(comboLegs)
+            .where(
+              and(
+                inArray(comboLegs.comboId, openComboIds),
+                eq(comboLegs.status, "OPEN"),
+                lte(comboLegs.closesAt, now)
+              )
+            )
+            .orderBy(desc(comboLegs.closesAt))
+            .limit(50);
+
+    if (expired.length === 0 && dueLegs.length === 0) {
       const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
-      return ok({ settled: [], pending: 0, balance: round2(me[0]?.balance ?? 0) });
+      return ok({ settled: [], combos: [], pending: 0, balance: round2(me[0]?.balance ?? 0) });
     }
 
     // Un seul appel prix par actif (les jeux casino rejouent leur prix exact,
     // pas besoin de les lire).
-    const symbols = Array.from(new Set(expired.map((t) => t.symbol))).filter((s) => !isOtc(s));
+    const symbols = Array.from(
+      new Set([...expired.map((t) => t.symbol), ...dueLegs.map((l) => l.symbol)])
+    ).filter((s) => !isOtc(s));
     const prices = new Map<string, number>();
     await Promise.all(
       symbols.map(async (symbol) => {
@@ -119,9 +146,100 @@ export async function POST(req: NextRequest) {
       settled.push(updated[0]);
     }
 
+    // --- Combinés : on juge les jambes échues, puis on clôt les combinés
+    // qui ont perdu (une jambe perdue = tout perdu aussitôt) ou dont toutes
+    // les jambes sont jugées (mise × 1,85 ^ jambes gagnées, plafonné).
+    const comboById = new Map(openCombos.map((c) => [c.id, c]));
+    const dueByCombo = new Map<number, ComboLeg[]>();
+    for (const leg of dueLegs) {
+      const list = dueByCombo.get(leg.comboId) ?? [];
+      list.push(leg);
+      dueByCombo.set(leg.comboId, list);
+    }
+    const settledCombos: (typeof openCombos)[number][] = [];
+    for (const [comboId, legs] of dueByCombo) {
+      const combo = comboById.get(comboId);
+      if (!combo) continue;
+      let lost = false;
+      for (const leg of legs) {
+        const closePrice = isOtc(leg.symbol)
+          ? otcPriceAt(leg.symbol, Math.floor(new Date(leg.closesAt).getTime() / 1000))
+          : prices.get(leg.symbol);
+        if (closePrice == null || !Number.isFinite(closePrice) || closePrice <= 0) {
+          pending += 1;
+          continue;
+        }
+        const result = judge(leg.direction, leg.openPrice, closePrice);
+        const updated = await db()
+          .update(comboLegs)
+          .set({ status: "SETTLED", result, closePrice })
+          .where(and(eq(comboLegs.id, leg.id), eq(comboLegs.status, "OPEN")))
+          .returning();
+        if (updated.length === 0) continue; // Déjà jugée par un autre appel.
+        if (result === "LOSS") lost = true;
+      }
+      if (lost) {
+        // Perte anticipée : les jambes restantes sont annulées (VOID).
+        await db()
+          .update(comboLegs)
+          .set({ status: "SETTLED", result: "VOID" })
+          .where(and(eq(comboLegs.comboId, comboId), eq(comboLegs.status, "OPEN")));
+        const updatedCombo = await db()
+          .update(combos)
+          .set({ status: "SETTLED", result: "LOSS", payout: 0 })
+          .where(and(eq(combos.id, comboId), eq(combos.status, "OPEN")))
+          .returning();
+        if (updatedCombo.length > 0) settledCombos.push(updatedCombo[0]);
+        continue;
+      }
+      const remaining = await db()
+        .select({ id: comboLegs.id })
+        .from(comboLegs)
+        .where(and(eq(comboLegs.comboId, comboId), eq(comboLegs.status, "OPEN")))
+        .limit(1);
+      if (remaining.length > 0) continue; // D'autres jambes courent encore.
+      const judged = await db().select().from(comboLegs).where(eq(comboLegs.comboId, comboId));
+      const wins = judged.filter((l) => l.result === "WIN").length;
+      // Que des égalités : mise rendue. Sinon les égalités sortent de la cote.
+      const result = wins === 0 ? "TIE" : "WIN";
+      const payout =
+        wins === 0
+          ? round2(combo.amount)
+          : Math.min(
+              round2(combo.amount * Math.pow(1 + RULES.WIN_PAYOUT_RATIO, wins)),
+              RULES.COMBO_MAX_PAYOUT
+            );
+      const updatedCombo = await db()
+        .update(combos)
+        .set({ status: "SETTLED", result, payout })
+        .where(and(eq(combos.id, comboId), eq(combos.status, "OPEN")))
+        .returning();
+      if (updatedCombo.length === 0) continue; // Déjà clôturé par un autre appel.
+      if (payout > 0) {
+        await db()
+          .update(users)
+          .set({ balance: sql`${users.balance} + ${payout}` })
+          .where(eq(users.id, userId));
+      }
+      settledCombos.push(updatedCombo[0]);
+    }
+
+    const settledComboIds = settledCombos.map((c) => c.id);
+    const settledLegs =
+      settledComboIds.length === 0
+        ? []
+        : await db().select().from(comboLegs).where(inArray(comboLegs.comboId, settledComboIds));
+    const legsByCombo = new Map<number, ComboLeg[]>();
+    for (const leg of settledLegs) {
+      const list = legsByCombo.get(leg.comboId) ?? [];
+      list.push(leg);
+      legsByCombo.set(leg.comboId, list);
+    }
+
     const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
     return ok({
       settled: settled.map(toApiTrade),
+      combos: settledCombos.map((c) => toApiCombo(c, legsByCombo.get(c.id) ?? [])),
       pending,
       balance: round2(me[0]?.balance ?? 0),
     });
