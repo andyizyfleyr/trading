@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { apiSetLang, getToken } from "./api";
 import { STORE } from "./config";
+import { browserLang } from "./geo";
 import { isLang, tr, type Lang } from "./i18n";
 
 interface LangState {
@@ -19,7 +20,8 @@ const LangContext = createContext<LangState | null>(null);
 function readLocal(): Lang {
   try {
     const v = window.localStorage.getItem(STORE.lang);
-    return isLang(v) ? v : "fr";
+    // Première visite : langue du navigateur (pas toujours le français).
+    return isLang(v) ? v : browserLang();
   } catch {
     return "fr";
   }

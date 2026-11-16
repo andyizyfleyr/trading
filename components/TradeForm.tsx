@@ -18,7 +18,7 @@ import {
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
-import { convertToUsd, convertUsd, roundCurrency, type CurrencyCode } from "@/lib/money";
+import { CURRENCIES, convertToUsd, convertUsd, roundCurrency, type CurrencyCode } from "@/lib/money";
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
@@ -638,7 +638,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               </button>
             </div>
             <div id="guide-amount" className={ORDER.box}>
-              <span className={ORDER.boxLabel}>{t("Investissement")}</span>
+              {/* Unité du champ rappelée : « Investissement (FCFA) ». */}
+              <span className={ORDER.boxLabel}>{t("Investissement")} ({CURRENCIES[currency].symbol})</span>
               <div className={ORDER.invRow}>
                 <button
                   type="button"
