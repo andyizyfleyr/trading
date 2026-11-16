@@ -170,8 +170,6 @@ export const HEADER = {
   markDown: "text-baisse",
   name: "text-[15px] font-bold",
   side: "flex items-center gap-1.5",
-  themeBtn:
-    "flex h-8 w-8 items-center justify-center rounded-[10px] border border-ligne bg-carte text-doux transition-colors active:text-texte",
   pill: "flex items-center gap-1.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-[5px] text-[13px] font-bold tabular-nums",
   pillIcon: "h-3.5 w-3.5 text-action",
   avatar: "hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex",
@@ -219,8 +217,6 @@ export const TRADER = {
   signalClock: "text-sm font-extrabold tabular-nums",
   lateBox: "anim-in rounded-xl bg-baisse/10 px-3 py-2 text-center",
   lateText: "text-[13px] font-bold text-baisse",
-  pill: "absolute bottom-2 left-2 z-[3] flex h-[26px] items-center gap-1.5 rounded-full border border-ligne bg-puce px-2.5 text-[11px] font-bold tabular-nums text-texte lg:hidden",
-  pillDot: "h-1.5 w-1.5 rounded-full bg-action",
   openPanel: "flex flex-col gap-2 rounded-xl border border-ligne bg-carte p-3",
   openHead: "flex items-center justify-between gap-2 text-sm",
   openTitle: "font-extrabold",
@@ -242,11 +238,13 @@ export const TRADER = {
 export const ORDER = {
   assetRow: "flex items-center justify-between gap-2",
   assetBtn: "flex min-w-0 items-center gap-1.5",
-  comboBtn:
-    "flex shrink-0 items-center gap-1 rounded-full border border-ligne bg-fond px-2.5 py-1 text-[11px] font-extrabold text-texte active:bg-puce",
-  comboBtnOn:
-    "border-primary bg-primary/15 text-action",
-  comboBadge:
+  encoursBtn:
+    "flex shrink-0 items-center gap-1.5 rounded-full border border-ligne bg-fond px-2.5 py-1 text-[11px] font-extrabold text-texte active:bg-puce",
+  encoursBtnOn:
+    "flex shrink-0 items-center gap-1.5 rounded-full border border-primary bg-primary/15 px-2.5 py-1 text-[11px] font-extrabold text-action active:bg-puce",
+  encoursDot: "h-1.5 w-1.5 rounded-full bg-doux/60",
+  encoursDotOn: "h-1.5 w-1.5 rounded-full bg-action",
+  encoursBadge:
     "rounded-full bg-primary px-1.5 py-[1px] text-[10px] font-extrabold text-white tabular-nums",
   assetDot: "h-5 w-5 shrink-0 rounded-full",
   assetName: "truncate text-sm font-extrabold",
@@ -289,10 +287,10 @@ export const ENCOURS = {
   head: "mb-2 flex items-center gap-2",
   title: "text-[15px] font-extrabold",
   badge: "rounded-full bg-primary px-[7px] py-[2px] text-[11px] font-extrabold text-white",
-  sum: "ml-auto text-right text-[11px] text-doux",
+  sum: "flex-1 text-right text-[11px] text-doux",
   sumB: "font-bold text-texte",
   close:
-    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-[13px] text-texte",
+    "ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-puce text-[13px] text-texte",
   list: "flex flex-col gap-1.5",
   empty: "px-2 py-[14px] text-center text-xs text-doux",
   card: "grid grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[10px] border border-ligne border-l-[3px] bg-fond px-2.5 py-[7px]",

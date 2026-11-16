@@ -10,7 +10,6 @@ test("deux mises simultanées ne peuvent pas dépenser deux fois le solde", asyn
   try {
     await db.exec(`CREATE TABLE users (id integer PRIMARY KEY, balance double precision NOT NULL);
       CREATE TABLE trades (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
-      CREATE TABLE combos (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
       INSERT INTO users VALUES (1, 10);`);
     await db.exec(await readFile(new URL("../drizzle/0005_exact_money.sql", import.meta.url), "utf8"));
     const debit = `UPDATE users SET

@@ -3,11 +3,8 @@ import { db } from "./db";
 import { EXACT_MIGRATION } from "./exact-migration";
 
 /**
- * Alignement du schéma (cumul de drizzle/0001 + 0002 + 0003 + 0004, rejouable
- * sans risque) : base users/trades PUIS combinés, solde par défaut à 0,
- * colonnes devise/pays/langue. L'ordre compte (clés étrangères).
- * Sans la base, une table users absente ne pouvait jamais se réparer
- * (combos référence users) et tout tombait en erreur 500.
+ * Alignement du schéma (base users/trades, solde par défaut à 0,
+ * colonnes devise/pays/langue). L'ordre compte (clés étrangères).
  * Appliqué tout seul au premier appel qui en a besoin : le bac à sable
  * ne peut pas joindre Neon, donc aucune migration manuelle n'est possible.
  * IF NOT EXISTS / SET DEFAULT : ré-appeler ne fait jamais rien.
@@ -47,34 +44,9 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS "trades_user_idx" ON "trades" ("user_id", "opened_at" DESC)`,
   `CREATE INDEX IF NOT EXISTS "trades_open_idx" ON "trades" ("user_id", "status", "closes_at")`,
-  `CREATE TABLE IF NOT EXISTS "combos" (
-    "id" SERIAL PRIMARY KEY,
-    "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
-    "amount" DOUBLE PRECISION NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'OPEN',
-    "result" TEXT,
-    "payout" DOUBLE PRECISION,
-    "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
-  )`,
-  `CREATE INDEX IF NOT EXISTS "combos_user_idx" ON "combos" ("user_id", "created_at" DESC)`,
-  `CREATE TABLE IF NOT EXISTS "combo_legs" (
-    "id" SERIAL PRIMARY KEY,
-    "combo_id" INTEGER NOT NULL REFERENCES "combos"("id"),
-    "symbol" TEXT NOT NULL,
-    "direction" TEXT NOT NULL,
-    "open_price" DOUBLE PRECISION NOT NULL,
-    "close_price" DOUBLE PRECISION,
-    "duration_sec" INTEGER NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'OPEN',
-    "result" TEXT,
-    "opened_at" TIMESTAMP NOT NULL DEFAULT NOW(),
-    "closes_at" TIMESTAMP NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS "combo_legs_combo_idx" ON "combo_legs" ("combo_id")`,
-  `CREATE INDEX IF NOT EXISTS "combo_legs_open_idx" ON "combo_legs" ("status", "closes_at")`,
 ];
 
-/** Crée les tables des combinés si elles manquent (sans toucher au reste). */
+/** Crée les tables manquantes et aligne les colonnes exactes. */
 export async function ensureSchema(): Promise<void> {
   for (const stmt of SCHEMA_STATEMENTS) {
     await db().execute(sql.raw(stmt));
@@ -100,7 +72,7 @@ function errorTexts(err: unknown): { messages: string[]; codes: string[] } {
       const rec = cur as Record<string, unknown>;
       if (typeof rec.code === "string" && rec.code) codes.push(rec.code);
       // NeonDbError expose aussi table/colonne : une erreur qui nomme
-      // users/trades/combos sans autre détail vient du schéma.
+      // users/trades sans autre détail vient du schéma.
       cur = rec.cause ?? rec.sourceError ?? null;
     } else {
       cur = null;

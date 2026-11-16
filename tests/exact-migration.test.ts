@@ -10,10 +10,8 @@ async function createDatabase() {
   await db.exec(`
     CREATE TABLE users (id integer PRIMARY KEY, balance double precision NOT NULL);
     CREATE TABLE trades (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
-    CREATE TABLE combos (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
     INSERT INTO users VALUES (1, 100.25), (2, 0), (3, 0.0000001);
     INSERT INTO trades VALUES (1, 10.87, 20.11), (2, 1000, NULL);
-    INSERT INTO combos VALUES (1, 10.5, 0);
   `);
   return db;
 }

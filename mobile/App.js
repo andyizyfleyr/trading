@@ -19,9 +19,7 @@ import { CONFIG, ThemeContext, getThemeInk, syncStatusBar } from './theme';
 import {
   ChartIcon,
   HistoryIcon,
-  MoonIcon,
   SignalIcon,
-  SunIcon,
   WalletIcon,
 } from './components/Icons';
 import { SplashScreen } from './components/Ui';
@@ -414,21 +412,6 @@ export default function App() {
                 <View style={styles.headerRight}>
                   <TouchableOpacity
                     accessibilityRole="button"
-                    accessibilityLabel={
-                      isLight ? t('Passer en mode sombre') : t('Passer en mode clair')
-                    }
-                    onPress={toggleTheme}
-                    style={styles.themeBtn}
-                  >
-                    {isLight ? (
-                      <MoonIcon size={15} color={ink.texte} />
-                    ) : (
-                      <SunIcon size={15} color={ink.texte} />
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    accessibilityRole="button"
                     accessibilityLabel={t('Mon solde : {x}. Aller au profil.', {
                       x: money(user.balance, user.balanceExact, currency, lang),
                     })}
@@ -612,16 +595,6 @@ const makeStyles = (INK) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-    },
-    themeBtn: {
-      width: 30,
-      height: 30,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: INK.ligne,
-      backgroundColor: INK.carte,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     balancePill: {
       flexDirection: 'row',

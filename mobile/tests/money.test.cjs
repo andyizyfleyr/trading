@@ -13,10 +13,8 @@ for(const currency of ['USD','EUR','GBP','XOF','NGN','GHS']) {
   assert.ok(visible.startsWith(n==='10000'?'10 000':'100,00'),currency+' '+visible);
   assert.equal(potential(n,currency),n==='10000' ? `18 500 ${currency==='XOF'?'₣':currency==='NGN'?'₦':'₵'}` : `185,00 ${currency==='USD'?'$':currency==='EUR'?'€':'£'}`);
 }
-assert.equal(potential('10','USD',2),'34,22 $');
-assert.equal(potential('10000000','USD',2),'5 000 000,00 $');
 assert.throws(()=>localStake('-1','USD')); assert.throws(()=>localStake('0','USD')); assert.throws(()=>localStake('x','USD'));
 assert.equal(money(0,{numerator:'-12999',denominator:'1000'},'USD'),'−12,99 $');
-console.log('Montants exacts : six devises, gains simples et combinés, troncature et plafonnement.');
+console.log('Montants exacts : six devises, gains et troncature.');
 assert.equal(money(0,localStake('1000.25','USD'),'USD','en'),'1,000.25 $');
 assert.equal(money(0,localStake('1000.25','USD'),'USD','es'),'1.000,25 $');

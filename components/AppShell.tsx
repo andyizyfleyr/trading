@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
-import { useTheme } from "@/lib/theme-context";
 import { useOnline } from "@/hooks/useOnline";
 import { apiSettle } from "@/lib/api";
 import { useMoney } from "@/hooks/useMoney";
@@ -14,7 +13,7 @@ import { CLOCK_SYNC_MS, NEXT_PARAM, ROUTES } from "@/lib/config";
 import { HEADER, SHELL } from "@/lib/design";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
-import { MoonIcon, SunIcon, WalletIcon } from "./Icons";
+import { WalletIcon } from "./Icons";
 
 const CHROMELESS = [ROUTES.login, ROUTES.signup, ROUTES.welcome];
 
@@ -56,7 +55,6 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 function Header() {
   const { t } = useLang();
-  const { isLight, toggleTheme } = useTheme();
   const { money } = useMoney();
   const { user } = useAuth();
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
@@ -72,14 +70,6 @@ function Header() {
           <span className={HEADER.name}>TradeFacile</span>
         </Link>
         <div className={HEADER.side}>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={isLight ? t("Passer en mode sombre") : t("Passer en mode clair")}
-            className={HEADER.themeBtn}
-          >
-            {isLight ? <MoonIcon className={HEADER.pillIcon} /> : <SunIcon className={HEADER.pillIcon} />}
-          </button>
           <Link
             href={ROUTES.profile}
             className={HEADER.pill}

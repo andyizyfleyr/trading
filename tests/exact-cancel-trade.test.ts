@@ -14,7 +14,6 @@ test("annuler une mise programmée rembourse exactement une seule fois", async (
       CREATE TABLE trades (id serial PRIMARY KEY, user_id integer NOT NULL REFERENCES users(id), symbol text NOT NULL, direction text NOT NULL,
         amount double precision NOT NULL, open_price double precision NOT NULL, duration_sec integer NOT NULL, status text NOT NULL,
         payout double precision, opened_at timestamp NOT NULL, closes_at timestamp NOT NULL);
-      CREATE TABLE combos (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
       INSERT INTO users VALUES (1, 10);`);
     await client.exec(await readFile(new URL("../drizzle/0005_exact_money.sql", import.meta.url), "utf8"));
     const db = drizzle(client);
