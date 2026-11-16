@@ -232,7 +232,7 @@ export default function TraderPage() {
           // seul le dernier résultat s'affiche.
           if (res.settled.length === 1) {
             const s = res.settled[0];
-            if (s.result === "WIN") say(`Gagné +${fmtMoney((s.payout ?? 0) - s.amount)}`, "win");
+            if (s.result === "WIN") say(`Gagné +${fmtMoney(s.payout ?? 0)}`, "win");
             else if (s.result === "LOSS") say(`Perdu −${fmtMoney(s.amount)}`, "loss");
             else say("Égalité : mise rendue", null);
           } else {

@@ -335,10 +335,9 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // Pas de plafond : on peut miser jusqu'à tout le solde.
   const maxBet = Math.max(0, balance);
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
-  // Ce qu'on touche si ça gagne (mise + 85 %), et le vrai bénéfice (85 % seul).
+  // Ce qu'on touche si ça gagne : mise + bénéfice (mise × 1,85).
   const payout =
     amount != null && amount > 0 ? Math.round(amount * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
-  const netWin = Math.round((payout - (amount ?? 0)) * 100) / 100;
 
   // Pas des boutons − / + : la mise minimum.
   const stepBet = (dir: 1 | -1) => {
@@ -636,11 +635,11 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          {/* Bénéfice seul si ça gagne (la mise est rendue en plus) */}
+          {/* Ce qu'on touche si ça gagne : mise + bénéfice (100 → 185) */}
           <div className={ORDER.debRow}>
             <span className={ORDER.debLabel}>Gain potentiel</span>
             <span className={ORDER.debDots} aria-hidden="true" />
-            <span className={ORDER.debVal}>+{fmtMoney(netWin)}</span>
+            <span className={ORDER.debVal}>{fmtMoney(payout)}</span>
           </div>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
