@@ -162,4 +162,4 @@ drizzle/0001_init.sql Schéma SQL de référence
 
 ## Application Android Expo
 
-Le projet mobile Expo SDK 52 est dans [`mobile/`](mobile/README.md). Cette première version embarque le site dans une WebView pour reprendre son interface ; les instructions Snack et APK sont dans son README.
+Le projet mobile Expo SDK 52 est dans [`mobile/`](mobile/README.md). Cette version utilise des écrans React Native et les API du site ; les instructions Snack et APK sont dans son README.

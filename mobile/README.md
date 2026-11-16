@@ -1,16 +1,18 @@
 # TradeFacile mobile — Expo SDK 52
 
-Cette première application React Native utilise une **WebView** pour afficher le site de production, et reprend donc ses écrans et fonctionnalités à l'identique. Les écrans ne sont pas encore réécrits en composants natifs. L'application nécessite Internet et utilise le même compte et la même base que le site. Les montants sont fictifs, comme sur le site.
+Application **React Native native, sans WebView**. Les écrans appellent les API du site en HTTPS. Le site et l'application utilisent le même compte et le même solde fictif ; il n'y a aucun paiement réel. La session est stockée dans le stockage sécurisé de l'appareil.
+
+Cette version contient connexion, inscription, graphique en bougies, prédictions simples et programmées, signaux, historique, solde, dépôt/retrait fictifs et choix de devise. Elle reprend les couleurs et la structure du site, mais n'est pas encore une copie visuelle pixel par pixel : les combinés, le changement de langue et certains détails du site restent à porter.
 
 ## Essayer avec Snack sur Android
 
-1. Installer sur Android une version d'Expo Go compatible avec **SDK 52** (la version actuelle d'Expo Go ne prend pas forcément en charge ce SDK ancien). Voir les versions officielles : https://expo.dev/go?sdkVersion=52&platform=android&device=true .
-2. Sur https://snack.expo.dev/, créer un Snack et choisir **SDK 52** si cette option est disponible. Si Snack ne propose plus SDK 52, utiliser le lancement local ci-dessous : le dépôt seul ne crée pas automatiquement un Snack ni un QR code.
-3. Copier le contenu de `mobile/App.js` dans le fichier `App.js` du Snack.
-4. Dans Dependencies, ajouter `react-native-webview` version **13.12.5** (les autres imports viennent de React et React Native).
-5. Enregistrer le Snack puis ouvrir son QR code avec Expo Go compatible sur le téléphone. Il faut une connexion Internet.
+1. Installez une version d'Expo Go compatible **SDK 52** : https://expo.dev/go?sdkVersion=52&platform=android&device=true . La version récente d'Expo Go ne prend pas forcément en charge ce SDK ancien.
+2. Ouvrez https://snack.expo.dev/ et choisissez **SDK 52**, si Snack le propose encore.
+3. Copiez le contenu de `mobile/App.js` dans le fichier `App.js` de Snack, puis créez `otc.js` et copiez-y le contenu de `mobile/otc.js`.
+4. Dans Dependencies, ajoutez `expo-secure-store` **~14.0.1**, `react-native-svg` **15.8.0** et `big-integer` **1.6.52**.
+5. Enregistrez le Snack et ouvrez son QR code avec Expo Go compatible sur Android.
 
-La prise en charge du SDK 52 dans Snack peut changer ; la compatibilité réelle doit être vérifiée sur l'appareil. Les icônes et l'écran de démarrage de ce dépôt sont destinés à une application construite, ils ne remplacent pas l'icône Expo Go pendant un essai Snack.
+La disponibilité de SDK 52 dans Snack et le fonctionnement sur votre téléphone doivent être vérifiés : aucun Snack publié ni test sur appareil réel n'ont été réalisés ici. Si Snack ne propose plus SDK 52, utilisez le lancement local ci-dessous. Les icônes du dépôt sont utilisées pour un APK construit, pas pour l'icône d'Expo Go.
 
 ## Lancement local
 
@@ -20,23 +22,22 @@ npm ci
 npx expo start
 ```
 
-Ouvrir le QR code avec Expo Go SDK 52. L'ordinateur et le téléphone doivent pouvoir communiquer sur le réseau. Au besoin, suivre les instructions de connexion d'Expo.
+Ouvrez le QR code avec Expo Go SDK 52 ; l'ordinateur et le téléphone doivent pouvoir communiquer sur le réseau. Une connexion Internet est nécessaire pour les API.
 
 ## Construire un APK Android
 
-Le profil `preview` dans `eas.json` demande un **APK** ; `production` demande un AAB pour une distribution Play Store. Depuis `mobile/` :
+Le profil `preview` dans `eas.json` demande un APK ; `production` demande un AAB pour le Play Store. Depuis `mobile/` :
 
 ```sh
 npx eas-cli login
 npx eas-cli build --platform android --profile preview
 ```
 
-EAS demandera éventuellement de configurer le projet et les identifiants Android. L'APK est produit par EAS, pas par Snack ; aucun APK n'est inclus dans le dépôt. Tester l'installation sur un appareil avant toute distribution. Le nom de package `com.tradefacile.mobile` est provisoire : vérifier sa disponibilité avant publication.
+EAS peut demander la configuration du projet et des identifiants Android. L'APK est produit par EAS, pas par Snack ; aucun APK n'est inclus. Testez l'installation sur un appareil avant distribution. Le nom de package `com.tradefacile.mobile` est provisoire : vérifiez sa disponibilité avant publication.
 
 ## Ressources
 
-- `assets/icon.png` : icône de l'application, reprise du logo du site.
+- `assets/icon.png` : icône d'application issue du logo du site.
 - `assets/adaptive-icon.png` : avant-plan de l'icône adaptative Android.
-- `assets/splash.png` : logo de l'écran de démarrage.
-
-Les liens vers des sites externes s'ouvrent hors de la WebView. Le bouton Retour Android revient dans l'historique interne. Le stockage de la session reste celui de la WebView ; la déconnexion du navigateur habituel est indépendante.
+- `assets/splash.png` : écran de démarrage.
+- `otc.js` : moteur des signaux, à garder synchronisé avec `lib/otc.ts`.

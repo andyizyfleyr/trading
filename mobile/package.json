@@ -1,1 +1,25 @@
-{"name":"tradefacile-mobile","version":"1.0.0","private":true,"main":"node_modules/expo/AppEntry.js","scripts":{"start":"expo start","android":"expo start --android","export":"expo export --platform android"},"dependencies":{"expo":"~52.0.49","expo-asset":"~11.0.5","expo-status-bar":"~2.0.1","react":"18.3.1","react-native":"0.76.9","react-native-webview":"13.12.5"},"devDependencies":{"@babel/core":"^7.25.2"}}
+{
+  "name": "tradefacile-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "export": "expo export --platform android",
+    "test": "node tests/otc.test.cjs"
+  },
+  "dependencies": {
+    "expo": "~52.0.49",
+    "expo-asset": "~11.0.5",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "expo-secure-store": "~14.0.1",
+    "react-native-svg": "15.8.0",
+    "big-integer": "^1.6.52"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2"
+  }
+}
