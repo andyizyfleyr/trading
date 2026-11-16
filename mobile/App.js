@@ -15,6 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { apiMe, apiServerTime, apiSetLang, apiSettle, configureApi } from './api';
 import { isLang, tr } from './i18n';
 import { isCurrency, money } from './money';
+import { applyOtaReload, checkAndFetchOta, isOtaEnabled } from './ota';
 import { CONFIG, ThemeContext, getThemeInk, syncStatusBar } from './theme';
 import {
   ChartIcon,
@@ -54,11 +55,16 @@ export default function App() {
   const [online, setOnline] = useState(true);
   const [offsetMs, setOffsetMs] = useState(null);
   const [pendingSignal, setPendingSignal] = useState(null);
+  const [otaReady, setOtaReady] = useState(false);
 
   const tokenRef = useRef(token);
   tokenRef.current = token;
   const themeRef = useRef(theme);
   themeRef.current = theme;
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+  const otaCheckingRef = useRef(false);
+  const lastOtaCheckRef = useRef(0);
   const syncBusyRef = useRef(false);
 
   const setTheme = useCallback((next) => {
@@ -257,6 +263,49 @@ export default function App() {
     };
   }, [token, syncBalance, syncClock]);
 
+  // Mises à jour automatiques OTA (au démarrage + au retour au premier plan).
+  const checkOtaUpdate = useCallback(async ({ force = false, autoReload = false } = {}) => {
+    if (!isOtaEnabled() || otaCheckingRef.current) {
+      return isOtaEnabled() ? { status: 'busy' } : { status: 'disabled' };
+    }
+    const nowMs = Date.now();
+    if (!force && nowMs - lastOtaCheckRef.current < 5 * 60 * 1000) {
+      return { status: 'skipped' };
+    }
+    otaCheckingRef.current = true;
+    lastOtaCheckRef.current = nowMs;
+    try {
+      const res = await checkAndFetchOta();
+      if (res.status === 'downloaded') {
+        setOtaReady(true);
+        if (autoReload || loadingRef.current) {
+          await applyOtaReload();
+        }
+      }
+      return res;
+    } finally {
+      otaCheckingRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOtaEnabled()) return undefined;
+    void checkOtaUpdate({ force: true, autoReload: false });
+    const sub =
+      AppState && typeof AppState.addEventListener === 'function'
+        ? AppState.addEventListener('change', (state) => {
+            if (state === 'active') void checkOtaUpdate({ force: false, autoReload: false });
+          })
+        : null;
+    return () => {
+      if (sub && typeof sub.remove === 'function') sub.remove();
+    };
+  }, [checkOtaUpdate]);
+
+  const handleApplyOta = useCallback(() => {
+    void applyOtaReload();
+  }, []);
+
   // Bouton retour Android.
   useEffect(() => {
     if (Platform.OS !== 'android' || !BackHandler || typeof BackHandler.addEventListener !== 'function') {
@@ -436,6 +485,22 @@ export default function App() {
               </View>
             ) : null}
 
+            {/* Bandeau mise à jour OTA prête */}
+            {otaReady ? (
+              <View style={styles.otaBanner}>
+                <Text style={styles.otaText} numberOfLines={1}>
+                  {t('Nouvelle version prête')}
+                </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={handleApplyOta}
+                  style={styles.otaBtn}
+                >
+                  <Text style={styles.otaBtnText}>{t('Redémarrer')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             {/* Contenu principal : onglets visités conservés en mémoire pour un changement instantané */}
             <View style={styles.main}>
               {visited.Trader ? (
@@ -512,6 +577,9 @@ export default function App() {
                     onUserUpdated={setUser}
                     onRefresh={refreshProfile}
                     onLogout={handleLogout}
+                    otaReady={otaReady}
+                    onCheckOta={() => checkOtaUpdate({ force: true, autoReload: true })}
+                    onApplyOta={handleApplyOta}
                   />
                 </View>
               ) : null}
@@ -622,6 +690,32 @@ const makeStyles = (INK) =>
       textAlign: 'center',
       fontSize: 12,
       fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    otaBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      backgroundColor: INK.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    otaText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    otaBtn: {
+      borderRadius: 8,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    otaBtnText: {
+      fontSize: 11,
+      fontWeight: '800',
       color: '#FFFFFF',
     },
     main: {

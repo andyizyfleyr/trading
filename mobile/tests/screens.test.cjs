@@ -119,6 +119,26 @@ const secureStoreMock = {
   },
 };
 
+const otaCalls = [];
+const expoUpdatesMock = {
+  isEnabled: true,
+  runtimeVersion: '1.0.0',
+  updateId: '4d1e01d2-8bd8-401b-b7e3-0ce0d73b9412',
+  createdAt: new Date('2026-11-16T00:00:00.000Z'),
+  isEmbeddedLaunch: false,
+  checkForUpdateAsync: async () => {
+    otaCalls.push('check');
+    return { isAvailable: false };
+  },
+  fetchUpdateAsync: async () => {
+    otaCalls.push('fetch');
+    return { isNew: true };
+  },
+  reloadAsync: async () => {
+    otaCalls.push('reload');
+  },
+};
+
 const ROOT = path.resolve(__dirname, '..');
 
 function resolveLocal(fromFile, req) {
@@ -146,6 +166,7 @@ function load(filePath) {
     if (id === 'react') return React;
     if (id === 'react-native') return native;
     if (id === 'expo-secure-store') return secureStoreMock;
+    if (id === 'expo-updates') return expoUpdatesMock;
     if (id === 'react-native-svg') return svgMock;
     if (id.startsWith('.')) return load(resolveLocal(full, id));
     return require(id);
@@ -464,6 +485,20 @@ function findButton(root, label) {
   assert.ok(hasText(root, 'Profil'), 'Titre Profil attendu');
   assert.ok(hasText(root, 'Mode clair'), 'Option Mode clair attendue');
   assert.ok(hasText(root, 'Réduire les animations'), 'Option Réduire les animations attendue');
+  assert.ok(hasText(root, 'Mises à jour automatiques'), 'Section Mises à jour automatiques OTA attendue');
+  const isSnackBundle = Boolean(process.env.APP_ENTRY && process.env.APP_ENTRY.includes('snack'));
+  if (isSnackBundle) {
+    await act(async () => findButton(root, 'Vérifier').props.onPress());
+    await flush();
+    assert.ok(hasText(root, "Mises à jour OTA actives dans l'APK Android."), 'Message OTA Snack attendu');
+  } else {
+    assert.ok(otaCalls.includes('check'), 'Vérification OTA automatique au démarrage attendue');
+    const beforeOtaChecks = otaCalls.length;
+    await act(async () => findButton(root, 'Vérifier').props.onPress());
+    await flush();
+    assert.ok(otaCalls.length > beforeOtaChecks, 'Bouton Vérifier doit déclencher checkForUpdateAsync');
+    assert.ok(hasText(root, 'Application à jour.'), 'Confirmation Application à jour attendue');
+  }
   // Bascule sombre -> clair puis clair -> sombre depuis Profil et vérifie SecureStore + StatusBar
   await act(async () => findButton(root, 'Mode clair').props.onPress());
   await flush();

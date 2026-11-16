@@ -1,0 +1,62 @@
+{
+  "runtimes": {
+    "1.0.0": {
+      "android": {
+        "id": "1cb5bd4b-95db-4e80-b79d-5243bd21514e",
+        "createdAt": "2026-11-16T16:09:07.041Z",
+        "runtimeVersion": "1.0.0",
+        "launchAsset": {
+          "hash": "VVuuyF3-mpzJN366kO0CJiD2h37eQRxOpIaEYA8kxXg",
+          "key": "555baec85dfe9a9cc9377eba90ed0226",
+          "fileExtension": ".bundle",
+          "contentType": "application/javascript",
+          "path": "/ota/1.0.0/bundles/bundle-555baec85dfe9a9cc9377eba90ed0226.hbc"
+        },
+        "assets": [],
+        "extra": {
+          "scopeKey": "com.tradefacile.mobile",
+          "expoClient": {
+            "name": "TradeFacile",
+            "slug": "tradefacile-mobile",
+            "version": "1.0.0",
+            "runtimeVersion": "1.0.0",
+            "orientation": "portrait",
+            "icon": "./assets/icon.png",
+            "userInterfaceStyle": "automatic",
+            "androidStatusBar": {
+              "barStyle": "light-content",
+              "backgroundColor": "#1C1F2E",
+              "translucent": false
+            },
+            "splash": {
+              "image": "./assets/splash.png",
+              "resizeMode": "contain",
+              "backgroundColor": "#1C1F2E"
+            },
+            "updates": {
+              "enabled": true,
+              "url": "https://tradefacile-sand.vercel.app/api/updates",
+              "checkAutomatically": "ON_LOAD",
+              "fallbackToCacheTimeout": 0
+            },
+            "android": {
+              "package": "com.tradefacile.mobile",
+              "versionCode": 1,
+              "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#0c1122"
+              }
+            },
+            "ios": {
+              "bundleIdentifier": "com.tradefacile.mobile",
+              "supportsTablet": true
+            },
+            "assetBundlePatterns": [
+              "**/*"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

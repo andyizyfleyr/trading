@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, Vibrati
 import { apiDeposit, apiSetCurrency, apiWithdraw, ApiError } from '../api';
 import { LANGS } from '../i18n';
 import { CURRENCIES, isCurrency, money } from '../money';
+import { getOtaInfo } from '../ota';
 import { CONFIG, COUNTRIES, CURRENCY_LABELS, useTheme, useThemedStyles } from '../theme';
 import { ChevronDownIcon, LogoutIcon, MinusIcon, PlusIcon } from '../components/Icons';
 import { BottomSheet, Btn, SelectSheet } from '../components/Ui';
@@ -19,13 +20,42 @@ export const ProfilScreen = React.memo(function ProfilScreen({
   onUserUpdated,
   onRefresh,
   onLogout,
+  otaReady,
+  onCheckOta,
+  onApplyOta,
 }) {
   const { ink, isLight, toggleTheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [otaBusy, setOtaBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null); // 'deposit' | 'withdraw' | 'country' | 'currency' | 'lang' | null
+  const otaInfo = getOtaInfo();
+
+  const handleCheckOta = async () => {
+    if (otaReady && onApplyOta) {
+      onApplyOta();
+      return;
+    }
+    if (!onCheckOta || otaBusy) return;
+    setOtaBusy(true);
+    setMessage(null);
+    try {
+      const res = await onCheckOta();
+      if (!res || res.status === 'disabled') {
+        setMessage({ kind: 'ok', text: t("Mises à jour OTA actives dans l'APK Android.") });
+      } else if (res.status === 'up-to-date') {
+        setMessage({ kind: 'ok', text: t('Application à jour.') });
+      } else if (res.status === 'downloaded') {
+        setMessage({ kind: 'ok', text: t('Nouvelle version prête') });
+      } else if (res.status === 'error') {
+        setMessage({ kind: 'err', text: res.error || t('Impossible de vérifier les mises à jour.') });
+      }
+    } finally {
+      setOtaBusy(false);
+    }
+  };
 
   const handlePullRefresh = useCallback(async () => {
     if (refreshing || !onRefresh) return;
@@ -201,6 +231,27 @@ export const ProfilScreen = React.memo(function ProfilScreen({
           <View style={styles.calmKnob} />
         </View>
       </TouchableOpacity>
+
+      {/* Mises à jour automatiques OTA */}
+      <View style={styles.prefRow}>
+        <View style={styles.otaMeta}>
+          <Text style={styles.prefLabel}>{t('Mises à jour automatiques')}</Text>
+          <Text style={styles.otaSub}>
+            v{otaInfo.runtimeVersion}
+            {otaInfo.updateId ? ` · #${otaInfo.updateId.slice(0, 8)}` : ''}
+          </Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={otaBusy}
+          onPress={handleCheckOta}
+          style={[styles.otaActionBtn, otaReady && styles.otaActionBtnReady, otaBusy && styles.disabled]}
+        >
+          <Text style={[styles.otaActionText, otaReady && styles.otaActionTextReady]}>
+            {otaReady ? t('Redémarrer') : otaBusy ? t('Vérification…') : t('Vérifier')}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Déconnexion */}
       <Btn variant="ghost" onPress={onLogout} style={styles.logoutBtn}>
@@ -471,6 +522,37 @@ const makeStyles = (INK) =>
     fontSize: 13,
     fontWeight: '500',
     color: INK.texte,
+  },
+  otaMeta: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 6,
+  },
+  otaSub: {
+    marginTop: 1,
+    fontSize: 11,
+    color: INK.doux,
+    fontVariant: ['tabular-nums'],
+  },
+  otaActionBtn: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: INK.ligne,
+    backgroundColor: INK.puce,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  otaActionBtnReady: {
+    borderColor: INK.primary,
+    backgroundColor: INK.primary,
+  },
+  otaActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: INK.texte,
+  },
+  otaActionTextReady: {
+    color: '#FFFFFF',
   },
   calmOn: {
     width: 48,

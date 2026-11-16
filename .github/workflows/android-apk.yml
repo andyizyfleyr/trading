@@ -1,0 +1,169 @@
+name: Build Android APK (with OTA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      architectures:
+        description: "Architectures Android (ex: armeabi-v7a,arm64-v8a)"
+        required: false
+        default: "armeabi-v7a,arm64-v8a"
+  push:
+    branches:
+      - main
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Assemble Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "mobile/package-lock.json"
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json', 'mobile/app.json') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Run mobile tests
+        working-directory: mobile
+        run: npm test
+
+      - name: Expo Prebuild (Android native project + expo-updates)
+        working-directory: mobile
+        env:
+          CI: "1"
+        run: npx expo prebuild --platform android --clean
+
+      - name: Verify expo-updates native metadata
+        working-directory: mobile
+        run: |
+          grep -q "https://tradefacile-sand.vercel.app/api/updates" android/app/src/main/AndroidManifest.xml
+          grep -q "expo_runtime_version" android/app/src/main/res/values/strings.xml
+          echo "Verified expo-updates metadata in AndroidManifest.xml and strings.xml"
+
+      - name: Configure optional release keystore
+        working-directory: mobile/android/app
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "No custom release keystore configured; using default Gradle signing config."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > release.keystore
+          node -e '
+            const fs = require("fs");
+            const p = "build.gradle";
+            let src = fs.readFileSync(p, "utf8");
+            src = src.replace(
+              "signingConfigs {",
+              `signingConfigs {\n        release {\n            storeFile file("release.keystore")\n            storePassword System.getenv("STORE_PW")\n            keyAlias System.getenv("KEY_ALIAS")\n            keyPassword System.getenv("KEY_PW")\n        }`
+            );
+            src = src.replace(
+              /(release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/,
+              "$1signingConfig signingConfigs.release"
+            );
+            fs.writeFileSync(p, src, "utf8");
+          '
+
+      - name: Build Android Release APK
+        working-directory: mobile/android
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: ${{ inputs.architectures || 'armeabi-v7a,arm64-v8a' }}
+          STORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m" \
+            -PreactNativeArchitectures="${ORG_GRADLE_PROJECT_reactNativeArchitectures}"
+
+      - name: Prepare APK artifact
+        run: |
+          mkdir -p apk-out
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk apk-out/TradeFacile.apk
+          ls -lh apk-out/TradeFacile.apk
+          sha256sum apk-out/TradeFacile.apk > apk-out/TradeFacile.apk.sha256
+          cat apk-out/TradeFacile.apk.sha256
+
+      - name: Upload APK workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradeFacile-Android-APK
+          path: |
+            apk-out/TradeFacile.apk
+            apk-out/TradeFacile.apk.sha256
+          retention-days: 90
+
+      - name: Publish GitHub Release (apk-latest)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUNTIME_VERSION=$(node -p "require('./mobile/app.json').expo.runtimeVersion")
+          UPDATE_ID=$(node -p "require('./lib/ota-manifest.json').runtimes[require('./mobile/app.json').expo.runtimeVersion]?.android?.id || 'embedded'")
+          SHA256=$(awk '{print $1}' apk-out/TradeFacile.apk.sha256)
+          cat > /tmp/release-notes.md <<EOF
+          ## TradeFacile Android APK (avec OTA automatique)
+
+          - **Package** : \`com.tradefacile.mobile\`
+          - **Runtime version** : \`${RUNTIME_VERSION}\`
+          - **OTA endpoint** : \`https://tradefacile-sand.vercel.app/api/updates\`
+          - **OTA bundle ID** : \`${UPDATE_ID}\`
+          - **Commit** : \`${GITHUB_SHA}\`
+          - **SHA-256** : \`${SHA256}\`
+
+          Les prochaines mises à jour JS/UI sont téléchargées automatiquement en arrière-plan via OTA sans réinstaller l'APK.
+          EOF
+          if gh release view apk-latest >/dev/null 2>&1; then
+            gh release upload apk-latest apk-out/TradeFacile.apk apk-out/TradeFacile.apk.sha256 --clobber
+            gh release edit apk-latest --title "TradeFacile Android APK (v${RUNTIME_VERSION})" --notes-file /tmp/release-notes.md --latest
+          else
+            gh release create apk-latest apk-out/TradeFacile.apk apk-out/TradeFacile.apk.sha256 \
+              --title "TradeFacile Android APK (v${RUNTIME_VERSION})" \
+              --notes-file /tmp/release-notes.md \
+              --latest
+          fi

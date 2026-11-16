@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "ota:publish": "node scripts/publish-ota.mjs",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "test": "NODE_ENV=test tsx --test tests/*.test.ts"
