@@ -6,6 +6,7 @@
  */
 import type {
   ApiCandle,
+  ApiCombo,
   ApiStats,
   ApiTrade,
   ApiUser,
@@ -190,8 +191,26 @@ export const apiOpenTrade = (input: {
 }) => request<{ trade: ApiTrade; balance: number }>("/api/trades", { method: "POST", body: input });
 
 export const apiSettle = (ids?: number[]) =>
-  request<{ settled: ApiTrade[]; pending: number; balance: number }>("/api/trades/settle", {
+  request<{ settled: ApiTrade[]; combos: ApiCombo[]; pending: number; balance: number }>(
+    "/api/trades/settle",
+    {
+      method: "POST",
+      body: ids ? { ids } : {},
+    }
+  );
+
+export interface ComboLegInput {
+  symbol: string;
+  direction: "UP" | "DOWN";
+  durationSec: number;
+}
+
+export const apiPlaceCombo = (amount: number, legs: ComboLegInput[]) =>
+  request<{ combo: ApiCombo; balance: number }>("/api/combos", {
     method: "POST",
-    body: ids ? { ids } : {},
+    body: { amount, legs },
   });
+
+export const apiMyCombos = (limit = 50) =>
+  request<{ combos: ApiCombo[] }>(`/api/combos?limit=${limit}`);
 

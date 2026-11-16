@@ -1,0 +1,196 @@
+import { NextRequest } from "next/server";
+import { and, count, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { comboLegs, combos, users } from "@/lib/schema";
+import { requireUserId } from "@/lib/auth";
+import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { round2, toApiCombo } from "@/lib/trade-shape";
+import { getPrice, MarketError } from "@/lib/market";
+import { isDuration, isSymbol, RULES } from "@/lib/symbols";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /api/combos?limit=50 — Mes combinés, jambes incluses (protégé).
+ */
+export async function GET(req: NextRequest) {
+  const userId = await requireUserId(req);
+  if (!userId) return UNAUTHORIZED();
+
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
+
+  try {
+    const rows = await db()
+      .select()
+      .from(combos)
+      .where(eq(combos.userId, userId))
+      .orderBy(desc(combos.createdAt))
+      .limit(limit);
+    const ids = rows.map((c) => c.id);
+    const legs =
+      ids.length === 0
+        ? []
+        : await db().select().from(comboLegs).where(inArray(comboLegs.comboId, ids));
+    const byCombo = new Map<number, typeof legs>();
+    for (const leg of legs) {
+      const list = byCombo.get(leg.comboId) ?? [];
+      list.push(leg);
+      byCombo.set(leg.comboId, list);
+    }
+    return ok({ combos: rows.map((c) => toApiCombo(c, byCombo.get(c.id) ?? [])) });
+  } catch {
+    return fail("ERREUR_SERVEUR", "Combinés temporairement indisponibles.", 500);
+  }
+}
+
+/**
+ * POST /api/combos — Placer un combiné (protégé).
+ * Corps : { "amount": 100, "legs": [{ "symbol", "direction", "durationSec" }, ...] }
+ * 2 à 5 jambes, départ immédiat, toutes doivent gagner (cote = 1,85 ^ jambes).
+ * Le client n'envoie jamais de prix : les prix d'ouverture sont lus serveur.
+ */
+export async function POST(req: NextRequest) {
+  const userId = await requireUserId(req);
+  if (!userId) return UNAUTHORIZED();
+
+  let body: { amount?: unknown; legs?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+  }
+
+  const legs = Array.isArray(body.legs) ? body.legs : [];
+  if (legs.length < RULES.COMBO_MIN_LEGS || legs.length > RULES.COMBO_MAX_LEGS) {
+    return fail(
+      "JAMBES_INVALIDES",
+      `Un combiné, c'est ${RULES.COMBO_MIN_LEGS} à ${RULES.COMBO_MAX_LEGS} prédictions.`,
+      400
+    );
+  }
+  for (const leg of legs) {
+    const l = leg as { symbol?: unknown; direction?: unknown; durationSec?: unknown };
+    if (!isSymbol(l.symbol)) {
+      return fail("ACTIF_INVALIDE", "Choisissez des jeux proposés dans la liste.", 400);
+    }
+    if (l.direction !== "UP" && l.direction !== "DOWN") {
+      return fail("DIRECTION_INVALIDE", "Choisissez HAUSSE (ça monte) ou BAISSE (ça descend).", 400);
+    }
+    if (!isDuration(l.durationSec)) {
+      return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
+    }
+  }
+  // Pas deux fois la même sélection, ni deux sens opposés sur le même
+  // jeu et la même durée (sinon le combiné est perdu d'avance).
+  const seen = new Set<string>();
+  const dirs = new Map<string, string>();
+  for (const leg of legs) {
+    const l = leg as { symbol: string; direction: string; durationSec: number };
+    const key = `${l.symbol}|${l.direction}|${l.durationSec}`;
+    if (seen.has(key)) {
+      return fail("DOUBLON", "Deux jambes identiques : ça ne compte pas double.", 400);
+    }
+    seen.add(key);
+    const game = `${l.symbol}|${l.durationSec}`;
+    if (dirs.has(game) && dirs.get(game) !== l.direction) {
+      return fail(
+        "SENS_OPPOSES",
+        "HAUSSE et BAISSE sur le même jeu : combiné perdu d'avance.",
+        400
+      );
+    }
+    dirs.set(game, l.direction);
+  }
+
+  const amount = round2(Number(body.amount));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
+  }
+  if (amount < RULES.MIN_BET) {
+    return fail("MISE_TROP_PETITE", `La mise minimum est de ${RULES.MIN_BET}.`, 400);
+  }
+
+  try {
+    // Limite : 20 combinés par minute et par utilisateur (anti-rafale).
+    const since = new Date(Date.now() - 60_000);
+    const recent = await db()
+      .select({ n: count() })
+      .from(combos)
+      .where(and(eq(combos.userId, userId), gt(combos.createdAt, since)));
+    if ((recent[0]?.n ?? 0) >= RULES.MAX_TRADES_PER_MINUTE) {
+      return fail(
+        "LIMITE_ATTEINTE",
+        "Doucement : 20 combinés par minute maximum. Attendez quelques secondes.",
+        429
+      );
+    }
+
+    const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = userRows[0];
+    if (!user) return UNAUTHORIZED();
+
+    const balance = round2(user.balance ?? 0);
+    if (amount > balance) {
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+    }
+
+    // Prix serveurs AVANT de débiter (un prix indisponible = pas de débit).
+    // Un seul appel par jeu (deux jambes sur le même jeu partagent le prix).
+    const symbols = Array.from(new Set(legs.map((l) => (l as { symbol: string }).symbol)));
+    const prices = new Map<string, number>();
+    try {
+      await Promise.all(
+        symbols.map(async (symbol) => {
+          prices.set(symbol, await getPrice(symbol as never));
+        })
+      );
+    } catch (err) {
+      if (err instanceof MarketError) {
+        return fail("PRIX_INDISPONIBLES", err.message, 503);
+      }
+      return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503);
+    }
+    const openedAt = new Date();
+
+    // Retire la mise du solde de façon atomique.
+    const debited = await db()
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${amount}` })
+      .where(and(eq(users.id, userId), gte(users.balance, amount)))
+      .returning({ balance: users.balance });
+    if (debited.length === 0) {
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+    }
+
+    const [created] = await db()
+      .insert(combos)
+      .values({ userId, amount, status: "OPEN" })
+      .returning();
+    const inserted = await db()
+      .insert(comboLegs)
+      .values(
+        legs.map((leg) => {
+          const l = leg as { symbol: string; direction: "UP" | "DOWN"; durationSec: number };
+          return {
+            comboId: created.id,
+            symbol: l.symbol,
+            direction: l.direction,
+            openPrice: prices.get(l.symbol) ?? 0,
+            durationSec: l.durationSec,
+            status: "OPEN",
+            openedAt,
+            closesAt: new Date(openedAt.getTime() + l.durationSec * 1000),
+          };
+        })
+      )
+      .returning();
+
+    return ok(
+      { combo: toApiCombo(created, inserted), balance: round2(debited[0].balance ?? 0) },
+      201
+    );
+  } catch {
+    return fail("ERREUR_SERVEUR", "Combiné impossible pour le moment.", 500);
+  }
+}

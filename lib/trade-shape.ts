@@ -1,5 +1,5 @@
-import type { Trade, User } from "./schema";
-import type { ApiTrade, ApiUser } from "./types";
+import type { Combo, ComboLeg, Trade, User } from "./schema";
+import type { ApiCombo, ApiComboLeg, ApiTrade, ApiUser } from "./types";
 
 /** Arrondit à 2 décimales pour éviter les artefacts de flottants. */
 export function round2(n: number): number {
@@ -36,6 +36,36 @@ export function toApiTrade(t: Trade): ApiTrade {
     payout: t.payout == null ? null : round2(t.payout),
     openedAt: iso(t.openedAt),
     closesAt: iso(t.closesAt),
+  };
+}
+
+export function toApiComboLeg(l: ComboLeg): ApiComboLeg {
+  return {
+    id: l.id,
+    symbol: l.symbol,
+    direction: l.direction === "DOWN" ? "DOWN" : "UP",
+    openPrice: l.openPrice,
+    closePrice: l.closePrice ?? null,
+    durationSec: l.durationSec,
+    status: l.status === "SETTLED" ? "SETTLED" : "OPEN",
+    result:
+      l.result === "WIN" || l.result === "LOSS" || l.result === "TIE" || l.result === "VOID"
+        ? l.result
+        : null,
+    openedAt: iso(l.openedAt),
+    closesAt: iso(l.closesAt),
+  };
+}
+
+export function toApiCombo(c: Combo, legs: ComboLeg[]): ApiCombo {
+  return {
+    id: c.id,
+    amount: round2(c.amount),
+    status: c.status === "SETTLED" ? "SETTLED" : "OPEN",
+    result: c.result === "WIN" || c.result === "LOSS" || c.result === "TIE" ? c.result : null,
+    payout: c.payout == null ? null : round2(c.payout),
+    createdAt: iso(c.createdAt),
+    legs: legs.map(toApiComboLeg),
   };
 }
 
