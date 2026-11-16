@@ -77,7 +77,7 @@ function AppContent() {
   const requestBusy=useRef(false), balanceRevision=useRef(0); const currency=user?.currency || 'USD';
   const showError=e=>Alert.alert('TradeFacile',e.message || 'Connexion impossible. Vérifie Internet.');
   const api=useCallback((path,body,method)=>request(path,token,body,method,lang),[token,lang]);
-  const loadAccount=useCallback(async t=>{ const data=await request('/api/me',t); setUser(data.user); setLang(data.user.lang || 'fr'); },[]);
+  const loadAccount=useCallback(async t=>{ const data=await request('/api/me',t); setUser(data.user); setLang(data.user.lang || 'fr'); },[setLang]);
   useEffect(()=>{ let live=true; (async()=>{ try {const saved=await SecureStore.getItemAsync(KEY); if(saved){ await loadAccount(saved); if(live)setToken(saved); }} catch(e){ if(e.status===401) await SecureStore.deleteItemAsync(KEY); } finally {if(live)setLoading(false);} })(); return ()=>{live=false}; },[loadAccount]);
   useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(t)},[]);
   useEffect(()=>{const subscription=BackHandler.addEventListener('hardwareBackPress',()=>{if(token && screen!=='Trader'){setScreen('Trader');return true;} if(!token && authMode!=='welcome'){setAuthMode('welcome');return true;} return false;});return()=>subscription.remove();},[token,screen,authMode]);
