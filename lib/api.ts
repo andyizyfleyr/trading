@@ -219,10 +219,10 @@ export interface ComboLegInput {
   durationSec: number;
 }
 
-export const apiPlaceCombo = (amount: number, legs: ComboLegInput[]) =>
-  request<{ combo: ApiCombo; balance: number }>("/api/combos", {
+export const apiPlaceCombo = (amount: number, legs: ComboLegInput[], amountExact?: ApiExactMoney) =>
+  request<{ combo: ApiCombo; balance: number; balanceExact?: ApiExactMoney }>("/api/combos", {
     method: "POST",
-    body: { amount, legs },
+    body: amountExact ? { amount, amountExact, legs } : { amount, legs },
   });
 
 export const apiMyCombos = (limit = 50) =>

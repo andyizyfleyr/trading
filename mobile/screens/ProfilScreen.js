@@ -4,7 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, Vibrati
 import { apiDeposit, apiSetCurrency, apiWithdraw, ApiError } from '../api';
 import { LANGS } from '../i18n';
 import { CURRENCIES, isCurrency, money } from '../money';
-import { CONFIG, COUNTRIES, CURRENCY_LABELS, INK } from '../theme';
+import { CONFIG, COUNTRIES, CURRENCY_LABELS, useTheme, useThemedStyles } from '../theme';
 import { ChevronDownIcon, LogoutIcon, MinusIcon, PlusIcon } from '../components/Icons';
 import { BottomSheet, Btn, SelectSheet } from '../components/Ui';
 
@@ -20,6 +20,8 @@ export const ProfilScreen = React.memo(function ProfilScreen({
   onRefresh,
   onLogout,
 }) {
+  const { ink, isLight, toggleTheme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,9 +80,9 @@ export const ProfilScreen = React.memo(function ProfilScreen({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handlePullRefresh}
-          tintColor={INK.action}
-          colors={[INK.action, INK.hausse]}
-          progressBackgroundColor={INK.carte}
+          tintColor={ink.action}
+          colors={[ink.action, ink.hausse]}
+          progressBackgroundColor={ink.carte}
         />
       }
     >
@@ -112,11 +114,11 @@ export const ProfilScreen = React.memo(function ProfilScreen({
       {/* Ajouter / Retirer : ouvrent un panneau */}
       <View style={styles.addRow}>
         <Btn variant="card" onPress={() => setSheet('deposit')} style={styles.bigBtn}>
-          <PlusIcon size={20} color={INK.texte} />
+          <PlusIcon size={20} color={ink.texte} />
           <Text style={styles.bigBtnText}>{t('Ajouter')}</Text>
         </Btn>
         <Btn variant="card" onPress={() => setSheet('withdraw')} style={styles.bigBtn}>
-          <MinusIcon size={20} color={INK.texte} />
+          <MinusIcon size={20} color={ink.texte} />
           <Text style={styles.bigBtnText}>{t('Retirer')}</Text>
         </Btn>
       </View>
@@ -135,7 +137,7 @@ export const ProfilScreen = React.memo(function ProfilScreen({
             <Text style={styles.curSelectText} numberOfLines={1}>
               {selectedCountry ? t(selectedCountry.name) : t('Choisir…')}
             </Text>
-            <ChevronDownIcon size={14} color={INK.doux} />
+            <ChevronDownIcon size={14} color={ink.doux} />
           </TouchableOpacity>
         </View>
 
@@ -151,7 +153,7 @@ export const ProfilScreen = React.memo(function ProfilScreen({
             <Text style={styles.curSelectText} numberOfLines={1}>
               {activeCurrency} ({CURRENCIES[activeCurrency][0]}) · {t(CURRENCY_LABELS[activeCurrency])}
             </Text>
-            <ChevronDownIcon size={14} color={INK.doux} />
+            <ChevronDownIcon size={14} color={ink.doux} />
           </TouchableOpacity>
         </View>
       </View>
@@ -170,9 +172,22 @@ export const ProfilScreen = React.memo(function ProfilScreen({
           style={styles.langBtn}
         >
           <Text style={styles.curSelectText}>{selectedLang.label}</Text>
-          <ChevronDownIcon size={14} color={INK.doux} />
+          <ChevronDownIcon size={14} color={ink.doux} />
         </TouchableOpacity>
       </View>
+
+      {/* Préférences : Mode clair */}
+      <TouchableOpacity
+        accessibilityRole="switch"
+        accessibilityState={{ checked: isLight }}
+        onPress={toggleTheme}
+        style={styles.prefRow}
+      >
+        <Text style={styles.prefLabel}>{t('Mode clair')}</Text>
+        <View style={isLight ? styles.calmOn : styles.calmOff}>
+          <View style={styles.calmKnob} />
+        </View>
+      </TouchableOpacity>
 
       {/* Préférences : Réduire les animations */}
       <TouchableOpacity
@@ -189,7 +204,7 @@ export const ProfilScreen = React.memo(function ProfilScreen({
 
       {/* Déconnexion */}
       <Btn variant="ghost" onPress={onLogout} style={styles.logoutBtn}>
-        <LogoutIcon size={16} color={INK.baisse} />
+        <LogoutIcon size={16} color={ink.baisse} />
         <Text style={styles.logoutText}>{t('Se déconnecter')}</Text>
       </Btn>
 
@@ -213,7 +228,7 @@ export const ProfilScreen = React.memo(function ProfilScreen({
               }
               style={styles.optBtn}
             >
-              <PlusIcon size={20} color={INK.texte} />
+              <PlusIcon size={20} color={ink.texte} />
               <Text style={styles.optBtnText}>{money(v, null, currency, lang)}</Text>
             </Btn>
           ))}
@@ -243,7 +258,7 @@ export const ProfilScreen = React.memo(function ProfilScreen({
               }
               style={styles.optBtn}
             >
-              <MinusIcon size={20} color={INK.texte} />
+              <MinusIcon size={20} color={ink.texte} />
               <Text style={styles.optBtnText}>{money(v, null, currency, lang)}</Text>
             </Btn>
           ))}
@@ -291,8 +306,9 @@ export const ProfilScreen = React.memo(function ProfilScreen({
   );
 });
 
-const styles = StyleSheet.create({
-  scroll: {
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    scroll: {
     flex: 1,
     backgroundColor: INK.fond,
   },

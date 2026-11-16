@@ -13,11 +13,12 @@ import {
 import { apiLogin, apiRegister, ApiError } from '../api';
 import { LANGS } from '../i18n';
 import { money } from '../money';
-import { CONFIG, INK } from '../theme';
+import { CONFIG, useTheme, useThemedStyles } from '../theme';
 import { ChevronDownIcon, SlideArt } from '../components/Icons';
 import { Btn, Field, SelectSheet } from '../components/Ui';
 
 function BrandRow({ compact = false }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.brandRow, compact && { marginBottom: 0 }]}>
       <View style={styles.brandMark}>
@@ -30,6 +31,8 @@ function BrandRow({ compact = false }) {
 }
 
 function LangPicker({ lang, setLang, t }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const current = LANGS.find((l) => l.code === lang) || LANGS[0];
   return (
@@ -41,7 +44,7 @@ function LangPicker({ lang, setLang, t }) {
         style={styles.langSelect}
       >
         <Text style={styles.langSelectText}>{current.label}</Text>
-        <ChevronDownIcon size={14} color={INK.doux} />
+        <ChevronDownIcon size={14} color={ink.doux} />
       </TouchableOpacity>
       <SelectSheet
         open={open}
@@ -58,6 +61,8 @@ function LangPicker({ lang, setLang, t }) {
 /* ---------- Connexion (identique à app/connexion/page.tsx) ---------- */
 
 export function ConnexionScreen({ lang, setLang, t, sessionExpired, onAuthSuccess, onGoRegister, onGoWelcome }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -102,7 +107,7 @@ export function ConnexionScreen({ lang, setLang, t, sessionExpired, onAuthSucces
               value={email}
               onChangeText={setEmail}
               placeholder="toi@exemple.com"
-              placeholderTextColor={INK.doux}
+              placeholderTextColor={ink.doux}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -115,7 +120,7 @@ export function ConnexionScreen({ lang, setLang, t, sessionExpired, onAuthSucces
               value={password}
               onChangeText={setPassword}
               placeholder={t('Ton mot de passe')}
-              placeholderTextColor={INK.doux}
+              placeholderTextColor={ink.doux}
               secureTextEntry
               autoCapitalize="none"
               textContentType="password"
@@ -156,6 +161,8 @@ export function ConnexionScreen({ lang, setLang, t, sessionExpired, onAuthSucces
 /* ---------- Inscription (identique à app/inscription/page.tsx) ---------- */
 
 export function InscriptionScreen({ lang, setLang, t, onAuthSuccess, onGoLogin }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -198,7 +205,7 @@ export function InscriptionScreen({ lang, setLang, t, onAuthSuccess, onGoLogin }
               value={email}
               onChangeText={setEmail}
               placeholder="toi@exemple.com"
-              placeholderTextColor={INK.doux}
+              placeholderTextColor={ink.doux}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -211,7 +218,7 @@ export function InscriptionScreen({ lang, setLang, t, onAuthSuccess, onGoLogin }
               value={password}
               onChangeText={setPassword}
               placeholder={t('Choisis un mot de passe')}
-              placeholderTextColor={INK.doux}
+              placeholderTextColor={ink.doux}
               secureTextEntry
               autoCapitalize="none"
               textContentType="newPassword"
@@ -261,6 +268,7 @@ const SLIDES = [
 ];
 
 export function BienvenueScreen({ lang, setLang, currency = 'USD', t, onFinish }) {
+  const styles = useThemedStyles(makeStyles);
   const [slide, setSlide] = useState(0);
   const last = slide === SLIDES.length - 1;
 
@@ -305,8 +313,9 @@ export function BienvenueScreen({ lang, setLang, currency = 'USD', t, onFinish }
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    flex: {
     flex: 1,
   },
   shell: {

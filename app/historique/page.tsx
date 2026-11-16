@@ -2,22 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
+import { ComboCard } from "@/components/ComboSheet";
 import { ErrorState, Skeleton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import { useServerOffset } from "@/hooks/useServerOffset";
-import { apiMyStats, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
+import { apiMyCombos, apiMyStats, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_RETRY_MS, SETTLE_TICK_MS } from "@/lib/config";
 import { HISTORY, STACK } from "@/lib/design";
 import { fmtDateTime, fmtDay, fmtGamePrice, fmtRemainShort, fmtTime } from "@/lib/format";
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
-import type { ApiExactMoney, ApiStats, ApiTrade } from "@/lib/types";
+import type { ApiCombo, ApiExactMoney, ApiStats, ApiTrade } from "@/lib/types";
 import { addExact, decimalFraction, fraction, subtractExact } from "@/lib/exact-money";
 
-type Filter = "all" | "open" | "settled";
+type Filter = "all" | "open" | "settled" | "combos";
 
-const FILTERS: Filter[] = ["all", "open", "settled"];
+const FILTERS: Filter[] = ["all", "open", "settled", "combos"];
 
 /** Ligne compacte : sens + jeu + mise + prix, résultat + heure à droite. */
 function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
@@ -69,6 +70,7 @@ export default function HistoriquePage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [asset, setAsset] = useState<string>("all");
   const [trades, setTrades] = useState<ApiTrade[]>([]);
+  const [combos, setCombos] = useState<ApiCombo[]>([]);
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,8 +110,12 @@ export default function HistoriquePage() {
         } catch {
           /* on affiche quand même l'historique */
         }
-        const { trades: list } = await apiMyTrades("all", HISTORY_LIMIT);
+        const [{ trades: list }, comboRes] = await Promise.all([
+          apiMyTrades("all", HISTORY_LIMIT),
+          apiMyCombos(HISTORY_LIMIT).catch(() => ({ combos: [] as ApiCombo[] })),
+        ]);
         setTrades(list);
+        setCombos(comboRes.combos);
         // Statistiques réelles (tous les trades, jamais tronquées).
         // Ignorées si le jeu a changé pendant l'appel (le tour
         // rattrapé rapportera les bonnes).
@@ -169,13 +175,26 @@ export default function HistoriquePage() {
         new Date(t.closesAt).getTime() <= serverNow &&
         (retryRef.current.get(t.id) ?? 0) <= serverNow
     );
-    if (due.length === 0) return;
+    const dueCombo = combos.some(
+      (c) =>
+        c.status === "OPEN" &&
+        c.legs.some((l) => l.status === "OPEN" && new Date(l.closesAt).getTime() <= serverNow) &&
+        (retryRef.current.get(-c.id) ?? 0) <= serverNow
+    );
+    if (due.length === 0 && !dueCombo) return;
     due.forEach((t) => retryRef.current.set(t.id, serverNow + SETTLE_RETRY_MS));
+    if (dueCombo) {
+      combos
+        .filter((c) => c.status === "OPEN")
+        .forEach((c) => retryRef.current.set(-c.id, serverNow + SETTLE_RETRY_MS));
+    }
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiSettle(due.map((t) => t.id));
-        if (!cancelled && res.settled.length > 0) load();
+        const res = await apiSettle(due.length > 0 ? due.map((t) => t.id) : undefined);
+        if (!cancelled && (res.settled.length > 0 || (res.combos && res.combos.length > 0) || dueCombo)) {
+          load();
+        }
       } catch {
         /* nouvel essai au prochain délai */
       }
@@ -183,7 +202,7 @@ export default function HistoriquePage() {
     return () => {
       cancelled = true;
     };
-  }, [serverNow, trades, load]);
+  }, [serverNow, trades, combos, load]);
 
   useEffect(() => {
     return () => {
@@ -198,6 +217,10 @@ export default function HistoriquePage() {
         (asset === "all" || t.symbol === asset)
     )
     .sort((a, b) => +new Date(b.openedAt) - +new Date(a.openedAt));
+
+  const visibleCombos = combos
+    .filter((c) => asset === "all" || c.legs.some((l) => l.symbol === asset))
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 
   // Statistiques réelles (tous les trades) ; à défaut, calculées sur les lignes affichées.
   const finished = trades.filter((t) => t.status === "SETTLED" && (asset === "all" || t.symbol === asset));
@@ -258,6 +281,14 @@ export default function HistoriquePage() {
     else groups.push({ day, rows: [t] });
   }
 
+  const comboGroups: { day: string; rows: ApiCombo[] }[] = [];
+  for (const c of visibleCombos) {
+    const day = fmtDay(c.createdAt, lang);
+    const last = comboGroups[comboGroups.length - 1];
+    if (last && last.day === day) last.rows.push(c);
+    else comboGroups.push({ day, rows: [c] });
+  }
+
   return (
     <RequireAuth>
       <div className={STACK.c2}>
@@ -316,7 +347,15 @@ export default function HistoriquePage() {
                 aria-pressed={filter === f}
                 className={filter === f ? HISTORY.chipOn : HISTORY.chipOff}
               >
-                {t(f === "all" ? "Toutes" : f === "open" ? "En cours" : "Terminées")}
+                {t(
+                  f === "all"
+                    ? "Toutes"
+                    : f === "open"
+                      ? "En cours"
+                      : f === "settled"
+                        ? "Terminées"
+                        : "Combinés"
+                )}
               </button>
             ))}
           </div>
@@ -331,6 +370,21 @@ export default function HistoriquePage() {
           </>
         ) : error ? (
           <ErrorState text={error} retry={load} />
+        ) : filter === "combos" ? (
+          visibleCombos.length === 0 ? (
+            <p className={HISTORY.empty}>{t("Aucun combiné")}</p>
+          ) : (
+            <div className={HISTORY.grid}>
+              {comboGroups.map((g) => (
+                <div key={g.day} className={HISTORY.grid}>
+                  <p className={HISTORY.group}>{g.day}</p>
+                  {g.rows.map((combo) => (
+                    <ComboCard key={`combo-${combo.id}`} combo={combo} now={serverNow} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )
         ) : visible.length === 0 ? (
           <p className={HISTORY.empty}>{t("Aucun trade")}</p>
         ) : (

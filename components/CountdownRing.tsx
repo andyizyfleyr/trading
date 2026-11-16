@@ -6,6 +6,7 @@ import { RING_TICK_MS, RING_URGENT_MS } from "@/lib/config";
 import { LAYOUT, RING, RINGTEXT } from "@/lib/design";
 import { fmtRemainShort } from "@/lib/format";
 import { useLang } from "@/lib/lang-context";
+import { useTheme } from "@/lib/theme-context";
 
 /**
  * Compte à rebours circulaire basé sur l'heure de fin serveur.
@@ -25,6 +26,7 @@ export function CountdownRing({
 }) {
   const offsetMs = useServerOffset();
   const { t } = useLang();
+  const { ink } = useTheme();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function CountdownRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={RING.track}
+          stroke={ink.ligne}
           strokeWidth={stroke}
         />
         <circle
@@ -74,7 +76,7 @@ export function CountdownRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={compact ? RING.miniLine : urgent ? RING.urgent : RING.line}
+          stroke={compact ? ink.primary : urgent ? ink.baisse : ink.action}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}

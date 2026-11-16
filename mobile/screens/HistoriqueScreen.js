@@ -1,11 +1,10 @@
 // Écran Historique : miroir exact de app/historique/page.tsx.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { apiMyStats, apiMyTrades, apiSettle, ApiError } from '../api';
+import { apiMyCombos, apiMyStats, apiMyTrades, apiSettle, ApiError } from '../api';
 import { absExact, addExact, money, subtractExact } from '../money';
 import {
   CONFIG,
-  INK,
   SYMBOLS,
   durationLabel,
   fmtDateTime,
@@ -14,13 +13,17 @@ import {
   fmtRemainShort,
   fmtTime,
   symbolDisplay,
+  useTheme,
+  useThemedStyles,
 } from '../theme';
+import { ComboCard } from '../components/ComboSheet';
 import { ChevronDownIcon } from '../components/Icons';
 import { ErrorState, SelectSheet, Skeleton } from '../components/Ui';
 
-const FILTERS = ['all', 'open', 'settled'];
+const FILTERS = ['all', 'open', 'settled', 'combos'];
 
 const TradeRow = React.memo(function TradeRow({ trade, now, currency, lang, t }) {
+  const styles = useThemedStyles(makeStyles);
   const isUp = trade.direction === 'UP';
   const open = trade.status === 'OPEN';
   const won = trade.result === 'WIN';
@@ -96,10 +99,13 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
   onBalance,
   onRefresh,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [filter, setFilter] = useState('all');
   const [asset, setAsset] = useState('all');
   const [assetSheetOpen, setAssetSheetOpen] = useState(false);
   const [trades, setTrades] = useState([]);
+  const [combos, setCombos] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,8 +141,12 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
         } catch {
           /* affiche l'historique malgré tout */
         }
-        const res = await apiMyTrades('all', CONFIG.HISTORY_LIMIT);
+        const [res, comboRes] = await Promise.all([
+          apiMyTrades('all', CONFIG.HISTORY_LIMIT),
+          apiMyCombos(CONFIG.HISTORY_LIMIT).catch(() => ({ combos: [] })),
+        ]);
         setTrades((res && res.trades) || []);
+        setCombos((comboRes && comboRes.combos) || []);
         try {
           const stRes = await apiMyStats(scope === 'all' ? undefined : scope);
           if (scope === assetRef.current) setStats((stRes && stRes.stats) || null);
@@ -174,8 +184,8 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
   }, [load, asset, isActive]);
 
   const hasOpenTrades = useMemo(
-    () => trades.some((tr) => tr.status === 'OPEN'),
-    [trades]
+    () => trades.some((tr) => tr.status === 'OPEN') || combos.some((c) => c.status === 'OPEN'),
+    [trades, combos]
   );
 
   useEffect(() => {
@@ -185,12 +195,12 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
     return () => clearInterval(timer);
   }, [isActive, hasOpenTrades]);
 
-  // Clôture automatique des trades ouverts arrivés à échéance.
+  // Clôture automatique des trades et combinés ouverts arrivés à échéance.
   useEffect(() => {
     if (!isActive || !hasOpenTrades) return undefined;
     const openIds = new Set(trades.filter((tr) => tr.status === 'OPEN').map((tr) => tr.id));
     retryRef.current.forEach((_, id) => {
-      if (!openIds.has(id)) retryRef.current.delete(id);
+      if (id > 0 && !openIds.has(id)) retryRef.current.delete(id);
     });
     const due = trades.filter(
       (tr) =>
@@ -198,13 +208,26 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
         new Date(tr.closesAt).getTime() <= serverNow &&
         (retryRef.current.get(tr.id) ?? 0) <= serverNow
     );
-    if (due.length === 0) return undefined;
+    const dueCombo = combos.some(
+      (c) =>
+        c.status === 'OPEN' &&
+        c.legs.some((l) => l.status === 'OPEN' && new Date(l.closesAt).getTime() <= serverNow) &&
+        (retryRef.current.get(-c.id) ?? 0) <= serverNow
+    );
+    if (due.length === 0 && !dueCombo) return undefined;
     due.forEach((tr) => retryRef.current.set(tr.id, serverNow + CONFIG.SETTLE_RETRY_MS));
+    if (dueCombo) {
+      combos
+        .filter((c) => c.status === 'OPEN')
+        .forEach((c) => retryRef.current.set(-c.id, serverNow + CONFIG.SETTLE_RETRY_MS));
+    }
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiSettle(due.map((tr) => tr.id));
-        if (!cancelled && res && res.settled && res.settled.length > 0) load({ silent: true });
+        const res = await apiSettle(due.length > 0 ? due.map((tr) => tr.id) : undefined);
+        if (!cancelled && res && ((res.settled && res.settled.length > 0) || (res.combos && res.combos.length > 0) || dueCombo)) {
+          load({ silent: true });
+        }
       } catch {
         /* réessaiera plus tard */
       }
@@ -212,7 +235,7 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
     return () => {
       cancelled = true;
     };
-  }, [isActive, hasOpenTrades, serverNow, trades, load]);
+  }, [isActive, hasOpenTrades, serverNow, trades, combos, load]);
 
   useEffect(() => {
     return () => {
@@ -220,7 +243,7 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
     };
   }, []);
 
-  const { visible, finished, settledCount, winRate, net, netText, groups } = useMemo(() => {
+  const { visible, visibleCombos, finished, settledCount, winRate, net, netText, groups, comboGroups } = useMemo(() => {
     const vis = trades
       .filter(
         (tr) =>
@@ -228,6 +251,10 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
           (asset === 'all' || tr.symbol === asset)
       )
       .sort((a, b) => +new Date(b.openedAt) - +new Date(a.openedAt));
+
+    const visCombos = combos
+      .filter((c) => asset === 'all' || c.legs.some((l) => l.symbol === asset))
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 
     const fin = trades.filter(
       (tr) => tr.status === 'SETTLED' && (asset === 'all' || tr.symbol === asset)
@@ -279,16 +306,26 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
       else grp.push({ day, rows: [tr] });
     }
 
+    const cGrp = [];
+    for (const c of visCombos) {
+      const day = fmtDay(c.createdAt, lang);
+      const last = cGrp[cGrp.length - 1];
+      if (last && last.day === day) last.rows.push(c);
+      else cGrp.push({ day, rows: [c] });
+    }
+
     return {
       visible: vis,
+      visibleCombos: visCombos,
       finished: fin,
       settledCount: sCount,
       winRate: wRate,
       net: netVal,
       netText: nText,
       groups: grp,
+      comboGroups: cGrp,
     };
-  }, [trades, filter, asset, stats, currency, lang]);
+  }, [trades, combos, filter, asset, stats, currency, lang]);
 
   const assetOptions = useMemo(
     () => [
@@ -338,9 +375,9 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handlePullRefresh}
-          tintColor={INK.action}
-          colors={[INK.action, INK.hausse]}
-          progressBackgroundColor={INK.carte}
+          tintColor={ink.action}
+          colors={[ink.action, ink.hausse]}
+          progressBackgroundColor={ink.carte}
         />
       }
     >
@@ -385,7 +422,7 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
         </View>
       </View>
 
-      {/* Filtres : sélecteur de jeu + onglets Toutes / En cours / Terminées */}
+      {/* Filtres : sélecteur de jeu + onglets Toutes / En cours / Terminées / Combinés */}
       <View style={styles.filterRow}>
         <TouchableOpacity
           accessibilityRole="button"
@@ -396,7 +433,7 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
           <Text style={styles.selectText} numberOfLines={1}>
             {assetLabel}
           </Text>
-          <ChevronDownIcon size={14} color={INK.doux} />
+          <ChevronDownIcon size={14} color={ink.doux} />
         </TouchableOpacity>
 
         <View style={styles.chipsBox}>
@@ -410,7 +447,15 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
                 style={[styles.chip, active && styles.chipOn]}
               >
                 <Text style={[styles.chipText, active ? styles.chipTextOn : styles.chipTextOff]} numberOfLines={1}>
-                  {t(f === 'all' ? 'Toutes' : f === 'open' ? 'En cours' : 'Terminées')}
+                  {t(
+                    f === 'all'
+                      ? 'Toutes'
+                      : f === 'open'
+                        ? 'En cours'
+                        : f === 'settled'
+                          ? 'Terminées'
+                          : 'Combinés'
+                  )}
                 </Text>
               </TouchableOpacity>
             );
@@ -428,6 +473,28 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
         </View>
       ) : error ? (
         <ErrorState text={error} retry={load} retryLabel={t('Réessayer')} />
+      ) : filter === 'combos' ? (
+        visibleCombos.length === 0 ? (
+          <Text style={styles.empty}>{t('Aucun combiné')}</Text>
+        ) : (
+          <View style={styles.grid}>
+            {comboGroups.map((g) => (
+              <View key={g.day} style={styles.grid}>
+                <Text style={styles.group}>{g.day}</Text>
+                {g.rows.map((combo) => (
+                  <ComboCard
+                    key={`combo-${combo.id}`}
+                    combo={combo}
+                    now={combo.status === 'OPEN' ? serverNow : 0}
+                    currency={currency}
+                    lang={lang}
+                    t={t}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        )
       ) : visible.length === 0 ? (
         <Text style={styles.empty}>{t('Aucun trade')}</Text>
       ) : (
@@ -470,8 +537,9 @@ export const HistoriqueScreen = React.memo(function HistoriqueScreen({
   );
 });
 
-const styles = StyleSheet.create({
-  scroll: {
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    scroll: {
     flex: 1,
     backgroundColor: INK.fond,
   },

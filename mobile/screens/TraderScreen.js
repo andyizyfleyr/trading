@@ -17,6 +17,7 @@ import Svg, { Line } from 'react-native-svg';
 import {
   apiCancelScheduled,
   apiGetPrice,
+  apiMyCombos,
   apiMyTrades,
   apiOpenTrade,
   apiScheduleTrade,
@@ -40,7 +41,6 @@ import {
 import {
   CONFIG,
   DURATIONS,
-  INK,
   RULES,
   SYMBOLS,
   fmtDurMS,
@@ -51,9 +51,12 @@ import {
   isDuration,
   isOtc,
   symbolDisplay,
+  useTheme,
+  useThemedStyles,
 } from '../theme';
 import { CandleChart } from '../components/CandleChart';
-import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, MinusIcon, PlusIcon } from '../components/Icons';
+import { ComboCard, ComboSheet } from '../components/ComboSheet';
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, LayersIcon, MinusIcon, PlusIcon } from '../components/Icons';
 import { ActiveTradeCard, ResultCard, ScheduledTrades, TimePickerPanel, chunkRows } from '../components/TradeCards';
 import { BottomSheet, Btn, GuideBubbles, SelectSheet } from '../components/Ui';
 
@@ -75,6 +78,8 @@ function slotFromTime(v, fromMs) {
 }
 
 const DottedLeader = React.memo(function DottedLeader() {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [width, setWidth] = useState(0);
   return (
     <View
@@ -91,7 +96,7 @@ const DottedLeader = React.memo(function DottedLeader() {
             y1={1}
             x2={width}
             y2={1}
-            stroke="rgba(142,147,167,0.6)"
+            stroke={ink.dotsStroke}
             strokeWidth={2}
             strokeDasharray="2,4"
           />
@@ -115,6 +120,8 @@ export const TraderScreen = React.memo(function TraderScreen({
   pendingSignal,
   onConsumeSignal,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [symbol, setSymbol] = useState(SYMBOLS[0].id);
   const [durationSec, setDurationSec] = useState(CONFIG.DEFAULT_DURATION_SEC);
   const [amountStr, setAmountStr] = useState(() => convertUsdToInput(CONFIG.DEFAULT_BET, currency));
@@ -123,6 +130,7 @@ export const TraderScreen = React.memo(function TraderScreen({
   const [price, setPrice] = useState(null);
   const [otherPrices, setOtherPrices] = useState({});
   const [openTrades, setOpenTrades] = useState([]);
+  const [openCombos, setOpenCombos] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [results, setResults] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -132,6 +140,8 @@ export const TraderScreen = React.memo(function TraderScreen({
   const [durSheetOpen, setDurSheetOpen] = useState(false);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
   const [tradesOpen, setTradesOpen] = useState(false);
+  const [comboOpen, setComboOpen] = useState(false);
+  const [comboLegs, setComboLegs] = useState([]);
   const [showGuide, setShowGuide] = useState(false);
 
   const [quand, setQuand] = useState('now');
@@ -254,6 +264,7 @@ export const TraderScreen = React.memo(function TraderScreen({
   const needsClock =
     isActive &&
     (openTrades.length > 0 ||
+      openCombos.length > 0 ||
       scheduled.length > 0 ||
       durSheetOpen ||
       timeSheetOpen ||
@@ -376,12 +387,16 @@ export const TraderScreen = React.memo(function TraderScreen({
     };
   }, [otherSymbolsKey, isActive]);
 
-  // Chargement des prédictions en cours.
+  // Chargement des prédictions et combinés en cours.
   const loadOpen = useCallback(async () => {
     try {
-      const res = await apiMyTrades('open', CONFIG.TRADES_PAGE_LIMIT);
+      const [res, comboRes] = await Promise.all([
+        apiMyTrades('open', CONFIG.TRADES_PAGE_LIMIT),
+        apiMyCombos(CONFIG.TRADES_PAGE_LIMIT).catch(() => ({ combos: [] })),
+      ]);
       const list = (res && res.trades) || [];
       setOpenTrades(list);
+      setOpenCombos(((comboRes && comboRes.combos) || []).filter((c) => c.status === 'OPEN'));
       const fresh = new Set(list.map((tr) => tr.id));
       const vanished = [...openIdsRef.current].filter((id) => !fresh.has(id) && !shownRef.current.has(id));
       openIdsRef.current = fresh;
@@ -462,17 +477,40 @@ export const TraderScreen = React.memo(function TraderScreen({
     [loadScheduled, onBalance, say, t]
   );
 
-  // Clôture automatique à l'échéance (uniquement s'il y a des trades ouverts).
+  // Clôture automatique à l'échéance (trades simples + combinés).
   useEffect(() => {
-    if (!isActive || openTrades.length === 0) return undefined;
+    if (!isActive || (openTrades.length === 0 && openCombos.length === 0)) return undefined;
     const timer = setInterval(async () => {
       if (settlingRef.current || !online) return;
       const current = Date.now() + (offsetMs || 0);
       const due = openTrades.filter((tr) => new Date(tr.closesAt).getTime() <= current);
-      if (due.length === 0) return;
+      const dueCombo = openCombos.some((c) =>
+        c.legs.some((l) => l.status === 'OPEN' && new Date(l.closesAt).getTime() <= current)
+      );
+      if (due.length === 0 && !dueCombo) return;
       settlingRef.current = true;
       try {
-        const res = await apiSettle(due.map((d) => d.id));
+        const res = await apiSettle(due.length > 0 ? due.map((d) => d.id) : undefined);
+        const settledCombos = (res && res.combos) || [];
+        if (settledCombos.length > 0) {
+          setOpenCombos((prev) =>
+            prev.filter((p) => !settledCombos.some((sc) => sc.id === p.id))
+          );
+          onBalance(res.balance, res.balanceExact);
+          doVibrate(CONFIG.VIBRATE.settle);
+          const sc = settledCombos[0];
+          if (sc.result === 'WIN') {
+            say(t('Combiné gagné +{amt}', { amt: money(sc.payout ?? 0, sc.payoutExact, currency, lang) }), 'win');
+          } else if (sc.result === 'LOSS') {
+            say(t('Combiné perdu −{amt}', { amt: money(sc.amount, sc.amountExact, currency, lang) }), 'loss');
+          } else {
+            say(t('Égalité : mise rendue'), null);
+          }
+        } else if (dueCombo) {
+          apiMyCombos(CONFIG.TRADES_PAGE_LIMIT)
+            .then((r) => setOpenCombos(((r && r.combos) || []).filter((c) => c.status === 'OPEN')))
+            .catch(() => {});
+        }
         if (res && res.settled && res.settled.length > 0) {
           res.settled.forEach((s) => shownRef.current.add(s.id));
           setOpenTrades((prev) => prev.filter((p) => !res.settled.some((s) => s.id === p.id)));
@@ -508,7 +546,17 @@ export const TraderScreen = React.memo(function TraderScreen({
       }
     }, CONFIG.SETTLE_TICK_MS);
     return () => clearInterval(timer);
-  }, [isActive, openTrades, online, offsetMs, onBalance, doVibrate, say, t, currency, lang]);
+  }, [isActive, openTrades, openCombos, online, offsetMs, onBalance, doVibrate, say, t, currency, lang]);
+
+  const handleComboPlaced = useCallback(
+    (combo, newBalance, newBalanceExact) => {
+      setOpenCombos((prev) => [combo, ...prev.filter((c) => c.id !== combo.id)]);
+      onBalance(newBalance, newBalanceExact);
+      setTradesOpen(true);
+      say(t('Combiné placé ({n} jambes)', { n: combo.legs.length }), null);
+    },
+    [onBalance, say, t]
+  );
 
   // Calculs du panneau d'ordre
   const serverNowMs = now + (offsetMs || 0);
@@ -886,19 +934,28 @@ export const TraderScreen = React.memo(function TraderScreen({
     [scheduled, serverNowMs]
   );
 
+  const openTotalCount = sortedOpen.length + openCombos.length;
+  const openDeadlines = [
+    ...sortedOpen.map((tr) => +new Date(tr.closesAt)),
+    ...openCombos.flatMap((c) =>
+      c.legs.filter((l) => l.status === 'OPEN').map((l) => +new Date(l.closesAt))
+    ),
+  ];
   const nearestMs =
-    sortedOpen.length === 0 ? 0 : Math.max(0, +new Date(sortedOpen[0].closesAt) - serverNowMs);
+    openDeadlines.length === 0 ? 0 : Math.max(0, Math.min(...openDeadlines) - serverNowMs);
   const nextSchedMs =
     scheduledUp.length === 0
       ? 0
       : Math.max(0, Math.min(...scheduledUp.map((tr) => new Date(tr.openedAt).getTime())) - serverNowMs);
-  const totalStaked = sortedOpen.reduce((sum, tr) => sum + tr.amount, 0);
+  const totalStaked =
+    sortedOpen.reduce((sum, tr) => sum + tr.amount, 0) +
+    openCombos.reduce((sum, c) => sum + c.amount, 0);
   const scheduledStaked = scheduledUp.reduce((sum, tr) => sum + tr.amount, 0);
-  const totalStakedExact = sumTradeAmounts(sortedOpen);
+  const totalStakedExact = openCombos.length === 0 ? sumTradeAmounts(sortedOpen) : undefined;
   const scheduledStakedExact = sumTradeAmounts(scheduledUp);
   const priceOf = (tr) => (tr.symbol === symbol ? price : otherPrices[tr.symbol] ?? null);
 
-  const encoursVisible = tradesOpen && (sortedOpen.length > 0 || scheduledUp.length > 0);
+  const encoursVisible = tradesOpen && (openTotalCount > 0 || scheduledUp.length > 0);
   const asset = SYMBOLS.find((s) => s.id === symbol) || SYMBOLS[0];
   const payoutPct = Math.round(RULES.WIN_PAYOUT_RATIO * 100);
   const pendingRemainMs = pending
@@ -939,9 +996,9 @@ export const TraderScreen = React.memo(function TraderScreen({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handlePullRefresh}
-            tintColor={INK.action}
-            colors={[INK.action, INK.hausse]}
-            progressBackgroundColor={INK.carte}
+            tintColor={ink.action}
+            colors={[ink.action, ink.hausse]}
+            progressBackgroundColor={ink.carte}
           />
         }
       >
@@ -963,7 +1020,7 @@ export const TraderScreen = React.memo(function TraderScreen({
           />
 
         {/* Pastille « N en cours » en bas à gauche du graphique */}
-        {sortedOpen.length > 0 || scheduledUp.length > 0 ? (
+        {openTotalCount > 0 || scheduledUp.length > 0 ? (
           <TouchableOpacity
             accessibilityRole="button"
             onPress={() => setTradesOpen(true)}
@@ -971,8 +1028,8 @@ export const TraderScreen = React.memo(function TraderScreen({
           >
             <View style={styles.pillDot} />
             <Text style={styles.pillText}>
-              {sortedOpen.length > 0
-                ? t('{n} en cours', { n: sortedOpen.length })
+              {openTotalCount > 0
+                ? t('{n} en cours', { n: openTotalCount })
                 : t('Programmé(es) ({n})', { n: scheduledUp.length })}
             </Text>
           </TouchableOpacity>
@@ -996,7 +1053,7 @@ export const TraderScreen = React.memo(function TraderScreen({
           </View>
         ) : (
           <>
-            {/* Ligne jeu + pourcentage de gain */}
+            {/* Ligne jeu + pourcentage de gain + bouton Combiné */}
             <View style={styles.assetRow}>
               <TouchableOpacity
                 accessibilityRole="button"
@@ -1009,7 +1066,23 @@ export const TraderScreen = React.memo(function TraderScreen({
                   {symbolDisplay(symbol)}
                 </Text>
                 <Text style={styles.payout}>{payoutPct}%</Text>
-                <ChevronDownIcon size={16} color={INK.doux} />
+                <ChevronDownIcon size={16} color={ink.doux} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t('Combiné')}
+                onPress={() => setComboOpen(true)}
+                style={[styles.comboBtn, comboLegs.length > 0 && styles.comboBtnOn]}
+              >
+                <LayersIcon size={14} color={comboLegs.length > 0 ? ink.action : ink.texte} />
+                <Text style={[styles.comboBtnText, comboLegs.length > 0 && styles.comboBtnTextOn]}>
+                  {t('Combiné')}
+                </Text>
+                {comboLegs.length > 0 ? (
+                  <View style={styles.comboBadge}>
+                    <Text style={styles.comboBadgeText}>{comboLegs.length}</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             </View>
 
@@ -1050,7 +1123,7 @@ export const TraderScreen = React.memo(function TraderScreen({
                     onPress={() => stepBet(-1)}
                     style={styles.stepBtn}
                   >
-                    <MinusIcon size={14} color={INK.texte} />
+                    <MinusIcon size={14} color={ink.texte} />
                   </TouchableOpacity>
                   <TextInput
                     value={amountStr}
@@ -1066,7 +1139,7 @@ export const TraderScreen = React.memo(function TraderScreen({
                     onPress={() => stepBet(1)}
                     style={styles.stepBtn}
                   >
-                    <PlusIcon size={14} color={INK.texte} />
+                    <PlusIcon size={14} color={ink.texte} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1292,27 +1365,27 @@ export const TraderScreen = React.memo(function TraderScreen({
         />
       </BottomSheet>
 
-      {/* BottomSheet 4 : Prédictions en cours + programmées */}
+      {/* BottomSheet 4 : Prédictions en cours + combinés + programmées */}
       <BottomSheet
         open={encoursVisible}
         onClose={() => setTradesOpen(false)}
         title={
-          sortedOpen.length > 0
-            ? t('En cours ({n})', { n: sortedOpen.length })
+          openTotalCount > 0
+            ? t('En cours ({n})', { n: openTotalCount })
             : t('Programmé(es) ({n})', { n: scheduledUp.length })
         }
         header={
           <View style={styles.encoursHead}>
             <Text style={styles.encoursHeadTitle}>
-              {sortedOpen.length > 0 ? t('En cours') : t('Programmé(es)')}
+              {openTotalCount > 0 ? t('En cours') : t('Programmé(es)')}
             </Text>
             <View style={styles.encoursBadge}>
               <Text style={styles.encoursBadgeText}>
-                {sortedOpen.length > 0 ? sortedOpen.length : scheduledUp.length}
+                {openTotalCount > 0 ? openTotalCount : scheduledUp.length}
               </Text>
             </View>
             <Text style={styles.encoursSum} numberOfLines={2}>
-              {sortedOpen.length > 0 ? (
+              {openTotalCount > 0 ? (
                 <>
                   {t('Mises')}{' '}
                   <Text style={styles.encoursSumB}>
@@ -1322,14 +1395,14 @@ export const TraderScreen = React.memo(function TraderScreen({
                   <Text style={styles.encoursSumB}>{fmtRemainShort(nearestMs)}</Text>
                 </>
               ) : null}
-              {sortedOpen.length > 0 && scheduledUp.length > 0 ? ' · ' : null}
+              {openTotalCount > 0 && scheduledUp.length > 0 ? ' · ' : null}
               {scheduledUp.length > 0 ? (
                 <>
                   {t('Programmé(es)')}{' '}
                   <Text style={styles.encoursSumB}>
                     {money(scheduledStaked, scheduledStakedExact, currency, lang)}
                   </Text>
-                  {sortedOpen.length === 0 ? (
+                  {openTotalCount === 0 ? (
                     <>
                       {' '}· {t('Départ dans')}{' '}
                       <Text style={styles.encoursSumB}>{fmtRemainShort(nextSchedMs)}</Text>
@@ -1361,6 +1434,16 @@ export const TraderScreen = React.memo(function TraderScreen({
               t={t}
             />
           ))}
+          {openCombos.map((combo) => (
+            <ComboCard
+              key={`combo-${combo.id}`}
+              combo={combo}
+              now={serverNowMs}
+              currency={currency}
+              lang={lang}
+              t={t}
+            />
+          ))}
           <ScheduledTrades
             trades={scheduledUp}
             currency={currency}
@@ -1368,11 +1451,27 @@ export const TraderScreen = React.memo(function TraderScreen({
             t={t}
             onCancel={cancelScheduled}
           />
-          {sortedOpen.length === 0 && scheduledUp.length === 0 ? (
+          {openTotalCount === 0 && scheduledUp.length === 0 ? (
             <Text style={styles.encoursEmpty}>{t('Aucun trade en cours')}</Text>
           ) : null}
         </View>
       </BottomSheet>
+
+      {/* BottomSheet 4b : Combiné (2 à 5 prédictions) */}
+      <ComboSheet
+        open={comboOpen}
+        onClose={() => setComboOpen(false)}
+        defaultSymbol={symbol}
+        user={user}
+        currency={currency}
+        lang={lang}
+        calm={calm}
+        online={online}
+        legs={comboLegs}
+        onLegsChange={setComboLegs}
+        onPlaced={handleComboPlaced}
+        t={t}
+      />
 
       {/* BottomSheet 5 : Résultat (un à la fois + bouton Rejouer) */}
       <BottomSheet
@@ -1425,70 +1524,108 @@ export const TraderScreen = React.memo(function TraderScreen({
   );
 });
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: INK.fond,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: INK.fond,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  chartBox: {
-    flex: 1,
-    minHeight: 140,
-    position: 'relative',
-  },
-  pill: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    zIndex: 3,
-    height: 26,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: INK.ligne,
-    backgroundColor: INK.puce,
-    paddingHorizontal: 10,
-  },
-  pillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: INK.action,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: INK.texte,
-    fontVariant: ['tabular-nums'],
-  },
-  panel: {
-    borderRadius: 12,
-    backgroundColor: INK.carte,
-    padding: 12,
-    gap: 8,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  assetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: INK.fond,
+    },
+    scroll: {
+      flex: 1,
+      backgroundColor: INK.fond,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
+      gap: 8,
+    },
+    chartBox: {
+      flex: 1,
+      minHeight: 140,
+      position: 'relative',
+    },
+    pill: {
+      position: 'absolute',
+      bottom: 8,
+      left: 8,
+      zIndex: 3,
+      height: 26,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.puce,
+      paddingHorizontal: 10,
+    },
+    pillDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: INK.action,
+    },
+    pillText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: INK.texte,
+      fontVariant: ['tabular-nums'],
+    },
+    panel: {
+      borderRadius: 12,
+      backgroundColor: INK.carte,
+      padding: 12,
+      gap: 8,
+    },
+    assetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    assetBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
+    },
+    comboBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      height: 30,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.puce,
+      paddingHorizontal: 9,
+    },
+    comboBtnOn: {
+      borderColor: INK.action,
+      backgroundColor: 'rgba(46,153,251,0.15)',
+    },
+    comboBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: INK.texte,
+    },
+    comboBtnTextOn: {
+      color: INK.action,
+    },
+    comboBadge: {
+      borderRadius: 999,
+      backgroundColor: INK.primary,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    comboBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      fontVariant: ['tabular-nums'],
+    },
   assetDot: {
     width: 20,
     height: 20,

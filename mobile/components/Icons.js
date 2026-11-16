@@ -1,7 +1,7 @@
 // Icônes SVG identiques à components/Icons.tsx + illustrations de Bienvenue.
 import React from 'react';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
-import { INK } from '../theme';
+import { INK, useTheme } from '../theme';
 
 function IconSvg({ children, size = 20, color = INK.texte }) {
   return (
@@ -140,22 +140,50 @@ export function SignalIcon({ size = 18, color = INK.texte }) {
   );
 }
 
+export function SunIcon({ size = 16, color = INK.texte }) {
+  return (
+    <IconSvg size={size} color={color}>
+      <Circle cx={12} cy={12} r={4} />
+      <Path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </IconSvg>
+  );
+}
+
+export function MoonIcon({ size = 16, color = INK.texte }) {
+  return (
+    <IconSvg size={size} color={color}>
+      <Path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+    </IconSvg>
+  );
+}
+
+export function LayersIcon({ size = 14, color = INK.texte }) {
+  return (
+    <IconSvg size={size} color={color}>
+      <Path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z" />
+      <Path d="m3 12 9 4.5 9-4.5" />
+      <Path d="m3 16.5 9 4.5 9-4.5" />
+    </IconSvg>
+  );
+}
+
 /** Illustrations SVG de Bienvenue (identiques à app/bienvenue/page.tsx). */
 export function SlideArt({ variant, t, zeroText }) {
+  const { ink } = useTheme();
   if (variant === 0) {
     return (
       <Svg viewBox="0 0 200 140" width="100%" height={160}>
-        <Rect x={30} y={70} width={16} height={40} rx={3} fill={INK.hausse} />
-        <Rect x={36} y={58} width={4} height={64} fill={INK.hausse} />
-        <Rect x={62} y={50} width={16} height={46} rx={3} fill={INK.hausse} />
-        <Rect x={68} y={40} width={4} height={66} fill={INK.hausse} />
-        <Rect x={94} y={66} width={16} height={42} rx={3} fill={INK.baisse} />
-        <Rect x={100} y={52} width={4} height={66} fill={INK.baisse} />
-        <Rect x={126} y={34} width={16} height={50} rx={3} fill={INK.hausse} />
-        <Rect x={132} y={24} width={4} height={70} fill={INK.hausse} />
-        <Rect x={158} y={52} width={16} height={38} rx={3} fill={INK.baisse} />
-        <Rect x={164} y={42} width={4} height={58} fill={INK.baisse} />
-        <SvgText x={100} y={130} textAnchor="middle" fill={INK.doux} fontSize={14}>
+        <Rect x={30} y={70} width={16} height={40} rx={3} fill={ink.hausse} />
+        <Rect x={36} y={58} width={4} height={64} fill={ink.hausse} />
+        <Rect x={62} y={50} width={16} height={46} rx={3} fill={ink.hausse} />
+        <Rect x={68} y={40} width={4} height={66} fill={ink.hausse} />
+        <Rect x={94} y={66} width={16} height={42} rx={3} fill={ink.baisse} />
+        <Rect x={100} y={52} width={4} height={66} fill={ink.baisse} />
+        <Rect x={126} y={34} width={16} height={50} rx={3} fill={ink.hausse} />
+        <Rect x={132} y={24} width={4} height={70} fill={ink.hausse} />
+        <Rect x={158} y={52} width={16} height={38} rx={3} fill={ink.baisse} />
+        <Rect x={164} y={42} width={4} height={58} fill={ink.baisse} />
+        <SvgText x={100} y={130} textAnchor="middle" fill={ink.doux} fontSize={14}>
           {t('▲ monte · ▼ descend')}
         </SvgText>
       </Svg>
@@ -167,13 +195,13 @@ export function SlideArt({ variant, t, zeroText }) {
         <Path
           d="M10 110 L50 90 L80 100 L120 60 L150 70 L190 30"
           fill="none"
-          stroke={INK.action}
+          stroke={ink.action}
           strokeWidth={5}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <Circle cx={190} cy={30} r={7} fill={INK.hausse} />
-        <SvgText x={100} y={130} textAnchor="middle" fill={INK.doux} fontSize={14}>
+        <Circle cx={190} cy={30} r={7} fill={ink.hausse} />
+        <SvgText x={100} y={130} textAnchor="middle" fill={ink.doux} fontSize={14}>
           {t('prix en direct')}
         </SvgText>
       </Svg>
@@ -181,17 +209,17 @@ export function SlideArt({ variant, t, zeroText }) {
   }
   return (
     <Svg viewBox="0 0 200 140" width="100%" height={160}>
-      <Rect x={55} y={25} width={90} height={70} rx={10} fill={INK.carte} stroke={INK.action} strokeWidth={3} />
-      <SvgText x={100} y={58} textAnchor="middle" fill={INK.texte} fontSize={22} fontWeight="800">
+      <Rect x={55} y={25} width={90} height={70} rx={10} fill={ink.carte} stroke={ink.action} strokeWidth={3} />
+      <SvgText x={100} y={58} textAnchor="middle" fill={ink.texte} fontSize={22} fontWeight="800">
         {zeroText}
       </SvgText>
-      <SvgText x={100} y={80} textAnchor="middle" fill={INK.doux} fontSize={13}>
+      <SvgText x={100} y={80} textAnchor="middle" fill={ink.doux} fontSize={13}>
         {t('recharge pour jouer')}
       </SvgText>
       <Path
         d="M85 108l10 10 20-22"
         fill="none"
-        stroke={INK.hausse}
+        stroke={ink.hausse}
         strokeWidth={6}
         strokeLinecap="round"
         strokeLinejoin="round"

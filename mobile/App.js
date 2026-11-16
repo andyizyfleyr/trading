@@ -1,5 +1,5 @@
 // TradeFacile mobile — Expo SDK 52 (parité complète avec la version web mobile).
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
   BackHandler,
@@ -15,8 +15,15 @@ import * as SecureStore from 'expo-secure-store';
 import { apiMe, apiServerTime, apiSetLang, apiSettle, configureApi } from './api';
 import { isLang, tr } from './i18n';
 import { isCurrency, money } from './money';
-import { CONFIG, INK } from './theme';
-import { ChartIcon, HistoryIcon, SignalIcon, WalletIcon } from './components/Icons';
+import { CONFIG, ThemeContext, getThemeInk, syncStatusBar } from './theme';
+import {
+  ChartIcon,
+  HistoryIcon,
+  MoonIcon,
+  SignalIcon,
+  SunIcon,
+  WalletIcon,
+} from './components/Icons';
 import { SplashScreen } from './components/Ui';
 import { BienvenueScreen, ConnexionScreen, InscriptionScreen } from './screens/AuthScreens';
 import { HistoriqueScreen } from './screens/HistoriqueScreen';
@@ -39,6 +46,7 @@ export default function App() {
   const [screen, setScreen] = useState('Trader'); // 'Trader' | 'Signaux' | 'Historique' | 'Profil'
   const [visited, setVisited] = useState({ Trader: true });
   const [lang, setLangState] = useState('fr');
+  const [theme, setThemeState] = useState('dark'); // 'dark' | 'light'
 
   const goScreen = useCallback((next) => {
     setScreen(next);
@@ -51,7 +59,46 @@ export default function App() {
 
   const tokenRef = useRef(token);
   tokenRef.current = token;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const syncBusyRef = useRef(false);
+
+  const setTheme = useCallback((next) => {
+    const mode = next === 'light' ? 'light' : 'dark';
+    setThemeState(mode);
+    SecureStore.setItemAsync(CONFIG.STORE.theme, mode).catch(() => {});
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      SecureStore.setItemAsync(CONFIG.STORE.theme, next).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  const isLight = theme === 'light';
+  const ink = useMemo(() => getThemeInk(theme), [theme]);
+  const styles = useMemo(() => makeStyles(ink), [ink]);
+  const themeCtx = useMemo(
+    () => ({ theme, isLight, ink, setTheme, toggleTheme }),
+    [theme, isLight, ink, setTheme, toggleTheme]
+  );
+
+  // Maintient la StatusBar verrouillée sur le thème actif (empêche les changements intempestifs sur Android).
+  useEffect(() => {
+    syncStatusBar(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!AppState || typeof AppState.addEventListener !== 'function') return undefined;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncStatusBar(themeRef.current);
+    });
+    return () => {
+      if (sub && typeof sub.remove === 'function') sub.remove();
+    };
+  }, []);
 
   const t = useCallback((key, vars) => tr(lang, key, vars), [lang]);
   const currency = user && isCurrency(user.currency) ? user.currency : 'USD';
@@ -77,19 +124,21 @@ export default function App() {
     });
   }, [token, lang, handleExpired]);
 
-  // Charge session, langue et mode calme au démarrage.
+  // Charge session, langue, thème et mode calme au démarrage.
   useEffect(() => {
     let live = true;
     (async () => {
       try {
-        const [savedToken, savedLang, savedCalm] = await Promise.all([
+        const [savedToken, savedLang, savedCalm, savedTheme] = await Promise.all([
           SecureStore.getItemAsync(CONFIG.STORE.token).catch(() => null),
           SecureStore.getItemAsync(CONFIG.STORE.lang).catch(() => null),
           SecureStore.getItemAsync(CONFIG.STORE.calm).catch(() => null),
+          SecureStore.getItemAsync(CONFIG.STORE.theme).catch(() => null),
         ]);
         if (!live) return;
         if (savedLang && isLang(savedLang)) setLangState(savedLang);
         if (savedCalm === '1') setCalm(true);
+        if (savedTheme === 'light' || savedTheme === 'dark') setThemeState(savedTheme);
 
         if (savedToken) {
           configureApi({ token: savedToken, lang: savedLang && isLang(savedLang) ? savedLang : 'fr' });
@@ -292,326 +341,357 @@ export default function App() {
 
   const consumeSignal = useCallback(() => setPendingSignal(null), []);
 
-  // Écran d'ouverture animé (7 bougies, identique au web)
-  if (loading) {
-    return (
+  // UN SEUL <StatusBar> persistant à la racine : jamais démonté entre splash / auth / app,
+  // translucent={false} + backgroundColor={ink.fond} -> zéro changement spontané de couleur.
+  return (
+    <ThemeContext.Provider value={themeCtx}>
       <SafeAreaView style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <SplashScreen calm={calm} />
-      </SafeAreaView>
-    );
-  }
+        <StatusBar
+          barStyle={isLight ? 'dark-content' : 'light-content'}
+          backgroundColor={ink.fond}
+          translucent={false}
+          animated={false}
+        />
 
-  // Écrans sans entête ni barre du bas (Bienvenue, Connexion, Inscription)
-  if (!token || !user) {
-    return (
-      <SafeAreaView style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        {!online ? (
-          <View style={styles.offlineBanner}>
-            <Text style={styles.offlineText}>
-              {t('Hors ligne : reconnecte-toi, tes actions sont en pause.')}
-            </Text>
-          </View>
-        ) : null}
+        {loading ? (
+          <SplashScreen calm={calm} />
+        ) : !token || !user ? (
+          <>
+            {!online ? (
+              <View style={styles.offlineBanner}>
+                <Text style={styles.offlineText}>
+                  {t('Hors ligne : reconnecte-toi, tes actions sont en pause.')}
+                </Text>
+              </View>
+            ) : null}
 
-        {authScreen === 'welcome' ? (
-          <BienvenueScreen
-            lang={lang}
-            setLang={setLang}
-            currency={currency}
-            t={t}
-            onFinish={() => setAuthScreen('register')}
-          />
-        ) : authScreen === 'register' ? (
-          <InscriptionScreen
-            lang={lang}
-            setLang={setLang}
-            t={t}
-            onAuthSuccess={handleAuthSuccess}
-            onGoLogin={() => setAuthScreen('login')}
-          />
+            {authScreen === 'welcome' ? (
+              <BienvenueScreen
+                lang={lang}
+                setLang={setLang}
+                currency={currency}
+                t={t}
+                onFinish={() => setAuthScreen('register')}
+              />
+            ) : authScreen === 'register' ? (
+              <InscriptionScreen
+                lang={lang}
+                setLang={setLang}
+                t={t}
+                onAuthSuccess={handleAuthSuccess}
+                onGoLogin={() => setAuthScreen('login')}
+              />
+            ) : (
+              <ConnexionScreen
+                lang={lang}
+                setLang={setLang}
+                t={t}
+                sessionExpired={sessionExpired}
+                onAuthSuccess={handleAuthSuccess}
+                onGoRegister={() => setAuthScreen('register')}
+                onGoWelcome={() => setAuthScreen('welcome')}
+              />
+            )}
+          </>
         ) : (
-          <ConnexionScreen
-            lang={lang}
-            setLang={setLang}
-            t={t}
-            sessionExpired={sessionExpired}
-            onAuthSuccess={handleAuthSuccess}
-            onGoRegister={() => setAuthScreen('register')}
-            onGoWelcome={() => setAuthScreen('welcome')}
-          />
+          <>
+            {/* En-tête fixe (identique à HEADER dans AppShell.tsx) */}
+            <View style={styles.headerBar}>
+              <View style={styles.headerWrap}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t('Accueil Trader')}
+                  onPress={() => goScreen('Trader')}
+                  style={styles.logo}
+                >
+                  <View style={styles.logoMark}>
+                    <Text style={styles.markUp}>▲</Text>
+                    <Text style={styles.markDown}>▼</Text>
+                  </View>
+                  <Text style={styles.logoName}>TradeFacile</Text>
+                </TouchableOpacity>
+
+                <View style={styles.headerRight}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isLight ? t('Passer en mode sombre') : t('Passer en mode clair')
+                    }
+                    onPress={toggleTheme}
+                    style={styles.themeBtn}
+                  >
+                    {isLight ? (
+                      <MoonIcon size={15} color={ink.texte} />
+                    ) : (
+                      <SunIcon size={15} color={ink.texte} />
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={t('Mon solde : {x}. Aller au profil.', {
+                      x: money(user.balance, user.balanceExact, currency, lang),
+                    })}
+                    onPress={() => goScreen('Profil')}
+                    style={styles.balancePill}
+                  >
+                    <WalletIcon size={14} color={ink.action} />
+                    <Text style={styles.balanceText}>
+                      {money(user.balance, user.balanceExact, currency, lang)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Bandeau hors ligne */}
+            {!online ? (
+              <View style={styles.offlineBanner}>
+                <Text style={styles.offlineText}>
+                  {t('Hors ligne : reconnecte-toi, tes actions sont en pause.')}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Contenu principal : onglets visités conservés en mémoire pour un changement instantané */}
+            <View style={styles.main}>
+              {visited.Trader ? (
+                <View
+                  style={[styles.tabPane, screen !== 'Trader' && styles.tabHidden]}
+                  pointerEvents={screen === 'Trader' ? 'auto' : 'none'}
+                >
+                  <TraderScreen
+                    user={user}
+                    currency={currency}
+                    lang={lang}
+                    t={t}
+                    calm={calm}
+                    online={online}
+                    offsetMs={offsetMs}
+                    isActive={screen === 'Trader'}
+                    onBalance={setBalance}
+                    onRefresh={refreshAll}
+                    pendingSignal={pendingSignal}
+                    onConsumeSignal={consumeSignal}
+                  />
+                </View>
+              ) : null}
+
+              {visited.Signaux ? (
+                <View
+                  style={[styles.tabPane, screen !== 'Signaux' && styles.tabHidden]}
+                  pointerEvents={screen === 'Signaux' ? 'auto' : 'none'}
+                >
+                  <SignauxScreen
+                    offsetMs={offsetMs}
+                    online={online}
+                    calm={calm}
+                    t={t}
+                    isActive={screen === 'Signaux'}
+                    onPrepare={handlePrepareSignal}
+                    onRetrySync={syncClock}
+                    onRefresh={refreshAll}
+                  />
+                </View>
+              ) : null}
+
+              {visited.Historique ? (
+                <View
+                  style={[styles.tabPane, screen !== 'Historique' && styles.tabHidden]}
+                  pointerEvents={screen === 'Historique' ? 'auto' : 'none'}
+                >
+                  <HistoriqueScreen
+                    currency={currency}
+                    lang={lang}
+                    calm={calm}
+                    offsetMs={offsetMs}
+                    t={t}
+                    isActive={screen === 'Historique'}
+                    onBalance={setBalance}
+                    onRefresh={refreshAll}
+                  />
+                </View>
+              ) : null}
+
+              {visited.Profil ? (
+                <View
+                  style={[styles.tabPane, screen !== 'Profil' && styles.tabHidden]}
+                  pointerEvents={screen === 'Profil' ? 'auto' : 'none'}
+                >
+                  <ProfilScreen
+                    user={user}
+                    currency={currency}
+                    lang={lang}
+                    setLang={setLang}
+                    calm={calm}
+                    onToggleCalm={toggleCalm}
+                    t={t}
+                    onUserUpdated={setUser}
+                    onRefresh={refreshProfile}
+                    onLogout={handleLogout}
+                  />
+                </View>
+              ) : null}
+            </View>
+
+            {/* Barre de navigation basse (identique à BottomNav.tsx) */}
+            <View style={styles.navBar}>
+              {TABS.map(({ id, label, Icon }) => {
+                const active = screen === id;
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    activeOpacity={0.7}
+                    onPress={() => goScreen(id)}
+                    style={styles.navTab}
+                  >
+                    {active ? <View style={styles.navTick} /> : null}
+                    <Icon size={18} color={active ? ink.texte : ink.doux} />
+                    <Text style={[styles.navLabel, active ? styles.navOn : styles.navOff]}>
+                      {t(label)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
         )}
       </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-      {/* En-tête fixe (identique à HEADER dans AppShell.tsx) */}
-      <View style={styles.headerBar}>
-        <View style={styles.headerWrap}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('Accueil Trader')}
-            onPress={() => goScreen('Trader')}
-            style={styles.logo}
-          >
-            <View style={styles.logoMark}>
-              <Text style={styles.markUp}>▲</Text>
-              <Text style={styles.markDown}>▼</Text>
-            </View>
-            <Text style={styles.logoName}>TradeFacile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={t('Mon solde : {x}. Aller au profil.', {
-              x: money(user.balance, user.balanceExact, currency, lang),
-            })}
-            onPress={() => goScreen('Profil')}
-            style={styles.balancePill}
-          >
-            <WalletIcon size={14} color={INK.action} />
-            <Text style={styles.balanceText}>
-              {money(user.balance, user.balanceExact, currency, lang)}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Bandeau hors ligne */}
-      {!online ? (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>
-            {t('Hors ligne : reconnecte-toi, tes actions sont en pause.')}
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Contenu principal : onglets visités conservés en mémoire pour un changement instantané */}
-      <View style={styles.main}>
-        {visited.Trader ? (
-          <View
-            style={[styles.tabPane, screen !== 'Trader' && styles.tabHidden]}
-            pointerEvents={screen === 'Trader' ? 'auto' : 'none'}
-          >
-            <TraderScreen
-              user={user}
-              currency={currency}
-              lang={lang}
-              t={t}
-              calm={calm}
-              online={online}
-              offsetMs={offsetMs}
-              isActive={screen === 'Trader'}
-              onBalance={setBalance}
-              onRefresh={refreshAll}
-              pendingSignal={pendingSignal}
-              onConsumeSignal={consumeSignal}
-            />
-          </View>
-        ) : null}
-
-        {visited.Signaux ? (
-          <View
-            style={[styles.tabPane, screen !== 'Signaux' && styles.tabHidden]}
-            pointerEvents={screen === 'Signaux' ? 'auto' : 'none'}
-          >
-            <SignauxScreen
-              offsetMs={offsetMs}
-              online={online}
-              calm={calm}
-              t={t}
-              isActive={screen === 'Signaux'}
-              onPrepare={handlePrepareSignal}
-              onRetrySync={syncClock}
-              onRefresh={refreshAll}
-            />
-          </View>
-        ) : null}
-
-        {visited.Historique ? (
-          <View
-            style={[styles.tabPane, screen !== 'Historique' && styles.tabHidden]}
-            pointerEvents={screen === 'Historique' ? 'auto' : 'none'}
-          >
-            <HistoriqueScreen
-              currency={currency}
-              lang={lang}
-              calm={calm}
-              offsetMs={offsetMs}
-              t={t}
-              isActive={screen === 'Historique'}
-              onBalance={setBalance}
-              onRefresh={refreshAll}
-            />
-          </View>
-        ) : null}
-
-        {visited.Profil ? (
-          <View
-            style={[styles.tabPane, screen !== 'Profil' && styles.tabHidden]}
-            pointerEvents={screen === 'Profil' ? 'auto' : 'none'}
-          >
-            <ProfilScreen
-              user={user}
-              currency={currency}
-              lang={lang}
-              setLang={setLang}
-              calm={calm}
-              onToggleCalm={toggleCalm}
-              t={t}
-              onUserUpdated={setUser}
-              onRefresh={refreshProfile}
-              onLogout={handleLogout}
-            />
-          </View>
-        ) : null}
-      </View>
-
-      {/* Barre de navigation basse (identique à BottomNav.tsx) */}
-      <View style={styles.navBar}>
-        {TABS.map(({ id, label, Icon }) => {
-          const active = screen === id;
-          return (
-            <TouchableOpacity
-              key={id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              activeOpacity={0.7}
-              onPress={() => goScreen(id)}
-              style={styles.navTab}
-            >
-              {active ? <View style={styles.navTick} /> : null}
-              <Icon size={18} color={active ? INK.texte : INK.doux} />
-              <Text style={[styles.navLabel, active ? styles.navOn : styles.navOff]}>
-                {t(label)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </SafeAreaView>
+    </ThemeContext.Provider>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: INK.fond,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-  },
-  headerBar: {
-    borderBottomWidth: 1,
-    borderBottomColor: INK.ligne,
-    backgroundColor: INK.fond,
-  },
-  headerWrap: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    paddingHorizontal: 12,
-  },
-  logo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  logoMark: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markUp: {
-    fontSize: 9,
-    lineHeight: 9,
-    fontWeight: '700',
-    color: INK.hausse,
-  },
-  markDown: {
-    fontSize: 9,
-    lineHeight: 9,
-    fontWeight: '700',
-    color: INK.baisse,
-  },
-  logoName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: INK.texte,
-  },
-  balancePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: INK.ligne,
-    backgroundColor: INK.carte,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  balanceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: INK.texte,
-    fontVariant: ['tabular-nums'],
-  },
-  offlineBanner: {
-    backgroundColor: INK.vente,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  offlineText: {
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  main: {
-    flex: 1,
-  },
-  tabPane: {
-    flex: 1,
-  },
-  tabHidden: {
-    display: 'none',
-  },
-  navBar: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: INK.ligne,
-    backgroundColor: INK.carte,
-  },
-  navTab: {
-    flex: 1,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    position: 'relative',
-  },
-  navTick: {
-    position: 'absolute',
-    top: 0,
-    height: 2,
-    width: 22,
-    borderRadius: 999,
-    backgroundColor: INK.primary,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  navOn: {
-    color: INK.texte,
-  },
-  navOff: {
-    color: INK.doux,
-  },
-});
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: INK.fond,
+    },
+    headerBar: {
+      borderBottomWidth: 1,
+      borderBottomColor: INK.ligne,
+      backgroundColor: INK.fond,
+    },
+    headerWrap: {
+      height: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      paddingHorizontal: 12,
+    },
+    logo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    logoMark: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    markUp: {
+      fontSize: 9,
+      lineHeight: 9,
+      fontWeight: '700',
+      color: INK.hausse,
+    },
+    markDown: {
+      fontSize: 9,
+      lineHeight: 9,
+      fontWeight: '700',
+      color: INK.baisse,
+    },
+    logoName: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: INK.texte,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    themeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.carte,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    balancePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.carte,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    balanceText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: INK.texte,
+      fontVariant: ['tabular-nums'],
+    },
+    offlineBanner: {
+      backgroundColor: INK.vente,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    offlineText: {
+      textAlign: 'center',
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    main: {
+      flex: 1,
+    },
+    tabPane: {
+      flex: 1,
+    },
+    tabHidden: {
+      display: 'none',
+    },
+    navBar: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: INK.ligne,
+      backgroundColor: INK.carte,
+    },
+    navTab: {
+      flex: 1,
+      minHeight: 46,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      position: 'relative',
+    },
+    navTick: {
+      position: 'absolute',
+      top: 0,
+      height: 2,
+      width: 22,
+      borderRadius: 999,
+      backgroundColor: INK.primary,
+    },
+    navLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    navOn: {
+      color: INK.texte,
+    },
+    navOff: {
+      color: INK.doux,
+    },
+  });

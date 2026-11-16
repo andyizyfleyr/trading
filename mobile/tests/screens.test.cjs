@@ -151,6 +151,42 @@ function load(filePath) {
     return require(id);
   };
 
+  const comboMock = {
+    id: 77,
+    amount: 50,
+    amountExact: { numerator: '50', denominator: '1' },
+    status: 'OPEN',
+    result: null,
+    payout: null,
+    createdAt: nowIso,
+    legs: [
+      {
+        id: 701,
+        symbol: 'EURUSDOTC',
+        direction: 'UP',
+        durationSec: 60,
+        openPrice: 7.777,
+        closePrice: null,
+        status: 'OPEN',
+        result: null,
+        openedAt: nowIso,
+        closesAt: new Date(Date.now() + 60000).toISOString(),
+      },
+      {
+        id: 702,
+        symbol: 'GBPUSDOTC',
+        direction: 'DOWN',
+        durationSec: 60,
+        openPrice: 12.34,
+        closePrice: null,
+        status: 'OPEN',
+        result: null,
+        openedAt: nowIso,
+        closesAt: new Date(Date.now() + 60000).toISOString(),
+      },
+    ],
+  };
+
   const fetchMock = async (url, opts = {}) => {
     const reqPath = url.replace('https://tradefacile-sand.vercel.app', '');
     const body = opts.body ? JSON.parse(opts.body) : null;
@@ -170,7 +206,15 @@ function load(filePath) {
     } else if (reqPath.startsWith('/api/price')) {
       data = { price: 7.777, time: Date.now() };
     } else if (reqPath === '/api/trades/settle') {
-      data = { settled: [], balance: 1000, balanceExact: profile.balanceExact };
+      data = { settled: [], combos: [], balance: 1000, balanceExact: profile.balanceExact };
+    } else if (reqPath.startsWith('/api/combos') && (opts.method || 'GET') === 'GET') {
+      data = { combos: [comboMock] };
+    } else if (reqPath === '/api/combos' && opts.method === 'POST') {
+      data = {
+        combo: { ...comboMock, id: 78 },
+        balance: 900,
+        balanceExact: { numerator: '900', denominator: '1' },
+      };
     } else if (reqPath.startsWith('/api/trades?status=open')) {
       data = { trades: [] };
     } else if (reqPath.startsWith('/api/trades?status=scheduled')) {
@@ -332,12 +376,31 @@ function findButton(root, label) {
   await flush();
   assert.ok(calls.some((c) => c.path === '/api/auth/login'), 'Appel login attendu');
 
-  // 3. Écran Trader : panneau Quotex (Lucky 7, 85%, Durée 01:00, Investissement, Gain potentiel, Hausse/Baisse)
+  // 3. Écran Trader : panneau Quotex (Lucky 7, 85%, Durée 01:00, Investissement, Gain potentiel, Hausse/Baisse, Combiné)
   assert.ok(hasText(root, 'Lucky 7'), 'Jeu Lucky 7 attendu');
   assert.ok(hasText(root, '85%'), 'Payout 85% attendu');
   assert.ok(hasText(root, '01:00'), 'Durée par défaut 01:00 attendue');
   assert.ok(hasText(root, 'Investissement (₣)'), 'Étiquette Investissement (₣) attendue');
   assert.ok(hasText(root, 'Gain potentiel'), 'Ligne Gain potentiel attendue');
+  assert.ok(hasText(root, 'Combiné'), 'Bouton Combiné attendu sur Trader');
+
+  // Vérifie le StatusBar unique non-translucent (mode sombre par défaut)
+  const bars = root.root.findAllByType('StatusBar');
+  assert.equal(bars.length, 1, 'Exactement 1 StatusBar persistant attendu');
+  assert.equal(bars[0].props.translucent, false, 'StatusBar translucent=false attendu');
+  assert.equal(bars[0].props.barStyle, 'light-content', 'StatusBar light-content attendu en mode sombre');
+  assert.equal(bars[0].props.backgroundColor, '#1C1F2E', 'StatusBar fond sombre attendu');
+
+  // Bascule vers mode clair via le bouton soleil dans le header
+  const themeBtn = root.root
+    .findAllByType('TouchableOpacity')
+    .find((n) => n.props.accessibilityLabel === 'Passer en mode clair');
+  assert.ok(themeBtn, 'Bouton thème header attendu');
+  await act(async () => themeBtn.props.onPress());
+  await flush();
+  assert.equal(store.get('tf_theme'), 'light', 'Thème clair sauvegardé dans SecureStore');
+  assert.equal(root.root.findByType('StatusBar').props.barStyle, 'dark-content', 'StatusBar dark-content en mode clair');
+  assert.equal(root.root.findByType('StatusBar').props.backgroundColor, '#F3F5FA', 'StatusBar fond clair attendu');
 
   // Modifie la mise à 10000 ₣ et clique sur Hausse
   const betInput = root.root.findAllByType('TextInput')[0];
@@ -349,7 +412,29 @@ function findButton(root, label) {
   assert.equal(tradeCall.body.direction, 'UP');
   assert.equal(tradeCall.body.amountExact.numerator, '250000000');
   assert.equal(tradeCall.body.amountExact.denominator, '15087011');
-  assert.ok(hasText(root, '1 en cours'), 'Pastille 1 en cours attendue');
+  assert.ok(hasText(root, 'en cours'), 'Pastille en cours attendue');
+
+  // Ferme le panneau En cours puis ouvre le panneau Combiné et place un combiné 2 jambes
+  const closeEncours = root.root
+    .findAllByType('TouchableOpacity')
+    .find((n) => n.props.accessibilityLabel === 'Fermer');
+  if (closeEncours) await act(async () => closeEncours.props.onPress());
+  await act(async () => findButton(root, 'Combiné').props.onPress());
+  assert.ok(hasText(root, 'Combiné (2 à 5 prédictions)'), 'Panneau Combiné attendu');
+  await act(async () => findButton(root, '+ Hausse ▲').props.onPress());
+  await act(async () => findButton(root, 'Jackpot').props.onPress());
+  await act(async () => findButton(root, '+ Baisse ▼').props.onPress());
+  assert.ok(hasText(root, '×3,42'), 'Cote ×3,42 attendue pour 2 jambes');
+  await act(async () => findButton(root, 'Valider le combiné (2)').props.onPress());
+  await flush();
+  const comboCall = calls.find((c) => c.path === '/api/combos' && c.method === 'POST');
+  assert.ok(comboCall, 'Appel POST /api/combos attendu');
+  assert.equal(comboCall.body.legs.length, 2, '2 jambes attendues dans POST /api/combos');
+  assert.ok(hasText(root, 'Combiné · 2 jambes'), 'Carte combiné attendue dans En cours');
+  const closeEncours2 = root.root
+    .findAllByType('TouchableOpacity')
+    .find((n) => n.props.accessibilityLabel === 'Fermer');
+  if (closeEncours2) await act(async () => closeEncours2.props.onPress());
 
   const findRefreshControl = () => {
     const sc = root.root
@@ -394,13 +479,17 @@ function findButton(root, label) {
   assert.ok(hasText(root, 'Revenir à Maintenant'), 'TimePicker attendu');
   await act(async () => findButton(root, 'Revenir à Maintenant').props.onPress());
 
-  // 5. Écran Historique : stats 3 colonnes, filtres, lignes groupées par jour
+  // 5. Écran Historique : stats 3 colonnes, filtres, onglet Combinés, lignes groupées par jour
   await act(async () => findButton(root, 'Historique').props.onPress());
   await flush();
   assert.ok(hasText(root, 'Terminés'), 'Stat Terminés attendue');
   assert.ok(hasText(root, 'Réussite'), 'Stat Réussite attendue');
   assert.ok(hasText(root, 'Tous les jeux'), 'Filtre Tous les jeux attendu');
+  assert.ok(hasText(root, 'Combinés'), 'Onglet Combinés attendu dans Historique');
   assert.ok(hasText(root, "Aujourd'hui"), 'Groupe Aujourd hui attendu');
+  await act(async () => findButton(root, 'Combinés').props.onPress());
+  assert.ok(hasText(root, 'Combiné · 2 jambes'), 'Combiné listé dans onglet Combinés');
+  await act(async () => findButton(root, 'Toutes').props.onPress());
   const histRefresh = findRefreshControl();
   assert.ok(histRefresh, 'RefreshControl attendu sur Historique');
   const beforeHistCalls = calls.length;
@@ -410,7 +499,7 @@ function findButton(root, label) {
   await flush();
   assert.ok(calls.slice(beforeHistCalls).some((c) => c.path.startsWith('/api/trades')), 'Pull-to-refresh Historique doit recharger /api/trades');
 
-  // 6. Écran Profil : Ajouter (BottomSheet), Devise, Langue, Réduire les animations
+  // 6. Écran Profil : Ajouter (BottomSheet), Devise, Langue, Mode clair, Réduire les animations
   const headerPill = root.root
     .findAllByType('TouchableOpacity')
     .find((n) => (n.props.accessibilityLabel || '').includes('Aller au profil'));
@@ -418,7 +507,13 @@ function findButton(root, label) {
   await act(async () => headerPill.props.onPress());
   await flush();
   assert.ok(hasText(root, 'Profil'), 'Titre Profil attendu');
+  assert.ok(hasText(root, 'Mode clair'), 'Option Mode clair attendue');
   assert.ok(hasText(root, 'Réduire les animations'), 'Option Réduire les animations attendue');
+  // Bascule Mode clair -> sombre depuis Profil et vérifie le StatusBar
+  await act(async () => findButton(root, 'Mode clair').props.onPress());
+  await flush();
+  assert.equal(store.get('tf_theme'), 'dark', 'Retour au mode sombre sauvegardé');
+  assert.equal(root.root.findByType('StatusBar').props.barStyle, 'light-content', 'StatusBar revenu en light-content');
   const profRefresh = findRefreshControl();
   assert.ok(profRefresh, 'RefreshControl attendu sur Profil');
   const beforeProfCalls = calls.length;

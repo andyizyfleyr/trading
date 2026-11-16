@@ -1,8 +1,10 @@
 // Système design, configuration, jeux et formatages : miroir exact du site web.
+import React, { createContext, useContext, useMemo } from 'react';
+import { Platform, StatusBar } from 'react-native';
 import { tr } from './i18n';
 
-/** Palette Quotex identique à tailwind.config.ts et lib/design.ts. */
-export const INK = {
+/** Palette Quotex sombre — identique à tailwind.config.ts et lib/design.ts. */
+export const INK_DARK = {
   fond: '#1C1F2E',
   carte: '#2A3040',
   ligne: '#3D4356',
@@ -24,7 +26,84 @@ export const INK = {
   onglet: '#353A4D',
   pill: '#2E99FB',
   countBg: '#303040',
+  skelBg: '#283044',
+  toastBg: 'rgba(28, 31, 46, 0.94)',
+  guideVeil: 'rgba(28, 31, 46, 0.6)',
+  dotsStroke: 'rgba(142, 147, 167, 0.6)',
 };
+
+/** Palette Quotex claire — identique à app/globals.css (:root[data-theme="light"]) et lib/design.ts. */
+export const INK_LIGHT = {
+  fond: '#F3F5FA',
+  carte: '#FFFFFF',
+  ligne: '#DCE1EC',
+  texte: '#151926',
+  doux: '#5E667A',
+  hausse: '#0A994B',
+  baisse: '#DC3E30',
+  chartDown: '#DC3E30',
+  action: '#1A7FE8',
+  primary: '#0270D1',
+  vente: '#D43D2B',
+  puce: '#E5E9F2',
+  tag: '#1D56C8',
+  tagfond: '#E2EBFF',
+  vertfonce: '#FFFFFF',
+  payout: '#C7761B',
+  cadre: '#C5CCD9',
+  grille: '#E7EBF4',
+  onglet: '#E9EDF5',
+  pill: '#1A7FE8',
+  countBg: '#E2E6F0',
+  skelBg: '#E2E7F2',
+  toastBg: 'rgba(255, 255, 255, 0.96)',
+  guideVeil: 'rgba(21, 25, 38, 0.45)',
+  dotsStroke: 'rgba(94, 102, 122, 0.45)',
+};
+
+export const INK = INK_DARK;
+
+export function getThemeInk(mode) {
+  return mode === 'light' ? INK_LIGHT : INK_DARK;
+}
+
+/** Applique le thème actif sur la StatusBar native (empêche tout changement de couleur intempestif sur Android). */
+export function syncStatusBar(theme) {
+  const light = theme === 'light';
+  const palette = getThemeInk(theme);
+  try {
+    if (StatusBar && typeof StatusBar.setBarStyle === 'function') {
+      StatusBar.setBarStyle(light ? 'dark-content' : 'light-content', false);
+    }
+    if (Platform.OS === 'android') {
+      if (StatusBar && typeof StatusBar.setTranslucent === 'function') {
+        StatusBar.setTranslucent(false);
+      }
+      if (StatusBar && typeof StatusBar.setBackgroundColor === 'function') {
+        StatusBar.setBackgroundColor(palette.fond, false);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export const ThemeContext = createContext({
+  theme: 'dark',
+  isLight: false,
+  ink: INK_DARK,
+  setTheme: () => {},
+  toggleTheme: () => {},
+});
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+
+export function useThemedStyles(factory) {
+  const { ink, isLight } = useTheme();
+  return useMemo(() => factory(ink, isLight), [factory, ink, isLight]);
+}
 
 export const CHART_CFG = {
   stepDef: 9,
@@ -48,9 +127,9 @@ export const CHART_CFG = {
 };
 
 export const RING_CFG = {
-  track: INK.ligne,
-  line: INK.action,
-  urgent: INK.baisse,
+  track: INK_DARK.ligne,
+  line: INK_DARK.action,
+  urgent: INK_DARK.baisse,
   bigFrom: 76,
   strokeBig: 8,
   strokeSmall: 6,
@@ -58,7 +137,7 @@ export const RING_CFG = {
   mini: 38,
   miniR: 15,
   strokeMini: 3.5,
-  miniLine: INK.primary,
+  miniLine: INK_DARK.primary,
 };
 
 export const SYMBOLS = [
@@ -109,6 +188,9 @@ export const RULES = {
   WIN_PAYOUT_RATIO: 0.85,
   MAX_TRADES_PER_MINUTE: 20,
   MAX_SCHEDULED: 50,
+  COMBO_MIN_LEGS: 2,
+  COMBO_MAX_LEGS: 5,
+  COMBO_MAX_PAYOUT: 5000000,
 };
 
 export const CONFIG = {
@@ -159,6 +241,7 @@ export const CONFIG = {
     guide: 'tf_guide',
     calm: 'tf_calme',
     lang: 'tf_lang',
+    theme: 'tf_theme',
   },
 };
 

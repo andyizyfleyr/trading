@@ -11,6 +11,7 @@ import { DEPOSIT_OPTIONS, ROUTES, STORE, VIBRATE, WITHDRAW_OPTIONS } from "@/lib
 import { ICON, PROFILE, SHEET, SIDE } from "@/lib/design";
 import { useMoney } from "@/hooks/useMoney";
 import { useLang } from "@/lib/lang-context";
+import { useTheme } from "@/lib/theme-context";
 import { LangSelect } from "@/components/LangSelect";
 import { COUNTRIES, CURRENCIES, isCurrency } from "@/lib/money";
 import { vibrate } from "@/lib/vibrate";
@@ -18,6 +19,7 @@ import { vibrate } from "@/lib/vibrate";
 export default function ProfilPage() {
   const { money } = useMoney();
   const { t } = useLang();
+  const { isLight, toggleTheme } = useTheme();
   const { user, setBalance, logout, refresh } = useAuth();
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -174,6 +176,18 @@ export default function ProfilPage() {
           <span className={PROFILE.prefLabel}>{t("Langue")}</span>
           <LangSelect className={PROFILE.curSelect} />
         </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isLight}
+          onClick={toggleTheme}
+          className={PROFILE.prefRow}
+        >
+          <span className={PROFILE.prefLabel}>{t("Mode clair")}</span>
+          <span className={isLight ? PROFILE.calmOn : PROFILE.calmOff}>
+            <span className={PROFILE.calmKnob} />
+          </span>
+        </button>
         <button
           type="button"
           role="switch"

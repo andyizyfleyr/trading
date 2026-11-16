@@ -2,11 +2,12 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { LangProvider } from "@/lib/lang-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import { AppShell } from "@/components/AppShell";
 import { SplashGate } from "@/components/SplashScreen";
 import { SwRegister } from "@/components/SwRegister";
 import { STORE } from "@/lib/config";
-import { INK } from "@/lib/design";
+import { INK, INK_LIGHT } from "@/lib/design";
 import { SYMBOLS } from "@/lib/symbols";
 
 export const metadata: Metadata = {
@@ -46,20 +47,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
-        {/* Applique "réduire les animations" avant le premier affichage */}
+        {/* Applique "réduire les animations" et le thème sombre/clair avant le premier affichage */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(localStorage.getItem('${STORE.calm}')==='1'){document.documentElement.classList.add('calme')}}catch(e){}})();`,
+            __html: `(function(){try{if(localStorage.getItem('${STORE.calm}')==='1'){document.documentElement.classList.add('calme')}if(localStorage.getItem('${STORE.theme}')==='light'){document.documentElement.setAttribute('data-theme','light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','${INK_LIGHT.fond}')}}catch(e){}})();`,
           }}
         />
       </head>
       <body>
-        <AuthProvider>
-          <LangProvider>
-            <AppShell>{children}</AppShell>
-            <SplashGate />
-          </LangProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <LangProvider>
+              <AppShell>{children}</AppShell>
+              <SplashGate />
+            </LangProvider>
+          </AuthProvider>
+        </ThemeProvider>
         <SwRegister />
       </body>
     </html>

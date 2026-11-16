@@ -4,8 +4,10 @@
  * (Chaînes complètes volontairement : Tailwind les détecte au scan.)
  */
 
-/** Couleurs pour le JS (graphique, anneau, SVG) : miroir du thème Tailwind. */
-export const INK = {
+export type ThemeMode = "dark" | "light";
+
+/** Couleurs pour le JS (graphique, anneau, SVG) : miroir du thème Tailwind sombre. */
+export const INK_DARK = {
   fond: "#1C1F2E",
   carte: "#2A3040",
   ligne: "#3D4356",
@@ -25,6 +27,30 @@ export const INK = {
   /** Pastille du compte à rebours sur la ligne du prix. */
   countBg: "#303040",
 } as const;
+
+/** Palette claire (mode jour). */
+export const INK_LIGHT = {
+  fond: "#F3F5FA",
+  carte: "#FFFFFF",
+  ligne: "#DCE1EC",
+  texte: "#151926",
+  doux: "#5E667A",
+  hausse: "#0A994B",
+  baisse: "#DC3E30",
+  chartDown: "#DC3E30",
+  action: "#1A7FE8",
+  primary: "#0270D1",
+  vente: "#D43D2B",
+  puce: "#E5E9F2",
+  tag: "#1D56C8",
+  tagfond: "#E2EBFF",
+  pill: "#1A7FE8",
+  countBg: "#E2E6F0",
+} as const;
+
+export type ThemeInk = { [K in keyof typeof INK_DARK]: string };
+
+export const INK = INK_DARK;
 
 /** Réglages du graphique maison (canvas) : grille, bougies, prix. */
 export const CHART = {
@@ -144,6 +170,8 @@ export const HEADER = {
   markDown: "text-baisse",
   name: "text-[15px] font-bold",
   side: "flex items-center gap-1.5",
+  themeBtn:
+    "flex h-8 w-8 items-center justify-center rounded-[10px] border border-ligne bg-carte text-doux transition-colors active:text-texte",
   pill: "flex items-center gap-1.5 rounded-[10px] border border-ligne bg-carte px-2.5 py-[5px] text-[13px] font-bold tabular-nums",
   pillIcon: "h-3.5 w-3.5 text-action",
   avatar: "hidden h-10 w-10 items-center justify-center rounded-full bg-primary text-base font-extrabold text-white lg:flex",
@@ -212,8 +240,14 @@ export const TRADER = {
 /* ---------- Panneau d'ordres (Quotex) ---------- */
 
 export const ORDER = {
-  assetRow: "flex items-center gap-2",
+  assetRow: "flex items-center justify-between gap-2",
   assetBtn: "flex min-w-0 items-center gap-1.5",
+  comboBtn:
+    "flex shrink-0 items-center gap-1 rounded-full border border-ligne bg-fond px-2.5 py-1 text-[11px] font-extrabold text-texte active:bg-puce",
+  comboBtnOn:
+    "border-primary bg-primary/15 text-action",
+  comboBadge:
+    "rounded-full bg-primary px-1.5 py-[1px] text-[10px] font-extrabold text-white tabular-nums",
   assetDot: "h-5 w-5 shrink-0 rounded-full",
   assetName: "truncate text-sm font-extrabold",
   payout: "shrink-0 text-sm font-extrabold tabular-nums text-payout",
@@ -515,7 +549,7 @@ export const SIDE = {
   logoMark: "flex h-8 w-8 items-center justify-center rounded-lg bg-carte text-base font-extrabold",
   logoName: "text-[15px] font-extrabold tracking-tight",
   nav: "flex flex-col gap-1",
-  linkOn: "flex min-h-[44px] items-center gap-3 rounded-xl bg-carte px-3 text-sm font-bold text-white transition-colors duration-200",
+  linkOn: "flex min-h-[44px] items-center gap-3 rounded-xl bg-carte px-3 text-sm font-bold text-texte transition-colors duration-200",
   linkOff:
     "flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm font-bold text-doux transition-colors duration-200 hover:bg-carte hover:text-texte",
   linkIcon: "h-5 w-5 shrink-0",

@@ -4,7 +4,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { exactGain, money } from '../money';
 import {
   CONFIG,
-  INK,
   RING_CFG,
   RULES,
   durationLabel,
@@ -14,6 +13,8 @@ import {
   fmtSigned,
   fmtSlot,
   symbolDisplay,
+  useTheme,
+  useThemedStyles,
 } from '../theme';
 import { Btn, CountdownRing } from './Ui';
 
@@ -31,13 +32,15 @@ export const ActiveTradeCard = React.memo(function ActiveTradeCard({
   offsetMs,
   t,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const isUp = trade.direction === 'UP';
   const diff = price == null ? null : price - trade.openPrice;
   const score = diff == null ? 0 : diff * (isUp ? 1 : -1);
   const winning = score > 0 ? true : score < 0 ? false : null;
 
-  const borderLeftColor = winning == null ? INK.doux : winning ? INK.hausse : INK.baisse;
-  const toneColor = winning == null ? INK.texte : winning ? INK.hausse : INK.baisse;
+  const borderLeftColor = winning == null ? ink.doux : winning ? ink.hausse : ink.baisse;
+  const toneColor = winning == null ? ink.texte : winning ? ink.hausse : ink.baisse;
   const arrow = diff == null || diff === 0 ? '' : diff > 0 ? '▲ ' : '▼ ';
 
   const gainExact = trade.amountExact ? exactGain(trade.amountExact) : undefined;
@@ -89,6 +92,7 @@ export const ActiveTradeCard = React.memo(function ActiveTradeCard({
 /* ---------- Résultat (identique à RESULT) ---------- */
 
 export const ResultCard = React.memo(function ResultCard({ trade, currency, lang, t, onReplay }) {
+  const styles = useThemedStyles(makeStyles);
   const isUp = trade.direction === 'UP';
   const won = trade.result === 'WIN';
   const lost = trade.result === 'LOSS';
@@ -187,6 +191,7 @@ export const ScheduledTrades = React.memo(function ScheduledTrades({
   t,
   onCancel,
 }) {
+  const styles = useThemedStyles(makeStyles);
   if (!trades || trades.length === 0) return null;
   return (
     <View style={styles.soonBox}>
@@ -263,6 +268,7 @@ export const TimePickerPanel = React.memo(function TimePickerPanel({
   onConfirm,
   t,
 }) {
+  const styles = useThemedStyles(makeStyles);
   const { list, selected } = useMemo(() => {
     const step = CONFIG.TIME_SLOT_STEP_MIN * 60;
     const first = Math.ceil((nowMs + CONFIG.TIME_SLOT_BOOK_MARGIN_MS) / (step * 1000)) * step;
@@ -315,8 +321,9 @@ export const TimePickerPanel = React.memo(function TimePickerPanel({
   );
 });
 
-const styles = StyleSheet.create({
-  encoursCard: {
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    encoursCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
