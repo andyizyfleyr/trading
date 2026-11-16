@@ -3,6 +3,10 @@
  * 1 unité = 1 $. On ne convertit qu'au moment d'afficher).
  * Symbole APRÈS le montant, style 1xBet : « 1 000 F », « 9,20 € ».
  */
+import type { Lang } from "./i18n";
+
+/** Ponctuation des nombres selon la langue (1 000 / 1,000 / 1000). */
+const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
 
 export type CurrencyCode = "USD" | "EUR" | "XOF" | "GBP" | "NGN" | "GHS";
 
@@ -65,11 +69,20 @@ export function countryCurrency(code: unknown): CurrencyCode | null {
   return COUNTRIES.find((c) => c.code === code)?.currency ?? null;
 }
 
-const numFmt = (decimals: number) =>
-  new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+const numFmtCache = new Map<string, Intl.NumberFormat>();
+
+function numFmt(decimals: number, lang: Lang): Intl.NumberFormat {
+  const key = `${lang}:${decimals}`;
+  let fmt = numFmtCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(LOCALES[lang] ?? LOCALES.fr, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+    numFmtCache.set(key, fmt);
+  }
+  return fmt;
+}
 
 /** Convertit des dollars vers la devise (arrondi à ses décimales). */
 export function convertUsd(usd: number, currency: CurrencyCode): number {
@@ -79,10 +92,11 @@ export function convertUsd(usd: number, currency: CurrencyCode): number {
 }
 
 /**
- * Formate un montant USD dans la devise : « 1 000 F », « 9,20 € ».
+ * Formate un montant USD dans la devise : « 1 000 F », « 9,20 € »
+ * (ponctuation selon la langue : « 1,000 F » en anglais).
  * Les PRIX des jeux/marchés ne passent JAMAIS ici (fmtGamePrice).
  */
-export function formatMoney(usd: number, currency: CurrencyCode): string {
+export function formatMoney(usd: number, currency: CurrencyCode, lang: Lang = "fr"): string {
   const info = CURRENCIES[currency];
-  return `${numFmt(info.decimals).format(convertUsd(usd, currency))} ${info.symbol}`;
+  return `${numFmt(info.decimals, lang).format(convertUsd(usd, currency))} ${info.symbol}`;
 }

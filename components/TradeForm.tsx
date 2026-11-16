@@ -158,7 +158,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
 
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
-  const { money } = useMoney();
+  const { currency, money } = useMoney();
   const { t } = useLang();
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
@@ -376,7 +376,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     if (amt < RULES.MIN_BET) {
-      setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
+      setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
       return;
     }
     if (amt > maxBet) {
@@ -423,7 +423,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         return;
       }
       if (amount < RULES.MIN_BET) {
-        setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
+        setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
         return;
       }
       if (amount > maxBet) {
@@ -477,7 +477,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     if (amount < RULES.MIN_BET) {
-      setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
+      setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
       return;
     }
     if (amount > maxBet) {
@@ -640,6 +640,11 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                   <PlusIcon className={ORDER.stepIcon} />
                 </button>
               </div>
+              {/* Le champ est en USD (stockage) : on rappelle l'équivalent
+                  dans la devise de l'utilisateur (affichage seul). */}
+              {currency !== "USD" && amount != null && amount > 0 && (
+                <span className={ORDER.minSub}>≈ {money(amount)}</span>
+              )}
             </div>
           </div>
 

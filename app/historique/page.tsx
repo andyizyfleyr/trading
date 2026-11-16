@@ -47,8 +47,8 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
       <div className={HISTORY.hmid}>
         {symbolDisplay(trade.symbol)} <span className={HISTORY.hsub}>· {durationLabel(trade.durationSec)}</span>
         <p className={HISTORY.hmeta}>
-          {t("Mise")} {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
-          {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
+          {t("Mise")} {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice, lang)} →{" "}
+          {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice, lang) : "…"}
         </p>
       </div>
       <p

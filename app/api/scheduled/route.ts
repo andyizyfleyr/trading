@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const cur = await userCurrency(userId);
     return fail(
       "MISE_TROP_PETITE",
-      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur) }),
+      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur, lang) }),
       400,
       lang
     );

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const cur = await userCurrency(userId);
     return fail(
       "MONTANT_INVALIDE",
-      tr(lang, "Le montant doit être entre {a} et {b}.", { a: formatMoney(RULES.MIN_DEPOSIT, cur), b: formatMoney(RULES.MAX_DEPOSIT, cur) }),
+      tr(lang, "Le montant doit être entre {a} et {b}.", { a: formatMoney(RULES.MIN_DEPOSIT, cur, lang), b: formatMoney(RULES.MAX_DEPOSIT, cur, lang) }),
       400
     ,
       lang

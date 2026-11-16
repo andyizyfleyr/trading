@@ -12,7 +12,7 @@ import { CountdownRing } from "./CountdownRing";
 
 export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: number | null }) {
   const { money } = useMoney();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isUp = trade.direction === "UP";
   // Écart prix actuel − prix de départ : la flèche suit le prix,
   // la couleur (vert/rouge) dit si le trade gagne ou perd.
@@ -50,12 +50,12 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
         </div>
         <p className={ENCOURS.mid2}>
           {t("Mise")} <b className={ENCOURS.mid2B}>{money(trade.amount)}</b> · {t("Départ")}{" "}
-          <b className={ENCOURS.mid2B}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
+          <b className={ENCOURS.mid2B}>{fmtGamePrice(trade.symbol, trade.openPrice, lang)}</b>
         </p>
       </div>
       <div className={ENCOURS.right}>
         <p className={`${ENCOURS.cur} ${toneText}`}>
-          {price == null ? "…" : `${arrow}${fmtGamePrice(trade.symbol, price)}`}
+          {price == null ? "…" : `${arrow}${fmtGamePrice(trade.symbol, price, lang)}`}
         </p>
         <p className={`${ENCOURS.est} ${toneText}`}>{est}</p>
       </div>
@@ -67,7 +67,7 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
 
 export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () => void }) {
   const { money } = useMoney();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isUp = trade.direction === "UP";
   const won = trade.result === "WIN";
   const lost = trade.result === "LOSS";
@@ -102,17 +102,17 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </div>
         <p className={RESULT.move}>
           <span>
-            {t("Départ")} <b className={RESULT.moveB}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
+            {t("Départ")} <b className={RESULT.moveB}>{fmtGamePrice(trade.symbol, trade.openPrice, lang)}</b>
           </span>
           <span aria-hidden="true">→</span>
           <span>
             {t("Arrivée")}{" "}
             <b className={RESULT.moveB}>
-              {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
+              {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice, lang) : "…"}
             </b>
           </span>
           <span className={RESULT.moveFar}>
-            {move == null ? "…" : `${moveArrow}${fmtGamePrice(trade.symbol, Math.abs(move))}`}
+            {move == null ? "…" : `${moveArrow}${fmtGamePrice(trade.symbol, Math.abs(move), lang)}`}
           </span>
         </p>
       </div>
