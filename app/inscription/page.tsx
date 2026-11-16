@@ -7,8 +7,6 @@ import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { PASSWORD_MIN, ROUTES } from "@/lib/config";
 import { AUTH, FORM, TRADER } from "@/lib/design";
-import { fmtMoney } from "@/lib/format";
-import { RULES } from "@/lib/symbols";
 import { Btn, Field } from "@/components/ui";
 
 export default function InscriptionPage() {
@@ -51,7 +49,7 @@ export default function InscriptionPage() {
 
       <h1 className={AUTH.title}>Crée ton compte</h1>
       <p className={AUTH.sub}>
-        {`Tu commences avec un solde de ${fmtMoney(RULES.START_BALANCE)} pour t'entraîner.`}
+        Crée ton compte, puis touche « Ajouter » dans ton profil pour recharger ton solde.
       </p>
 
       <form onSubmit={submit} className={AUTH.form}>

@@ -5,11 +5,9 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
+import { RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
-
-const MIN_DEPOSIT = 100;
-const MAX_DEPOSIT = 50000;
 
 /**
  * POST /api/me/deposit — Ajoute du solde fictif par incrément (protégé).
@@ -27,10 +25,10 @@ export async function POST(req: NextRequest) {
   }
 
   const amount = Number(body.amount);
-  if (!Number.isFinite(amount) || amount < MIN_DEPOSIT || amount > MAX_DEPOSIT) {
+  if (!Number.isFinite(amount) || amount < RULES.MIN_DEPOSIT || amount > RULES.MAX_DEPOSIT) {
     return fail(
       "MONTANT_INVALIDE",
-      `Le montant doit être entre ${MIN_DEPOSIT} et ${MAX_DEPOSIT}.`,
+      `Le montant doit être entre ${RULES.MIN_DEPOSIT} et ${RULES.MAX_DEPOSIT}.`,
       400
     );
   }

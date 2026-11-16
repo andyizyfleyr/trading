@@ -5,10 +5,9 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
+import { RULES } from "@/lib/symbols";
 
 export const dynamic = "force-dynamic";
-
-const MIN_WITHDRAW = 100;
 
 /**
  * POST /api/me/withdraw — Retire du solde fictif par décrément (protégé).
@@ -26,8 +25,8 @@ export async function POST(req: NextRequest) {
   }
 
   const amount = Number(body.amount);
-  if (!Number.isFinite(amount) || amount < MIN_WITHDRAW) {
-    return fail("MONTANT_INVALIDE", `Le montant minimum est de ${MIN_WITHDRAW}.`, 400);
+  if (!Number.isFinite(amount) || amount < RULES.MIN_WITHDRAW) {
+    return fail("MONTANT_INVALIDE", `Le montant minimum est de ${RULES.MIN_WITHDRAW}.`, 400);
   }
 
   try {

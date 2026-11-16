@@ -452,10 +452,6 @@ export const PROFILE = {
   msgOk: "anim-in rounded-xl bg-hausse/10 px-3 py-1.5 text-center text-[13px] font-medium text-hausse lg:col-span-2",
   msgErr: "anim-in rounded-xl bg-baisse/10 px-3 py-1.5 text-center text-[13px] font-medium text-baisse lg:col-span-2",
   addRow: "grid grid-cols-2 gap-2",
-  resetIdle:
-    "flex min-h-[42px] items-center justify-center gap-2 rounded-[10px] border border-ligne bg-carte text-[13px] font-bold transition-colors duration-200 disabled:opacity-50",
-  resetConfirm:
-    "flex min-h-[42px] items-center justify-center gap-2 rounded-[10px] border border-baisse text-[13px] font-bold text-baisse transition-colors duration-200 disabled:opacity-50",
   prefRow:
     "flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border border-ligne bg-carte px-3 text-left",
   prefLabel: "text-[13px] font-medium",

@@ -7,12 +7,12 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-/** Utilisateurs : solde de départ 10 000 (argent fictif). */
+/** Utilisateurs : solde à 0 à la création, rechargé via « Ajouter » (argent fictif). */
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  balance: doublePrecision("balance").notNull().default(10000),
+  balance: doublePrecision("balance").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -100,7 +100,6 @@ export const GO_THRESHOLD_MS = 1000;
 export const SHOT_DELAY_MS = 150;
 /** Choix d'heure invalide : jamais de mise surprise. */
 export const BAD_TIME = "__bad";
-export const RESET_CONFIRM_MS = 5000;
 
 /** Fenêtre anti-double-tap (zoom) : deux touchers plus proches = zoom bloqué. */
 export const DOUBLE_TAP_MS = 350;

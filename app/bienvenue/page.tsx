@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/auth-context";
 import { ROUTES } from "@/lib/config";
 import { AUTH, FLEX, INK } from "@/lib/design";
 import { fmtMoney } from "@/lib/format";
-import { RULES } from "@/lib/symbols";
 import { Btn } from "@/components/ui";
 
 /** Petites illustrations SVG (légères, pas d'images à télécharger). */
@@ -52,10 +51,10 @@ function SlideArt({ variant }: { variant: number }) {
     <svg viewBox="0 0 200 140" className={AUTH.art} aria-hidden="true">
       <rect x="55" y="25" width="90" height="70" rx="10" fill={INK.carte} stroke={INK.action} strokeWidth="3" />
       <text x="100" y="58" textAnchor="middle" fill={INK.texte} fontSize="22" fontWeight="800">
-        {fmtMoney(RULES.START_BALANCE)}
+        {fmtMoney(0)}
       </text>
       <text x="100" y="80" textAnchor="middle" fill={INK.doux} fontSize="13">
-        pour t&apos;entraîner
+        recharge pour jouer
       </text>
       <path d="M85 108l10 10 20-22" fill="none" stroke={INK.hausse} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -73,7 +72,7 @@ const SLIDES = [
   },
   {
     title: "Apprends sans risque",
-    text: `Tu commences avec ${fmtMoney(RULES.START_BALANCE)} pour t'entraîner. Aucun argent réel, jamais.`,
+    text: "Ton solde commence à 0 : touche « Ajouter » dans ton profil pour le recharger. Aucun argent réel, jamais.",
   },
 ];
 
