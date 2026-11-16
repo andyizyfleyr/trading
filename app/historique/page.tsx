@@ -71,43 +71,77 @@ export default function HistoriquePage() {
   const [now, setNow] = useState(() => Date.now());
   const [exportLabel, setExportLabel] = useState("Exporter");
   const loadingRef = useRef(false);
+  // Recharge demandée pendant un chargement : rejouée après (sinon perdue).
+  const queuedRef = useRef(false);
+  // Dernier jeu choisi (lu dans load : un rattrapage prend le jeu actuel,
+  // pas celui d'avant — sinon les stats affichent le mauvais jeu).
+  const assetRef = useRef(asset);
+  assetRef.current = asset;
   const exportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Même heure serveur partout (sinon « Fin dans » et clôtures décalées).
   const offsetMs = useServerOffset();
   const serverNow = now + (offsetMs ?? 0);
 
   const load = useCallback(async () => {
-    if (loadingRef.current) return;
+    // Changement de jeu éclair pendant un chargement : pas de données
+    // jetées, on rejoue un tour avec le jeu actuel (sinon les stats
+    // restent celles de l'ancien jeu pendant que la liste a changé).
+    if (loadingRef.current) {
+      queuedRef.current = true;
+      return;
+    }
     loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      // Clôture d'abord ce qui est arrivé à échéance.
-      try {
-        const s = await apiSettle();
-        setBalance(s.balance);
-      } catch {
-        /* on affiche quand même l'historique */
-      }
-      const { trades: list } = await apiMyTrades("all", HISTORY_LIMIT);
-      setTrades(list);
-      // Statistiques réelles (tous les trades, jamais tronquées).
-      try {
-        const { stats: full } = await apiMyStats(asset === "all" ? undefined : asset);
-        setStats(full);
-      } catch {
-        setStats(null); // secours : stats calculées sur les lignes affichées
-      }
+      do {
+        queuedRef.current = false;
+        const scope = assetRef.current;
+        // Clôture d'abord ce qui est arrivé à échéance.
+        try {
+          const s = await apiSettle();
+          setBalance(s.balance);
+        } catch {
+          /* on affiche quand même l'historique */
+        }
+        const { trades: list } = await apiMyTrades("all", HISTORY_LIMIT);
+        setTrades(list);
+        // Statistiques réelles (tous les trades, jamais tronquées).
+        // Ignorées si le jeu a changé pendant l'appel (le tour
+        // rattrapé rapportera les bonnes).
+        try {
+          const { stats: full } = await apiMyStats(scope === "all" ? undefined : scope);
+          if (scope === assetRef.current) setStats(full);
+        } catch {
+          if (scope === assetRef.current) setStats(null); // secours : lignes affichées
+        }
+      } while (queuedRef.current);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Historique indisponible.");
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [setBalance, asset]);
+  }, [setBalance]);
 
   useEffect(() => {
     load();
+  }, [load, asset]);
+
+  // Retour sur la page (bouton retour, changement d'onglet) : recharge.
+  // Sans cela, les stats restent figées à la visite précédente alors
+  // qu'on a joué entre-temps (la page est restaurée telle quelle).
+  useEffect(() => {
+    const onFocus = () => load();
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [load]);
 
   // Horloge : fait défiler les « Fin dans … » des prédictions en cours.
@@ -229,7 +263,7 @@ export default function HistoriquePage() {
         <div className={HISTORY.stats}>
           <div className={HISTORY.stat}>
             <b className={HISTORY.statNum}>{settledCount}</b>
-            <span className={HISTORY.statLabel}>Trades</span>
+            <span className={HISTORY.statLabel}>Terminés</span>
           </div>
           <div className={HISTORY.stat}>
             <b className={HISTORY.statNum}>{winRate} %</b>

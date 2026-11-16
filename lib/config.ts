@@ -134,8 +134,6 @@ export const CSV = {
 /** Splash d'ouverture : affiché au moins 900 ms (sinon il flashe), fondu 300 ms. */
 export const SPLASH_MIN_MS = 900;
 export const SPLASH_FADE_MS = 300;
-/** Splash : une astuce différente toutes les 2,5 s (sur les réseaux lents). */
-export const SPLASH_TIP_MS = 2500;
 
 /** Retour visuel « Copié ✓ » après un export. */
 export const COPIED_MS = 1500;

@@ -636,18 +636,12 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
 
-          {/* Ce qu'on touche si ça gagne (mise + bénéfice), bénéfice seul en dessous */}
+          {/* Bénéfice seul si ça gagne (la mise est rendue en plus) */}
           <div className={ORDER.debRow}>
-            <span className={ORDER.debLabel}>Tu touches si tu gagnes</span>
+            <span className={ORDER.debLabel}>Gain potentiel</span>
             <span className={ORDER.debDots} aria-hidden="true" />
-            <span className={ORDER.debVal}>{fmtMoney(payout)}</span>
+            <span className={ORDER.debVal}>+{fmtMoney(netWin)}</span>
           </div>
-          <p className={ORDER.netNote}>
-            Mise {fmtMoney(amount ?? 0)} rendue + {fmtMoney(netWin)} de bénéfice
-          </p>
-          <p className={ORDER.netNote}>
-            {RULES.MAX_TRADES_PER_MINUTE} coups par minute maximum
-          </p>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
           {signalLive && (

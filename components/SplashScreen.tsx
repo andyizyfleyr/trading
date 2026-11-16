@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { SPLASH_FADE_MS, SPLASH_MIN_MS, SPLASH_TIP_MS } from "@/lib/config";
+import { SPLASH_FADE_MS, SPLASH_MIN_MS } from "@/lib/config";
 import { INK, SPLASH } from "@/lib/design";
-import { RULES } from "@/lib/symbols";
 
 /** Mini-bougies vertes/rouges du chargeur (couleurs du jeu). */
 const CANDLES = [INK.hausse, INK.hausse, INK.baisse, INK.hausse, INK.baisse, INK.baisse, INK.hausse];
@@ -13,26 +12,8 @@ const CANDLE_H = 40;
 /** Décalage d'animation entre deux bougies (vague de gauche à droite). */
 const CANDLE_STAGGER_S = 0.12;
 
-function tips(): string[] {
-  return [
-    "Astuce : programme tes mises à l'avance, elles partent toutes seules.",
-    "Égalité ? Ta mise est rendue.",
-    `Si tu gagnes : mise rendue + ${Math.round(RULES.WIN_PAYOUT_RATIO * 100)} % de bénéfice.`,
-  ];
-}
-
-/** Écran d'ouverture : logo + bougies animées + astuce, le temps que ça charge. */
+/** Écran d'ouverture : logo + bougies animées seules, le temps que ça charge. */
 export function SplashScreen({ leaving }: { leaving: boolean }) {
-  const [tip, setTip] = useState(0);
-  const list = tips();
-
-  // Sur les réseaux lents, les astuces défilent (sinon l'attente semble figée).
-  useEffect(() => {
-    if (leaving) return;
-    const t = setInterval(() => setTip((i) => (i + 1) % list.length), SPLASH_TIP_MS);
-    return () => clearInterval(t);
-  }, [leaving, list.length]);
-
   return (
     <div
       role="status"
@@ -44,7 +25,6 @@ export function SplashScreen({ leaving }: { leaving: boolean }) {
         <span className={SPLASH.up}>▲</span>
         <span className={SPLASH.down}>▼</span>
       </div>
-      <p className={SPLASH.name}>TradeFacile</p>
       <div className={SPLASH.candles} aria-hidden="true">
         {CANDLES.map((color, i) => (
           <span
@@ -58,8 +38,6 @@ export function SplashScreen({ leaving }: { leaving: boolean }) {
           />
         ))}
       </div>
-      <p className={SPLASH.loading}>Chargement…</p>
-      <p className={SPLASH.tip}>{list[tip]}</p>
     </div>
   );
 }
