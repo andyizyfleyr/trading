@@ -7,6 +7,7 @@ import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const userRows = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     const user = userRows[0];
     if (!user) return UNAUTHORIZED(lang);
 

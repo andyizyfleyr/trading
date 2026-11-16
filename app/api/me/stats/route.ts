@@ -6,6 +6,7 @@ import { requireUserId } from "@/lib/auth";
 import { isSymbol } from "@/lib/symbols";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
+import { withSchema } from "@/lib/schema-ensure";
 import { round2 } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
     }
     const winRate = settled > 0 ? Math.round((wins / settled) * 100) : 0;
 
-    const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     if (!me[0]) return UNAUTHORIZED(lang);
     const above = await db()
       .select({ n: count() })

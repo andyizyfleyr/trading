@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+    const userRows = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     const user = userRows[0];
     if (!user) return UNAUTHORIZED(lang);
 
