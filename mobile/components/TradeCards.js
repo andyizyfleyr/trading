@@ -23,7 +23,14 @@ function slotOf(trade) {
 
 /* ---------- Prédiction en cours (identique à ENCOURS.card) ---------- */
 
-export function ActiveTradeCard({ trade, price, currency, lang, offsetMs, t }) {
+export const ActiveTradeCard = React.memo(function ActiveTradeCard({
+  trade,
+  price,
+  currency,
+  lang,
+  offsetMs,
+  t,
+}) {
   const isUp = trade.direction === 'UP';
   const diff = price == null ? null : price - trade.openPrice;
   const score = diff == null ? 0 : diff * (isUp ? 1 : -1);
@@ -77,11 +84,11 @@ export function ActiveTradeCard({ trade, price, currency, lang, offsetMs, t }) {
       </View>
     </View>
   );
-}
+});
 
 /* ---------- Résultat (identique à RESULT) ---------- */
 
-export function ResultCard({ trade, currency, lang, t, onReplay }) {
+export const ResultCard = React.memo(function ResultCard({ trade, currency, lang, t, onReplay }) {
   const isUp = trade.direction === 'UP';
   const won = trade.result === 'WIN';
   const lost = trade.result === 'LOSS';
@@ -169,11 +176,17 @@ export function ResultCard({ trade, currency, lang, t, onReplay }) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 /* ---------- Mises programmées (identique à TRADER.soon*) ---------- */
 
-export function ScheduledTrades({ trades, currency, lang, t, onCancel }) {
+export const ScheduledTrades = React.memo(function ScheduledTrades({
+  trades,
+  currency,
+  lang,
+  t,
+  onCancel,
+}) {
   if (!trades || trades.length === 0) return null;
   return (
     <View style={styles.soonBox}>
@@ -210,7 +223,7 @@ export function ScheduledTrades({ trades, currency, lang, t, onCancel }) {
       </View>
     </View>
   );
-}
+});
 
 /* ---------- Sélecteur d'heure (identique à components/TimePicker.tsx) ---------- */
 
@@ -243,7 +256,13 @@ export function chunkRows(items, cols) {
   return rows;
 }
 
-export function TimePickerPanel({ value, nowMs, onChange, onConfirm, t }) {
+export const TimePickerPanel = React.memo(function TimePickerPanel({
+  value,
+  nowMs,
+  onChange,
+  onConfirm,
+  t,
+}) {
   const { list, selected } = useMemo(() => {
     const step = CONFIG.TIME_SLOT_STEP_MIN * 60;
     const first = Math.ceil((nowMs + CONFIG.TIME_SLOT_BOOK_MARGIN_MS) / (step * 1000)) * step;
@@ -294,7 +313,7 @@ export function TimePickerPanel({ value, nowMs, onChange, onConfirm, t }) {
       </Btn>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   encoursCard: {

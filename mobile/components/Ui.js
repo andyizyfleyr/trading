@@ -17,7 +17,7 @@ import { CheckIcon, XIcon } from './Icons';
 
 /* ---------- Bouton (identique à BTN) ---------- */
 
-export function Btn({
+export const Btn = React.memo(function Btn({
   children,
   variant = 'primary',
   disabled = false,
@@ -42,7 +42,7 @@ export function Btn({
       {isString ? <Text style={[styles.btnText, variantText, textStyle]}>{children}</Text> : children}
     </TouchableOpacity>
   );
-}
+});
 
 /* ---------- Champ de formulaire (identique à FORM) ---------- */
 
@@ -108,10 +108,17 @@ export function ErrorState({ text, retry, retryLabel = 'Réessayer' }) {
 
 /* ---------- Bottom Sheet (identique à SHEET) ---------- */
 
-export function BottomSheet({ open, onClose, title, children, hideTitle = false, header }) {
+export const BottomSheet = React.memo(function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+  hideTitle = false,
+  header,
+}) {
   if (!open) return null;
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={open} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.sheetRoot}>
         <Pressable style={styles.sheetFade} onPress={onClose} accessibilityLabel={title} />
         <View style={styles.sheetBox}>
@@ -141,11 +148,19 @@ export function BottomSheet({ open, onClose, title, children, hideTitle = false,
       </View>
     </Modal>
   );
-}
+});
 
 /* ---------- Liste déroulante en BottomSheet (remplace <select>) ---------- */
 
-export function SelectSheet({ open, onClose, title, options, selectedValue, onSelect }) {
+export const SelectSheet = React.memo(function SelectSheet({
+  open,
+  onClose,
+  title,
+  options,
+  selectedValue,
+  onSelect,
+}) {
+  if (!open) return null;
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
       <View style={styles.list1}>
@@ -177,11 +192,11 @@ export function SelectSheet({ open, onClose, title, options, selectedValue, onSe
       </View>
     </BottomSheet>
   );
-}
+});
 
 /* ---------- Anneau de compte à rebours (identique à CountdownRing.tsx) ---------- */
 
-export function CountdownRing({
+export const CountdownRing = React.memo(function CountdownRing({
   closesAt,
   durationSec,
   offsetMs = 0,
@@ -192,7 +207,7 @@ export function CountdownRing({
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), CONFIG.RING_TICK_MS);
+    const timer = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(timer);
   }, []);
 
@@ -250,7 +265,7 @@ export function CountdownRing({
       </View>
     </View>
   );
-}
+});
 
 /* ---------- Écran d'ouverture animé (identique à SplashScreen.tsx) ---------- */
 

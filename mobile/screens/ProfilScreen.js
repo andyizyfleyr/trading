@@ -8,7 +8,7 @@ import { CONFIG, COUNTRIES, CURRENCY_LABELS, INK } from '../theme';
 import { ChevronDownIcon, LogoutIcon, MinusIcon, PlusIcon } from '../components/Icons';
 import { BottomSheet, Btn, SelectSheet } from '../components/Ui';
 
-export function ProfilScreen({
+export const ProfilScreen = React.memo(function ProfilScreen({
   user,
   currency,
   lang,
@@ -79,7 +79,7 @@ export function ProfilScreen({
           refreshing={refreshing}
           onRefresh={handlePullRefresh}
           tintColor={INK.action}
-          colors={[INK.action, INK.vert]}
+          colors={[INK.action, INK.hausse]}
           progressBackgroundColor={INK.carte}
         />
       }
@@ -289,7 +289,7 @@ export function ProfilScreen({
       />
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scroll: {
