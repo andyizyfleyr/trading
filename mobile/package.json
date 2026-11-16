@@ -7,7 +7,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "export": "expo export --platform android",
-    "test": "node tests/otc.test.cjs && node tests/money.test.cjs && node tests/screens.test.cjs"
+    "snack": "node scripts/build-snack.cjs",
+    "test": "node tests/otc.test.cjs && node tests/money.test.cjs && node tests/screens.test.cjs && APP_ENTRY=snack/App.js node tests/screens.test.cjs"
   },
   "dependencies": {
     "big-integer": "^1.6.52",

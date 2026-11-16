@@ -24,9 +24,18 @@ Scannez le QR code avec **Expo Go SDK 52** sur Android (le téléphone et l'ordi
 
 ## Essayer avec Snack (SDK 52)
 
+Comme l'import Git de Snack est temporairement désactivé, un fichier unique **`mobile/snack/App.js`** (généré par `npm run snack`) est prêt à copier-coller :
+
 1. Installez Expo Go compatible **SDK 52** : https://expo.dev/go?sdkVersion=52&platform=android&device=true
-2. Ouvrez Snack en important directement le dossier `mobile/` du dépôt GitHub (`https://snack.expo.dev/@git/github.com/andyizyfleyr/trading:mobile`) et sélectionnez **SDK 52**.
-3. Dépendances requises : `expo-secure-store` `~14.0.1`, `react-native-svg` `15.8.0`, `big-integer` `^1.6.52`.
+2. Ouvrez https://snack.expo.dev/ et choisissez **SDK 52** en bas à droite.
+3. Remplacez le contenu de `App.js` par celui de **`mobile/snack/App.js`** (lien brut sur GitHub : `https://raw.githubusercontent.com/andyizyfleyr/trading/main/mobile/snack/App.js`).
+4. Dans le fichier `package.json` de Snack, ajoutez dans `"dependencies"` (ou cliquez sur les boutons *Add dependency* proposés par Snack) :
+   ```json
+   "big-integer": "^1.6.52",
+   "expo-secure-store": "~14.0.1",
+   "react-native-svg": "15.8.0"
+   ```
+5. Scannez le QR code avec **Expo Go SDK 52** sur Android.
 
 ## Construire un APK Android
 
