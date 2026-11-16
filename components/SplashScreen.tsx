@@ -12,7 +12,7 @@ const CANDLE_H = 40;
 /** Décalage d'animation entre deux bougies (vague de gauche à droite). */
 const CANDLE_STAGGER_S = 0.12;
 
-/** Écran d'ouverture : logo + bougies animées seules, le temps que ça charge. */
+/** Écran d'ouverture : bougies animées seules, le temps que ça charge. */
 export function SplashScreen({ leaving }: { leaving: boolean }) {
   return (
     <div
@@ -21,10 +21,6 @@ export function SplashScreen({ leaving }: { leaving: boolean }) {
       className={`${SPLASH.root} ${leaving ? "opacity-0" : "opacity-100"}`}
       style={{ transitionDuration: `${SPLASH_FADE_MS}ms` }}
     >
-      <div className={SPLASH.mark} aria-hidden="true">
-        <span className={SPLASH.up}>▲</span>
-        <span className={SPLASH.down}>▼</span>
-      </div>
       <div className={SPLASH.candles} aria-hidden="true">
         {CANDLES.map((color, i) => (
           <span
