@@ -399,7 +399,7 @@ export function GuideBubbles({ t, onDone }) {
     {
       title: t('5. Prédis la direction'),
       text: t(
-        "Hausse ▲ si ça monte, Baisse ▼ si ça descend. Tes prédictions en cours s'affichent ici : touche la pastille « N en cours » sur le graphique pour les suivre avec leur compte à rebours."
+        "Hausse ▲ si ça monte, Baisse ▼ si ça descend. Touche le bouton « En cours » à côté du jeu pour suivre tes prédictions avec leur compte à rebours."
       ),
     },
   ];

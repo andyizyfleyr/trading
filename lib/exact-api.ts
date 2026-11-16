@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { decimalFraction, exactToUsd, fraction, type ExactMoney } from "./exact-money";
 import { isCurrency } from "./money";
-import type { ApiCombo, ApiComboLeg, ApiTrade } from "./types";
+import type { ApiTrade } from "./types";
 
 export interface WireMoney { numerator: string; denominator: string }
 
@@ -42,24 +42,6 @@ export function tradeFromSql(row: Record<string, unknown>): ApiTrade {
     openPrice: Number(row.open_price), closePrice: row.close_price == null ? null : Number(row.close_price),
     durationSec: Number(row.duration_sec), status: row.status === "SETTLED" ? "SETTLED" : "OPEN", result,
     openedAt: iso(row.opened_at), closesAt: iso(row.closes_at),
-  };
-}
-
-/** Réponse d'ouverture du combiné et de ses jambes, insérées atomiquement. */
-export function comboFromSql(row: Record<string, unknown>): ApiCombo {
-  const iso = (value: unknown) => value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString();
-  const rawLegs = typeof row.legs === "string" ? JSON.parse(row.legs) : row.legs;
-  if (!Array.isArray(rawLegs)) throw new Error("Jambes du combiné manquantes");
-  const legs: ApiComboLeg[] = rawLegs.map((item: Record<string, unknown>) => ({
-    id: Number(item.id), symbol: String(item.symbol), direction: item.direction === "DOWN" ? "DOWN" : "UP",
-    openPrice: Number(item.open_price), closePrice: item.close_price == null ? null : Number(item.close_price),
-    durationSec: Number(item.duration_sec), status: item.status === "SETTLED" ? "SETTLED" : "OPEN",
-    result: item.result === "WIN" || item.result === "LOSS" || item.result === "TIE" || item.result === "VOID" ? item.result : null,
-    openedAt: iso(item.opened_at), closesAt: iso(item.closes_at),
-  }));
-  return {
-    id: Number(row.id), amount: Number(row.amount), amountExact: { numerator: String(row.amount_numerator), denominator: String(row.amount_denominator) },
-    status: "OPEN", result: null, payout: null, payoutExact: null, createdAt: iso(row.created_at), legs,
   };
 }
 

@@ -219,18 +219,12 @@ export function localStake(input, currency) {
   return { numerator: n.toString(), denominator: d.toString() };
 }
 
-export function potential(input, currency, legs = 1, exact = null, lang = 'fr') {
+export function potential(input, currency, exact = null, lang = 'fr') {
   try {
     const value = exact || localStake(input, currency);
-    const n = bigInt(value.numerator).multiply(bigInt(185).pow(legs));
-    const d = bigInt(value.denominator).multiply(bigInt(100).pow(legs));
-    // Le combiné est plafonné par le serveur à 5 millions de dollars.
-    const cap = bigInt(5000000);
-    const limited =
-      legs > 1 && n.greater(cap.multiply(d))
-        ? { numerator: cap.toString(), denominator: '1' }
-        : { numerator: n.toString(), denominator: d.toString() };
-    return money(0, limited, currency, lang);
+    const n = bigInt(value.numerator).multiply(185);
+    const d = bigInt(value.denominator).multiply(100);
+    return money(0, { numerator: n.toString(), denominator: d.toString() }, currency, lang);
   } catch (_) {
     return '—';
   }

@@ -30,7 +30,7 @@ import type { ApiExactMoney, ApiTrade } from "@/lib/types";
 import { addExact, decimalFraction, exactFromUsd, exactToUsd, fraction, multiplyExact, truncateExact } from "@/lib/exact-money";
 import { BottomSheet, Btn } from "./ui";
 import { TimePickerPanel } from "./TimePicker";
-import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, LayersIcon, MinusIcon, PlusIcon } from "./Icons";
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, MinusIcon, PlusIcon } from "./Icons";
 
 /** Signal venant de la page Signaux : quoi appuyer, et à quel moment exact. */
 export interface SignalHint {
@@ -67,10 +67,10 @@ interface Props {
   onScheduledChange?: () => void;
   /** Ouvre le choix du jeu (ligne actif du panneau). */
   onPickAsset: () => void;
-  /** Nombre de jambes déjà préparées dans le combiné. */
-  comboCount?: number;
-  /** Ouvre le panneau Combiné. */
-  onOpenCombo?: () => void;
+  /** Nombre de prédictions en cours + programmées. */
+  openCount?: number;
+  /** Ouvre le panneau « En cours ». */
+  onOpenTrades?: () => void;
 }
 
 /** Mises programmées : partent toutes seules, annulables (panneau « En cours »). */
@@ -174,7 +174,7 @@ function loadOrderPrefs(currency: CurrencyCode): { durationSec: number; amountSt
 }
 
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset, comboCount = 0, onOpenCombo }: Props) {
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset, openCount = 0, onOpenTrades }: Props) {
   const { currency, money } = useMoney();
   const { user } = useAuth();
   const { t, lang } = useLang();
@@ -626,7 +626,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </div>
       ) : (
         <>
-          {/* Jeu + bouton Combiné */}
+          {/* Jeu + bouton En cours */}
           <div className={ORDER.assetRow}>
             <button
               id="guide-symbol"
@@ -645,16 +645,24 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               <span className={ORDER.payout}>{payoutPct}%</span>
               <ChevronDownIcon className={ORDER.assetChev} />
             </button>
-            {onOpenCombo && (
+            {onOpenTrades && (
               <button
                 type="button"
-                onClick={onOpenCombo}
+                onClick={onOpenTrades}
                 aria-haspopup="dialog"
-                className={comboCount > 0 ? ORDER.comboBtnOn : ORDER.comboBtn}
+                aria-label={
+                  openCount > 0
+                    ? t("Voir les {n} prédictions en cours", { n: openCount })
+                    : t("En cours")
+                }
+                className={openCount > 0 ? ORDER.encoursBtnOn : ORDER.encoursBtn}
               >
-                <LayersIcon className="h-3.5 w-3.5" />
-                <span>{t("Combiné")}</span>
-                {comboCount > 0 && <span className={ORDER.comboBadge}>{comboCount}</span>}
+                <span
+                  className={openCount > 0 ? ORDER.encoursDotOn : ORDER.encoursDot}
+                  aria-hidden="true"
+                />
+                <span>{t("En cours")}</span>
+                {openCount > 0 && <span className={ORDER.encoursBadge}>{openCount}</span>}
               </button>
             )}
           </div>

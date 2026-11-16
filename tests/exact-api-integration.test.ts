@@ -12,14 +12,13 @@ import { POST as open } from "../app/api/trades/route";
 import { POST as settle } from "../app/api/trades/settle/route";
 import { POST as schedule } from "../app/api/scheduled/route";
 import { DELETE as cancel } from "../app/api/scheduled/[id]/route";
-import { POST as combo } from "../app/api/combos/route";
 import { GET as stats } from "../app/api/me/stats/route";
 import { POST as withdraw } from "../app/api/me/withdraw/route";
 import { GET as me } from "../app/api/me/route";
 import { GET as health } from "../app/api/sante/route";
 import { POST as register } from "../app/api/auth/register/route";
 
-test("parcours API réel : migration, dépôt, mise, gain, programmation, annulation et combiné", async () => {
+test("parcours API réel : migration, dépôt, mise, gain, programmation et annulation", async () => {
   const client = new PGlite();
   const db = drizzle(client);
   try {
@@ -39,7 +38,7 @@ test("parcours API réel : migration, dépôt, mise, gain, programmation, annula
     const profile = await read(await me(request("/api/me", null, "GET")));
     assert.equal(profile.user.balanceExact.numerator, "0");
     const diagnostic = (await (await health()).json()).data;
-    assert.deepEqual(diagnostic.colonnesExactes, { users: true, trades: true, combos: true });
+    assert.deepEqual(diagnostic.colonnesExactes, { users: true, trades: true });
     const dep = await read(await deposit(request("/api/me/deposit", { amount: 100 })));
     assert.equal(dep.user.balanceExact.numerator, "100");
     const malformed = await open(request("/api/trades", { symbol: "EURUSDOTC", direction: "UP", amount: 1, amountExact: { numerator: "1", denominator: "0" }, durationSec: 60 }));
@@ -65,14 +64,6 @@ test("parcours API réel : migration, dépôt, mise, gain, programmation, annula
     assert.equal((await cancel(outsider, { params: Promise.resolve({ id: String(future.scheduled.id) }) })).status, 400);
     const cancelled = await read(await cancel(request(`/api/scheduled/${future.scheduled.id}`, null, "DELETE"), { params: Promise.resolve({ id: String(future.scheduled.id) }) }));
     assert.deepEqual(cancelled.balanceExact, paid.balanceExact);
-    const combined = await read(await combo(request("/api/combos", { amount: 10, legs: [
-      { symbol: "EURUSDOTC", direction: "UP", durationSec: 60 },
-      { symbol: "GBPUSDOTC", direction: "UP", durationSec: 60 },
-    ] })));
-    await client.exec(`UPDATE combo_legs SET open_price = 0.001, closes_at = NOW() - interval '1 minute' WHERE combo_id = ${Number(combined.combo.id)}`);
-    const paidCombo = await read(await settle(request("/api/trades/settle", {})));
-    assert.equal(paidCombo.combos[0].result, "WIN");
-    assert.deepEqual(paidCombo.combos[0].payoutExact, { numerator: "1369", denominator: "40" });
     const removed = await read(await withdraw(request("/api/me/withdraw", { amount: 100 })));
     assert.ok(removed.user.balanceExact);
     assert.equal((await withdraw(request("/api/me/withdraw", { amount: 100 }))).status, 400);

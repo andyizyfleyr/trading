@@ -1,5 +1,5 @@
-import type { Combo, ComboLeg, Trade, User } from "./schema";
-import type { ApiCombo, ApiComboLeg, ApiTrade, ApiUser } from "./types";
+import type { Trade, User } from "./schema";
+import type { ApiTrade, ApiUser } from "./types";
 
 function iso(d: Date | string): string {
   return d instanceof Date ? d.toISOString() : new Date(d).toISOString();
@@ -39,40 +39,6 @@ export function toApiTrade(t: Trade): ApiTrade {
     payout: t.payout == null ? null : t.payout,
     openedAt: iso(t.openedAt),
     closesAt: iso(t.closesAt),
-  };
-}
-
-export function toApiComboLeg(l: ComboLeg): ApiComboLeg {
-  return {
-    id: l.id,
-    symbol: l.symbol,
-    direction: l.direction === "DOWN" ? "DOWN" : "UP",
-    openPrice: l.openPrice,
-    closePrice: l.closePrice ?? null,
-    durationSec: l.durationSec,
-    status: l.status === "SETTLED" ? "SETTLED" : "OPEN",
-    result:
-      l.result === "WIN" || l.result === "LOSS" || l.result === "TIE" || l.result === "VOID"
-        ? l.result
-        : null,
-    openedAt: iso(l.openedAt),
-    closesAt: iso(l.closesAt),
-  };
-}
-
-export function toApiCombo(c: Combo, legs: ComboLeg[]): ApiCombo {
-  return {
-    id: c.id,
-    amount: c.amount,
-    amountExact: c.amountNumerator != null && c.amountDenominator != null
-      ? { numerator: c.amountNumerator, denominator: c.amountDenominator } : undefined,
-    payoutExact: c.payoutNumerator != null && c.payoutDenominator != null
-      ? { numerator: c.payoutNumerator, denominator: c.payoutDenominator } : null,
-    status: c.status === "SETTLED" ? "SETTLED" : "OPEN",
-    result: c.result === "WIN" || c.result === "LOSS" || c.result === "TIE" ? c.result : null,
-    payout: c.payout == null ? null : c.payout,
-    createdAt: iso(c.createdAt),
-    legs: legs.map(toApiComboLeg),
   };
 }
 

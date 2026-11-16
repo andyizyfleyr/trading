@@ -129,12 +129,3 @@ export const apiOpenTrade = (input) =>
 
 export const apiSettle = (ids) =>
   request('/api/trades/settle', { method: 'POST', body: ids ? { ids } : {} });
-
-export const apiPlaceCombo = (amount, legs, amountExact) =>
-  request('/api/combos', {
-    method: 'POST',
-    body: { amount, legs, ...(amountExact ? { amountExact } : {}) },
-  });
-
-export const apiMyCombos = (limit = CONFIG.TRADES_PAGE_LIMIT) =>
-  request(`/api/combos?limit=${limit}`);

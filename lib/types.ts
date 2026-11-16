@@ -46,33 +46,6 @@ export interface ApiCandle {
   volume: number;
 }
 
-/** Jambe d'un combiné : comme une prédiction (VOID = annulée, combiné déjà perdu). */
-export interface ApiComboLeg {
-  id: number;
-  symbol: string;
-  direction: TradeDirection;
-  openPrice: number;
-  closePrice: number | null;
-  durationSec: number;
-  status: TradeStatus;
-  result: TradeResult | "VOID" | null;
-  openedAt: string;
-  closesAt: string;
-}
-
-/** Combiné : une mise, 2 à 5 jambes, toutes doivent gagner. */
-export interface ApiCombo {
-  id: number;
-  amount: number;
-  amountExact?: ApiExactMoney;
-  payoutExact?: ApiExactMoney | null;
-  status: TradeStatus;
-  result: TradeResult | null;
-  payout: number | null;
-  createdAt: string;
-  legs: ApiComboLeg[];
-}
-
 /** Statistiques globales (tous les trades, jamais tronquées). */
 export interface ApiStats {
   settled: number;

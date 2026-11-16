@@ -10,7 +10,6 @@ async function setup() {
   const client = new PGlite();
   await client.exec(`CREATE TABLE users (id integer PRIMARY KEY, balance double precision NOT NULL, email text DEFAULT 'test@example.com', currency text DEFAULT 'USD', country text, lang text DEFAULT 'fr', created_at timestamp DEFAULT NOW());
     CREATE TABLE trades (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
-    CREATE TABLE combos (id integer PRIMARY KEY, amount double precision NOT NULL, payout double precision);
     INSERT INTO users (id, balance) VALUES (1, 10);`);
   await client.exec(await readFile(new URL("../drizzle/0005_exact_money.sql", import.meta.url), "utf8"));
   return { client, db: drizzle(client) };

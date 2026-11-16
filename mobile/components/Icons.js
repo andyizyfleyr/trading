@@ -140,33 +140,6 @@ export function SignalIcon({ size = 18, color = INK.texte }) {
   );
 }
 
-export function SunIcon({ size = 16, color = INK.texte }) {
-  return (
-    <IconSvg size={size} color={color}>
-      <Circle cx={12} cy={12} r={4} />
-      <Path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-    </IconSvg>
-  );
-}
-
-export function MoonIcon({ size = 16, color = INK.texte }) {
-  return (
-    <IconSvg size={size} color={color}>
-      <Path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-    </IconSvg>
-  );
-}
-
-export function LayersIcon({ size = 14, color = INK.texte }) {
-  return (
-    <IconSvg size={size} color={color}>
-      <Path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z" />
-      <Path d="m3 12 9 4.5 9-4.5" />
-      <Path d="m3 16.5 9 4.5 9-4.5" />
-    </IconSvg>
-  );
-}
-
 /** Illustrations SVG de Bienvenue (identiques à app/bienvenue/page.tsx). */
 export function SlideArt({ variant, t, zeroText }) {
   const { ink } = useTheme();
