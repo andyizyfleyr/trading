@@ -18,7 +18,7 @@ import {
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
-import { CURRENCIES, convertToUsd, convertUsd, roundCurrency, type CurrencyCode } from "@/lib/money";
+import { CURRENCIES, convertToUsd, convertUsd, formatCurrency, potentialPayout, roundCurrency, type CurrencyCode } from "@/lib/money";
 import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
@@ -166,7 +166,7 @@ function loadOrderPrefs(currency: CurrencyCode): { durationSec: number; amountSt
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const { currency, money } = useMoney();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [prefs] = useState(() => loadOrderPrefs(currency));
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
@@ -363,9 +363,8 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // reste (contrôles, API, base) parle USD : amountUsd fait le passage.
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
   const amountUsd = amount == null ? null : convertToUsd(amount, currency);
-  // Ce qu'on touche si ça gagne : mise + bénéfice (mise × 1,85).
-  const payout =
-    amountUsd != null && amountUsd > 0 ? Math.round(amountUsd * (1 + RULES.WIN_PAYOUT_RATIO) * 100) / 100 : 0;
+  // Calculer dans la devise saisie évite les écarts dus aux deux conversions USD.
+  const payout = potentialPayout(amount, RULES.WIN_PAYOUT_RATIO);
 
   // Pas des boutons − / + : la mise minimum, dans la devise affichée.
   const stepBet = (dir: 1 | -1) => {
@@ -673,7 +672,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           <div className={ORDER.debRow}>
             <span className={ORDER.debLabel}>{t("Gain potentiel")}</span>
             <span className={ORDER.debDots} aria-hidden="true" />
-            <span className={ORDER.debVal}>{money(payout)}</span>
+            <span className={ORDER.debVal}>{formatCurrency(payout, currency, lang)}</span>
           </div>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}

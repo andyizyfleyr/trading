@@ -106,12 +106,22 @@ export function roundCurrency(value: number, currency: CurrencyCode): number {
   return Math.round(Number(value) * f) / f;
 }
 
+/** Gain théorique dans l'unité saisie, sans arrondir en USD entre les calculs. */
+export function potentialPayout(amount: number | null, ratio: number): number {
+  return amount != null && amount > 0 ? amount * (1 + ratio) : 0;
+}
+
+/** Formate un montant déjà exprimé dans la devise, sans nouvelle conversion. */
+export function formatCurrency(amount: number, currency: CurrencyCode, lang: Lang = "fr"): string {
+  const info = CURRENCIES[currency];
+  return `${numFmt(info.decimals, lang).format(amount)} ${info.symbol}`;
+}
+
 /**
  * Formate un montant USD dans la devise : « 1 000 ₣ », « 9,20 € »
  * (ponctuation selon la langue : « 1,000 ₣ » en anglais).
  * Les PRIX des jeux/marchés ne passent JAMAIS ici (fmtGamePrice).
  */
 export function formatMoney(usd: number, currency: CurrencyCode, lang: Lang = "fr"): string {
-  const info = CURRENCIES[currency];
-  return `${numFmt(info.decimals, lang).format(convertUsd(usd, currency))} ${info.symbol}`;
+  return formatCurrency(convertUsd(usd, currency), currency, lang);
 }
