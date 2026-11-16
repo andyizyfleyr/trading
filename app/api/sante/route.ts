@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { users } from "@/lib/schema";
+import { withSchema } from "@/lib/schema-ensure";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/sante — diagnostic technique (sans données personnelles, sans secret).
  * Dit simplement : la base est-elle joignable ? Les tables existent-elles ?
+ * Exécute aussi la requête exacte du login (limitée à 1 ligne, comptée
+ * seulement) : si le schéma est en retard, elle le répare au passage
+ * via withSchema, exactement comme ferait une connexion.
  * Sert à comprendre une panne de connexion au lieu de deviner.
  */
 export async function GET() {
@@ -19,6 +24,9 @@ export async function GET() {
     dbUrlConfiguree,
     jwtConfigure,
     baseJointe: false,
+    requeteLoginOk: false,
+    codeErreurLogin: null as string | null,
+    erreurLogin: null as string | null,
     tables: { users: false, trades: false, combos: false, combo_legs: false },
     colonnesUsers: { currency: false, country: false, lang: false },
     erreur: null as string | null,
@@ -27,6 +35,20 @@ export async function GET() {
   try {
     await db().execute(sql.raw("SELECT 1"));
     etat.baseJointe = true;
+
+    // La requête exacte du login : prouve que la connexion peut lire users.
+    try {
+      const lignes = await withSchema(() => db().select().from(users).limit(1));
+      etat.requeteLoginOk = true;
+      etat.lignesLues = lignes.length; // nombre seulement, jamais le contenu
+    } catch (errLogin: unknown) {
+      const msg = errLogin instanceof Error ? errLogin.message : String(errLogin);
+      etat.erreurLogin = msg.slice(0, 300);
+      if (typeof errLogin === "object" && errLogin !== null) {
+        const code = (errLogin as Record<string, unknown>).code;
+        if (typeof code === "string" && code) etat.codeErreurLogin = code;
+      }
+    }
 
     const tables = await db().execute<{ table_name: string }>(
       sql.raw(

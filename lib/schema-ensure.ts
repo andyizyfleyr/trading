@@ -13,6 +13,8 @@ import { db } from "./db";
  */
 export const SCHEMA_STATEMENTS = [
   // Base (drizzle/0001) : d'abord users, puis trades qui la référence.
+  // Les retouches de users viennent aussitôt après : la connexion et
+  // l'inscription en dépendent, elles doivent passer en premier.
   `CREATE TABLE IF NOT EXISTS "users" (
     "id" SERIAL PRIMARY KEY,
     "email" TEXT NOT NULL UNIQUE,
@@ -20,6 +22,13 @@ export const SCHEMA_STATEMENTS = [
     "balance" DOUBLE PRECISION NOT NULL DEFAULT 10000,
     "created_at" TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+  // Les comptes existants gardent leur solde : seul le défaut change (10 000 → 0).
+  `ALTER TABLE "users" ALTER COLUMN "balance" SET DEFAULT 0`,
+  // Devise d'affichage (comptes existants : USD, la base) + pays (vide).
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD'`,
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+  // Langue (comptes existants : français).
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lang" TEXT NOT NULL DEFAULT 'fr'`,
   `CREATE TABLE IF NOT EXISTS "trades" (
     "id" SERIAL PRIMARY KEY,
     "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
@@ -62,13 +71,6 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS "combo_legs_combo_idx" ON "combo_legs" ("combo_id")`,
   `CREATE INDEX IF NOT EXISTS "combo_legs_open_idx" ON "combo_legs" ("status", "closes_at")`,
-  // Les comptes existants gardent leur solde : seul le défaut change (10 000 → 0).
-  `ALTER TABLE "users" ALTER COLUMN "balance" SET DEFAULT 0`,
-  // Devise d'affichage (comptes existants : USD, la base) + pays (vide).
-  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD'`,
-  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-  // Langue (comptes existants : français).
-  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lang" TEXT NOT NULL DEFAULT 'fr'`,
 ];
 
 /** Crée les tables des combinés si elles manquent (sans toucher au reste). */
@@ -78,12 +80,46 @@ export async function ensureSchema(): Promise<void> {
   }
 }
 
+/** Codes Postgres : table inconnue (42P01), colonne inconnue (42703). */
+const MISSING_SCHEMA_CODES = new Set(["42P01", "42703"]);
+
+/**
+ * Lit le message et le code d'erreur, en suivant la chaîne `cause`
+ * (certains pilotes enveloppent l'erreur d'origine).
+ */
+function errorTexts(err: unknown): { messages: string[]; codes: string[] } {
+  const messages: string[] = [];
+  const codes: string[] = [];
+  let cur: unknown = err;
+  for (let i = 0; i < 5 && cur != null; i++) {
+    if (cur instanceof Error) messages.push(cur.message);
+    else if (typeof cur === "string") messages.push(cur);
+    if (typeof cur === "object") {
+      const rec = cur as Record<string, unknown>;
+      if (typeof rec.code === "string" && rec.code) codes.push(rec.code);
+      // NeonDbError expose aussi table/colonne : une erreur qui nomme
+      // users/trades/combos sans autre détail vient du schéma.
+      cur = rec.cause ?? rec.sourceError ?? null;
+    } else {
+      cur = null;
+    }
+  }
+  return { messages, codes };
+}
+
 function isMissingSchema(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
+  const { messages, codes } = errorTexts(err);
+  // Le code Postgres est la preuve la plus fiable (insensible au texte).
+  if (codes.some((c) => MISSING_SCHEMA_CODES.has(c))) return true;
   // Table absente (« relation ... does not exist ») OU colonne absente
   // (« column ... does not exist », ex. users.lang après un déploiement) :
   // dans les deux cas, l'alignement du schéma peut réparer.
-  return /relation .* does not exist/i.test(msg) || /column .* does not exist/i.test(msg);
+  return messages.some(
+    (msg) =>
+      /relation .* does not exist/i.test(msg) ||
+      /column .* does not exist/i.test(msg) ||
+      /table .* does not exist/i.test(msg)
+  );
 }
 
 /**
