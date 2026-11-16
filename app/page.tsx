@@ -36,7 +36,17 @@ import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, isDuration, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
-import type { ApiTrade } from "@/lib/types";
+import type { ApiExactMoney, ApiTrade } from "@/lib/types";
+import { addExact, decimalFraction, fraction } from "@/lib/exact-money";
+
+function sumTradeAmounts(trades: ApiTrade[]): ApiExactMoney | undefined {
+  let sum = decimalFraction("0");
+  for (const trade of trades) {
+    if (!trade.amountExact) return undefined;
+    sum = addExact(sum, fraction(BigInt(trade.amountExact.numerator), BigInt(trade.amountExact.denominator)));
+  }
+  return { numerator: sum.numerator.toString(), denominator: sum.denominator.toString() };
+}
 
 function loadSymbol(): string {
   if (typeof window === "undefined") return SYMBOLS[0].id;
@@ -205,7 +215,7 @@ export default function TraderPage() {
     async (id: number) => {
       try {
         const res = await apiCancelScheduled(id);
-        setBalance(res.balance);
+        setBalance(res.balance, res.balanceExact);
         loadScheduled();
       } catch (err) {
         say(err instanceof ApiError ? err.message : t("Annulation impossible pour le moment."), null);
@@ -230,14 +240,14 @@ export default function TraderPage() {
             prev.filter((p) => !res.settled.some((s) => s.id === p.id))
           );
           setResults((prev) => [...res.settled, ...prev].slice(0, RESULTS_SHOWN));
-          setBalance(res.balance);
+          setBalance(res.balance, res.balanceExact);
           vibrate(VIBRATE.settle);
           // Un seul message : en boucle, chaque appel écrase le précédent et
           // seul le dernier résultat s'affiche.
           if (res.settled.length === 1) {
             const s = res.settled[0];
-            if (s.result === "WIN") say(t("Gagné +{amt}", { amt: money(s.payout ?? 0) }), "win");
-            else if (s.result === "LOSS") say(t("Perdu −{amt}", { amt: money(s.amount) }), "loss");
+            if (s.result === "WIN") say(t("Gagné +{amt}", { amt: money(s.payout ?? 0, s.payoutExact) }), "win");
+            else if (s.result === "LOSS") say(t("Perdu −{amt}", { amt: money(s.amount, s.amountExact) }), "loss");
             else say(t("Égalité : mise rendue"), null);
           } else {
             const won = res.settled.filter((s) => s.result === "WIN").length;
@@ -263,16 +273,16 @@ export default function TraderPage() {
   }, [openTrades, online]);
 
   const handleOpened = useCallback(
-    (trade: ApiTrade, balance: number) => {
+    (trade: ApiTrade, balance: number, balanceExact?: ApiTrade["amountExact"]) => {
       openIdsRef.current.add(trade.id);
       setOpenTrades((prev) => [trade, ...prev]);
-      setBalance(balance);
+      setBalance(balance, balanceExact);
       setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
       say(
         t("{dir} {amt} · {dur} s", {
           dir: trade.direction === "UP" ? t("Hausse") : t("Baisse"),
-          amt: money(trade.amount),
+          amt: money(trade.amount, trade.amountExact),
           dur: trade.durationSec,
         }),
         null
@@ -299,6 +309,8 @@ export default function TraderPage() {
   const totalStaked = sortedOpen.reduce((s, t) => s + t.amount, 0);
   // Mises programmées : promises au départ, comptées à part.
   const scheduledStaked = scheduledUp.reduce((s, t) => s + t.amount, 0);
+  const totalStakedExact = sumTradeAmounts(sortedOpen);
+  const scheduledStakedExact = sumTradeAmounts(scheduledUp);
   // Prix des autres jeux (trades ouverts ailleurs que sur le jeu affiché).
   const otherSymbols = useMemo(
     () => [...new Set(sortedOpen.map((t) => t.symbol))].filter((s) => s !== symbol),
@@ -327,6 +339,7 @@ export default function TraderPage() {
             livePrice={price}
             toast={toast}
             stake={sortedOpen.length > 0 ? sortedOpen[0].amount : null}
+            stakeExact={sortedOpen.length > 0 ? sortedOpen[0].amountExact : null}
           />
           {/* Pastille « N en cours » en bas à gauche du graphique (maquette). */}
           {openTrades.length > 0 && (
@@ -382,10 +395,10 @@ export default function TraderPage() {
                       </p>
                     </div>
                     <p className={TRADER.openStaked}>
-                      {sortedOpen.length > 0 && <>{t("Mises {amt}", { amt: money(totalStaked) })}</>}
+                      {sortedOpen.length > 0 && <>{t("Mises {amt}", { amt: money(totalStaked, totalStakedExact) })}</>}
                       {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
                       {scheduledUp.length > 0 && (
-                        <>{t("Programmé(es) {amt}", { amt: money(scheduledStaked) })}</>
+                        <>{t("Programmé(es) {amt}", { amt: money(scheduledStaked, scheduledStakedExact) })}</>
                       )}
                     </p>
                     {sortedOpen.map((trade) => (
@@ -459,7 +472,7 @@ export default function TraderPage() {
                 <p className={ENCOURS.sum}>
                   {sortedOpen.length > 0 && (
                     <>
-                      {t("Mises")} <b className={ENCOURS.sumB}>{money(totalStaked)}</b> · {t("Fin dans")}{" "}
+                      {t("Mises")} <b className={ENCOURS.sumB}>{money(totalStaked, totalStakedExact)}</b> · {t("Fin dans")}{" "}
                       <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
                     </>
                   )}
@@ -467,7 +480,7 @@ export default function TraderPage() {
                   {scheduledUp.length > 0 && (
                     <>
                       {t("Programmé(es)")}{" "}
-                      <b className={ENCOURS.sumB}>{money(scheduledStaked)}</b>
+                      <b className={ENCOURS.sumB}>{money(scheduledStaked, scheduledStakedExact)}</b>
                       {sortedOpen.length === 0 && (
                         <>
                           {" "}· {t("Départ dans")}{" "}
@@ -514,7 +527,7 @@ export default function TraderPage() {
           <div className={ENCOURS.head}>
             <h2 className={ENCOURS.title}>{t("Résultat")}</h2>
             <p className={ENCOURS.sum}>
-              {t("Solde")} <b className={ENCOURS.sumB}>{money(user?.balance ?? 0)}</b>
+              {t("Solde")} <b className={ENCOURS.sumB}>{money(user?.balance ?? 0, user?.balanceExact)}</b>
             </p>
             <button
               type="button"
@@ -545,6 +558,7 @@ export default function TraderPage() {
                 setReplay({
                   direction: t.direction,
                   amount: t.amount,
+                  amountExact: t.amountExact,
                   durationSec: t.durationSec,
                   nonce: Date.now(),
                 });

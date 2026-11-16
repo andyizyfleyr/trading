@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { apiLogin, apiMe, apiRegister, ApiError, getToken, setToken } from "./api";
-import type { ApiUser } from "./types";
+import type { ApiExactMoney, ApiUser } from "./types";
 
 interface AuthState {
   user: ApiUser | null;
@@ -14,7 +14,7 @@ interface AuthState {
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
-  setBalance: (balance: number) => void;
+  setBalance: (balance: number, exact?: ApiExactMoney) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -81,8 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpired(false);
   }, []);
 
-  const setBalance = useCallback((balance: number) => {
-    setUser((u) => (u ? { ...u, balance } : u));
+  const setBalance = useCallback((balance: number, balanceExact?: ApiExactMoney) => {
+    setUser((u) => (u ? { ...u, balance, balanceExact } : u));
   }, []);
 
   const value = useMemo(

@@ -19,6 +19,12 @@ function createDb() {
 
 let cached: ReturnType<typeof createDb> | null = null;
 
+/** Injecte PostgreSQL local uniquement pour les tests des routes API. */
+export function setDbForTests(value: unknown) {
+  if (process.env.NODE_ENV !== "test") throw new Error("Réservé aux tests");
+  cached = value as ReturnType<typeof createDb> | null;
+}
+
 export function db() {
   if (!cached) cached = createDb();
   return cached;

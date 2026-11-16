@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { EXACT_MIGRATION } from "./exact-migration";
 
 /**
  * Alignement du schéma (cumul de drizzle/0001 + 0002 + 0003 + 0004, rejouable
@@ -78,6 +79,7 @@ export async function ensureSchema(): Promise<void> {
   for (const stmt of SCHEMA_STATEMENTS) {
     await db().execute(sql.raw(stmt));
   }
+  await db().execute(sql.raw(EXACT_MIGRATION));
 }
 
 /** Codes Postgres : table inconnue (42P01), colonne inconnue (42703). */

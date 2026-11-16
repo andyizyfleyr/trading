@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
-import { round2 } from "@/lib/trade-shape";
+import { exactCancelTradeQuery } from "@/lib/exact-cancel-trade";
+import { withSchema } from "@/lib/schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -27,35 +26,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   try {
-    const rows = await db()
-      .select()
-      .from(trades)
-      .where(and(eq(trades.id, id), eq(trades.userId, userId)))
-      .limit(1);
-    const row = rows[0];
-    if (!row || row.status !== "OPEN") {
-      return fail("INTROUVABLE", "Programmation introuvable ou déjà traitée.", 404, lang);
-    }
-    if (new Date(row.openedAt).getTime() <= Date.now()) {
-      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400, lang);
-    }
-
-    // Supprime seulement si encore OPEN (protège d'une clôture simultanée).
-    const deleted = await db()
-      .delete(trades)
-      .where(and(eq(trades.id, id), eq(trades.status, "OPEN")))
-      .returning({ amount: trades.amount });
-    if (deleted.length === 0) {
-      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400, lang);
-    }
-
-    const refunded = await db()
-      .update(users)
-      .set({ balance: sql`${users.balance} + ${deleted[0].amount}` })
-      .where(eq(users.id, userId))
-      .returning({ balance: users.balance });
-
-    return ok({ balance: round2(refunded[0]?.balance ?? 0) });
+    const cancelled = await withSchema(() => db().execute(exactCancelTradeQuery(userId, id, new Date())));
+    const row = cancelled.rows[0];
+    if (!row) return fail("TROP_TARD", "Trop tard : la mise est déjà partie ou introuvable.", 400, lang);
+    return ok({ balance: Number(row.balance), balanceExact: {
+      numerator: String(row.numerator), denominator: String(row.denominator),
+    } });
   } catch {
     return fail("ERREUR_SERVEUR", "Annulation impossible pour le moment.", 500, lang);
   }

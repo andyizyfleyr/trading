@@ -1,11 +1,6 @@
 import type { Combo, ComboLeg, Trade, User } from "./schema";
 import type { ApiCombo, ApiComboLeg, ApiTrade, ApiUser } from "./types";
 
-/** Arrondit à 2 décimales pour éviter les artefacts de flottants. */
-export function round2(n: number): number {
-  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-}
-
 function iso(d: Date | string): string {
   return d instanceof Date ? d.toISOString() : new Date(d).toISOString();
 }
@@ -14,7 +9,8 @@ export function toApiUser(u: User): ApiUser {
   return {
     id: u.id,
     email: u.email,
-    balance: round2(u.balance ?? 0),
+    balance: u.balance ?? 0,
+    balanceExact: { numerator: u.balanceNumerator, denominator: u.balanceDenominator },
     currency: u.currency ?? "USD",
     country: u.country ?? null,
     lang: u.lang ?? "fr",
@@ -27,7 +23,11 @@ export function toApiTrade(t: Trade): ApiTrade {
     id: t.id,
     symbol: t.symbol,
     direction: t.direction === "DOWN" ? "DOWN" : "UP",
-    amount: round2(t.amount),
+    amount: t.amount,
+    amountExact: t.amountNumerator != null && t.amountDenominator != null
+      ? { numerator: t.amountNumerator, denominator: t.amountDenominator } : undefined,
+    payoutExact: t.payoutNumerator != null && t.payoutDenominator != null
+      ? { numerator: t.payoutNumerator, denominator: t.payoutDenominator } : null,
     openPrice: t.openPrice,
     closePrice: t.closePrice ?? null,
     durationSec: t.durationSec,
@@ -36,7 +36,7 @@ export function toApiTrade(t: Trade): ApiTrade {
       t.result === "WIN" || t.result === "LOSS" || t.result === "TIE"
         ? t.result
         : null,
-    payout: t.payout == null ? null : round2(t.payout),
+    payout: t.payout == null ? null : t.payout,
     openedAt: iso(t.openedAt),
     closesAt: iso(t.closesAt),
   };
@@ -63,10 +63,14 @@ export function toApiComboLeg(l: ComboLeg): ApiComboLeg {
 export function toApiCombo(c: Combo, legs: ComboLeg[]): ApiCombo {
   return {
     id: c.id,
-    amount: round2(c.amount),
+    amount: c.amount,
+    amountExact: c.amountNumerator != null && c.amountDenominator != null
+      ? { numerator: c.amountNumerator, denominator: c.amountDenominator } : undefined,
+    payoutExact: c.payoutNumerator != null && c.payoutDenominator != null
+      ? { numerator: c.payoutNumerator, denominator: c.payoutDenominator } : null,
     status: c.status === "SETTLED" ? "SETTLED" : "OPEN",
     result: c.result === "WIN" || c.result === "LOSS" || c.result === "TIE" ? c.result : null,
-    payout: c.payout == null ? null : round2(c.payout),
+    payout: c.payout == null ? null : c.payout,
     createdAt: iso(c.createdAt),
     legs: legs.map(toApiComboLeg),
   };

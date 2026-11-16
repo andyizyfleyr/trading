@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { STORE } from "@/lib/config";
-import { DEFAULT_CURRENCY, formatMoney, isCurrency, type CurrencyCode } from "@/lib/money";
+import { DEFAULT_CURRENCY, formatExactMoney, formatMoney, isCurrency, type CurrencyCode } from "@/lib/money";
+import type { ApiExactMoney } from "@/lib/types";
 
 /** Devise devinée mémorisée (visiteur, géolocalisation). */
 function readGeo(): CurrencyCode | null {
@@ -62,7 +63,7 @@ export function useMoney() {
   const userCur = user && isCurrency(user.currency) ? user.currency : null;
   const currency = userCur ?? geoCur ?? DEFAULT_CURRENCY;
   return useMemo(
-    () => ({ currency, money: (usd: number) => formatMoney(usd, currency, lang) }),
+    () => ({ currency, money: (usd: number, exact?: ApiExactMoney | null) => exact ? formatExactMoney(exact, currency, lang) : formatMoney(usd, currency, lang) }),
     [currency, lang]
   );
 }

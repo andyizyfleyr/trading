@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "NODE_ENV=test tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.19",
@@ -22,6 +23,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20.16.0",
     "@types/react": "^19.3.0",
@@ -30,6 +32,7 @@
     "drizzle-kit": "^0.31.4",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.3"
   }
 }

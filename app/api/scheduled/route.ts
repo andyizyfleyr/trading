@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, count, eq, gt, gte, sql } from "drizzle-orm";
+import { and, count, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
@@ -10,7 +10,10 @@ import { withSchema } from "@/lib/schema-ensure";
 import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
-import { round2, toApiTrade } from "@/lib/trade-shape";
+import { parseStake, tradeFromSql } from "@/lib/exact-api";
+import { compareExact } from "@/lib/exact-ledger";
+import { decimalFraction } from "@/lib/exact-money";
+import { exactOpenTradeQuery } from "@/lib/exact-open-trade";
 import { otcPriceAt } from "@/lib/otc";
 import { isDuration, isOtc, isSymbol, RULES } from "@/lib/symbols";
 
@@ -34,6 +37,9 @@ export async function POST(req: NextRequest) {
     symbol?: unknown;
     direction?: unknown;
     amount?: unknown;
+    amountExact?: unknown;
+    localAmount?: unknown;
+    localCurrency?: unknown;
     durationSec?: unknown;
     slot?: unknown;
   };
@@ -57,18 +63,13 @@ export async function POST(req: NextRequest) {
   if (!isDuration(body.durationSec)) {
     return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400, lang);
   }
-  const amount = round2(Number(body.amount));
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
-  }
-  if (amount < RULES.MIN_BET) {
+  let stake;
+  try { stake = parseStake(body, await userCurrency(userId)); }
+  catch { return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang); }
+  if (compareExact(stake, decimalFraction("0")) <= 0) return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
+  if (compareExact(stake, decimalFraction(String(RULES.MIN_BET))) < 0) {
     const cur = await userCurrency(userId);
-    return fail(
-      "MISE_TROP_PETITE",
-      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur, lang) }),
-      400,
-      lang
-    );
+    return fail("MISE_TROP_PETITE", tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur, lang) }), 400, lang);
   }
   const slot = Number(body.slot);
   const nowMs = Date.now();
@@ -103,42 +104,20 @@ export async function POST(req: NextRequest) {
     const user = userRows[0];
     if (!user) return UNAUTHORIZED(lang);
 
-    const balance = round2(user.balance ?? 0);
-    if (amount > balance) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
-    }
-
     // Prix d'ouverture exact, rejoué à la seconde pile choisie.
     const openPrice = otcPriceAt(body.symbol, slot);
     const openedAt = new Date(slot * 1000);
     const closesAt = new Date(slot * 1000 + body.durationSec * 1000);
 
-    // Retire la mise du solde de façon atomique.
-    const debited = await db()
-      .update(users)
-      .set({ balance: sql`${users.balance} - ${amount}` })
-      .where(and(eq(users.id, userId), gte(users.balance, amount)))
-      .returning({ balance: users.balance });
-    if (debited.length === 0) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
-    }
-
-    const [created] = await db()
-      .insert(trades)
-      .values({
-        userId,
-        symbol: body.symbol,
-        direction: body.direction,
-        amount,
-        openPrice,
-        durationSec: body.durationSec,
-        status: "OPEN",
-        openedAt,
-        closesAt,
-      })
-      .returning();
-
-    return ok({ scheduled: toApiTrade(created), balance: round2(debited[0].balance ?? 0) }, 201);
+    const opened = await withSchema(() => db().execute(exactOpenTradeQuery({
+      userId, symbol: body.symbol as string, direction: body.direction as "UP" | "DOWN", amount: stake,
+      openPrice, durationSec: body.durationSec as number, openedAt, closesAt,
+    })));
+    const row = opened.rows[0];
+    if (!row) return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
+    return ok({ scheduled: tradeFromSql(row), balance: Number(row.balance_after), balanceExact: {
+      numerator: String(row.balance_numerator_after), denominator: String(row.balance_denominator_after),
+    } }, 201);
   } catch {
     return fail("ERREUR_SERVEUR", "Programmation impossible pour le moment.", 500, lang);
   }

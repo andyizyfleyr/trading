@@ -7,7 +7,9 @@ import { isSymbol } from "@/lib/symbols";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
 import { withSchema } from "@/lib/schema-ensure";
-import { round2 } from "@/lib/trade-shape";
+import { addExact, decimalFraction, fraction, subtractExact } from "@/lib/exact-money";
+import { wireMoney } from "@/lib/exact-api";
+import Decimal from "decimal.js";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,18 @@ export async function GET(req: NextRequest) {
         ties = n;
       }
     }
+    // Le gain net utilise les fractions enregistrées, pas la somme des doubles.
+    const amounts = await withSchema(() => db().select({ result: trades.result,
+      amountN: trades.amountNumerator, amountD: trades.amountDenominator,
+      payoutN: trades.payoutNumerator, payoutD: trades.payoutDenominator,
+    }).from(trades).where(and(...conditions)));
+    let net = decimalFraction("0");
+    for (const row of amounts) {
+      if (row.result !== "WIN" && row.result !== "LOSS") continue;
+      if (row.amountN == null || row.amountD == null || row.payoutN == null || row.payoutD == null) throw new Error("Montant exact manquant");
+      net = addExact(net, subtractExact(fraction(BigInt(row.payoutN), BigInt(row.payoutD)), fraction(BigInt(row.amountN), BigInt(row.amountD))));
+    }
+    pnl = new Decimal(net.numerator.toString()).div(net.denominator.toString()).toNumber();
     const winRate = settled > 0 ? Math.round((wins / settled) * 100) : 0;
 
     const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
@@ -77,7 +91,8 @@ export async function GET(req: NextRequest) {
         losses,
         ties,
         winRate,
-        pnl: round2(pnl),
+        pnl,
+        pnlExact: wireMoney(net),
         rank: (above[0]?.n ?? 0) + 1,
         total: total[0]?.n ?? 1,
       },

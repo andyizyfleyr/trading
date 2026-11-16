@@ -1,9 +1,12 @@
 /** Types partagés entre le client web et les API JSON. */
 
+export interface ApiExactMoney { numerator: string; denominator: string }
+
 export interface ApiUser {
   id: number;
   email: string;
   balance: number;
+  balanceExact?: ApiExactMoney;
   /** Devise d'affichage (USD, EUR, XOF…) — tout est stocké en USD. */
   currency: string;
   /** Pays (code : BJ, FR…) ou null si non choisi. */
@@ -22,6 +25,8 @@ export interface ApiTrade {
   symbol: string;
   direction: TradeDirection;
   amount: number;
+  amountExact?: ApiExactMoney;
+  payoutExact?: ApiExactMoney | null;
   openPrice: number;
   closePrice: number | null;
   durationSec: number;
@@ -59,6 +64,8 @@ export interface ApiComboLeg {
 export interface ApiCombo {
   id: number;
   amount: number;
+  amountExact?: ApiExactMoney;
+  payoutExact?: ApiExactMoney | null;
   status: TradeStatus;
   result: TradeResult | null;
   payout: number | null;
@@ -74,6 +81,7 @@ export interface ApiStats {
   ties: number;
   winRate: number;
   pnl: number;
+  pnlExact?: ApiExactMoney;
   rank: number;
   total: number;
 }

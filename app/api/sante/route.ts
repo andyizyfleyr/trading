@@ -29,6 +29,7 @@ export async function GET() {
     erreurLogin: null as string | null,
     tables: { users: false, trades: false, combos: false, combo_legs: false },
     colonnesUsers: { currency: false, country: false, lang: false },
+    colonnesExactes: { users: false, trades: false, combos: false },
     erreur: null as string | null,
   };
 
@@ -62,6 +63,16 @@ export async function GET() {
       trades: noms.has("trades"),
       combos: noms.has("combos"),
       combo_legs: noms.has("combo_legs"),
+    };
+
+    const exactCols = await db().execute<{ table_name: string; column_name: string }>(sql.raw(
+      "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('users','trades','combos')"
+    ));
+    const exact = new Set(exactCols.rows.map((r) => `${r.table_name}.${r.column_name}`));
+    etat.colonnesExactes = {
+      users: ["balance_numerator", "balance_denominator"].every((c) => exact.has(`users.${c}`)),
+      trades: ["amount_numerator", "amount_denominator", "payout_numerator", "payout_denominator"].every((c) => exact.has(`trades.${c}`)),
+      combos: ["amount_numerator", "amount_denominator", "payout_numerator", "payout_denominator"].every((c) => exact.has(`combos.${c}`)),
     };
 
     if (noms.has("users")) {

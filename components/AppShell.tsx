@@ -74,11 +74,11 @@ function Header() {
             href={ROUTES.profile}
             className={HEADER.pill}
             aria-label={t("Mon solde : {x}. Aller au profil.", {
-              x: user ? money(user.balance) : "...",
+              x: user ? money(user.balance, user.balanceExact) : "...",
             })}
           >
             <WalletIcon className={HEADER.pillIcon} />
-            {user ? money(user.balance) : "…"}
+            {user ? money(user.balance, user.balanceExact) : "…"}
           </Link>
           <Link
             href={ROUTES.profile}
@@ -115,7 +115,7 @@ function BalanceSync() {
       running = true;
       try {
         const res = await apiSettle();
-        if (!stopped) setBalance(res.balance);
+        if (!stopped) setBalance(res.balance, res.balanceExact);
       } catch {
         /* hors ligne ou erreur : on garde le dernier solde connu */
       } finally {

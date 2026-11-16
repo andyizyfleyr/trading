@@ -1,11 +1,15 @@
 import { NextRequest } from "next/server";
-import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { comboLegs, combos, trades, users, type Combo, type ComboLeg, type Trade } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { reqLang } from "@/lib/respond";
-import { round2, toApiCombo, toApiTrade } from "@/lib/trade-shape";
+import { toApiCombo } from "@/lib/trade-shape";
+import { exactSettleTradeQuery } from "@/lib/exact-settle-trade";
+import { tradeFromSql } from "@/lib/exact-api";
+import type { ApiTrade } from "@/lib/types";
+import { exactSettleComboQuery } from "@/lib/exact-combo";
 import { withSchema } from "@/lib/schema-ensure";
 import { getPrice } from "@/lib/market";
 import { otcPriceAt } from "@/lib/otc";
@@ -58,12 +62,12 @@ export async function POST(req: NextRequest) {
     ];
     if (ids) conditions.push(inArray(trades.id, ids));
 
-    const expired: Trade[] = await db()
+    const expired: Trade[] = await withSchema(() => db()
       .select()
       .from(trades)
       .where(and(...conditions))
       .orderBy(desc(trades.closesAt))
-      .limit(50);
+      .limit(50));
 
     // Jambes de combinés échues (combinés encore OPEN uniquement).
     // Tables créées toutes seules au premier appel si elles manquent.
@@ -102,9 +106,9 @@ export async function POST(req: NextRequest) {
       dueLegs = [];
     }
 
-    if (expired.length === 0 && dueLegs.length === 0) {
+    if (expired.length === 0 && dueLegs.length === 0 && openCombos.length === 0) {
       const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
-      return ok({ settled: [], combos: [], pending: 0, balance: round2(me[0]?.balance ?? 0) });
+      return ok({ settled: [], combos: [], pending: 0, balance: me[0]?.balance ?? 0, balanceExact: me[0] ? { numerator: me[0].balanceNumerator, denominator: me[0].balanceDenominator } : undefined });
     }
 
     // Un seul appel prix par actif (les jeux casino rejouent leur prix exact,
@@ -124,7 +128,7 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    const settled: Trade[] = [];
+    const settled: ApiTrade[] = [];
     let pending = 0;
 
     for (const trade of expired) {
@@ -139,35 +143,18 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const result = judge(trade.direction, trade.openPrice, closePrice);
-      const payout =
-        result === "WIN"
-          ? round2(trade.amount * (1 + RULES.WIN_PAYOUT_RATIO))
-          : result === "TIE"
-            ? round2(trade.amount)
-            : 0;
-
-      // Ne clôture que si encore OPEN (protège des appels en double).
-      const updated = await db()
-        .update(trades)
-        .set({ status: "SETTLED", result, payout, closePrice })
-        .where(and(eq(trades.id, trade.id), eq(trades.status, "OPEN")))
-        .returning();
-
-      if (updated.length === 0) continue; // Déjà clôturée par un autre appel.
-      if (payout > 0) {
-        await db()
-          .update(users)
-          .set({ balance: sql`${users.balance} + ${payout}` })
-          .where(eq(users.id, userId));
-      }
-      settled.push(updated[0]);
+      const resultRow = await db().execute(exactSettleTradeQuery(userId, trade.id, result, closePrice, now));
+      if (resultRow.rows.length === 0) continue;
+      settled.push(tradeFromSql(resultRow.rows[0]));
     }
 
     // --- Combinés : on juge les jambes échues, puis on clôt les combinés
     // qui ont perdu (une jambe perdue = tout perdu aussitôt) ou dont toutes
     // les jambes sont jugées (mise × 1,85 ^ jambes gagnées, plafonné).
     const comboById = new Map(openCombos.map((c) => [c.id, c]));
-    const dueByCombo = new Map<number, ComboLeg[]>();
+    // Même sans jambe due, vérifier les combinés déjà jugés après une
+    // interruption réseau : leur règlement doit pouvoir être repris.
+    const dueByCombo = new Map<number, ComboLeg[]>(openCombos.map((combo) => [combo.id, []]));
     for (const leg of dueLegs) {
       const list = dueByCombo.get(leg.comboId) ?? [];
       list.push(leg);
@@ -195,50 +182,28 @@ export async function POST(req: NextRequest) {
         if (updated.length === 0) continue; // Déjà jugée par un autre appel.
         if (result === "LOSS") lost = true;
       }
+      const judged = await db().select().from(comboLegs).where(eq(comboLegs.comboId, comboId));
+      lost ||= judged.some((leg) => leg.result === "LOSS");
       if (lost) {
         // Perte anticipée : les jambes restantes sont annulées (VOID).
         await db()
           .update(comboLegs)
           .set({ status: "SETTLED", result: "VOID" })
           .where(and(eq(comboLegs.comboId, comboId), eq(comboLegs.status, "OPEN")));
-        const updatedCombo = await db()
-          .update(combos)
-          .set({ status: "SETTLED", result: "LOSS", payout: 0 })
-          .where(and(eq(combos.id, comboId), eq(combos.status, "OPEN")))
-          .returning();
-        if (updatedCombo.length > 0) settledCombos.push(updatedCombo[0]);
+        const changed = await db().execute(exactSettleComboQuery(userId, comboId, 0, true, RULES.COMBO_MAX_PAYOUT));
+        if (changed.rows.length > 0) {
+          const [updated] = await db().select().from(combos).where(eq(combos.id, comboId)).limit(1);
+          if (updated) settledCombos.push(updated);
+        }
         continue;
       }
-      const remaining = await db()
-        .select({ id: comboLegs.id })
-        .from(comboLegs)
-        .where(and(eq(comboLegs.comboId, comboId), eq(comboLegs.status, "OPEN")))
-        .limit(1);
-      if (remaining.length > 0) continue; // D'autres jambes courent encore.
-      const judged = await db().select().from(comboLegs).where(eq(comboLegs.comboId, comboId));
+      if (judged.some((leg) => leg.status === "OPEN")) continue;
       const wins = judged.filter((l) => l.result === "WIN").length;
-      // Que des égalités : mise rendue. Sinon les égalités sortent de la cote.
-      const result = wins === 0 ? "TIE" : "WIN";
-      const payout =
-        wins === 0
-          ? round2(combo.amount)
-          : Math.min(
-              round2(combo.amount * Math.pow(1 + RULES.WIN_PAYOUT_RATIO, wins)),
-              RULES.COMBO_MAX_PAYOUT
-            );
-      const updatedCombo = await db()
-        .update(combos)
-        .set({ status: "SETTLED", result, payout })
-        .where(and(eq(combos.id, comboId), eq(combos.status, "OPEN")))
-        .returning();
-      if (updatedCombo.length === 0) continue; // Déjà clôturé par un autre appel.
-      if (payout > 0) {
-        await db()
-          .update(users)
-          .set({ balance: sql`${users.balance} + ${payout}` })
-          .where(eq(users.id, userId));
+      const changed = await db().execute(exactSettleComboQuery(userId, comboId, wins, false, RULES.COMBO_MAX_PAYOUT));
+      if (changed.rows.length > 0) {
+        const [updated] = await db().select().from(combos).where(eq(combos.id, comboId)).limit(1);
+        if (updated) settledCombos.push(updated);
       }
-      settledCombos.push(updatedCombo[0]);
     }
 
     const settledComboIds = settledCombos.map((c) => c.id);
@@ -255,10 +220,11 @@ export async function POST(req: NextRequest) {
 
     const me = await withSchema(() => db().select().from(users).where(eq(users.id, userId)).limit(1));
     return ok({
-      settled: settled.map(toApiTrade),
+      settled,
       combos: settledCombos.map((c) => toApiCombo(c, legsByCombo.get(c.id) ?? [])),
       pending,
-      balance: round2(me[0]?.balance ?? 0),
+      balance: me[0]?.balance ?? 0,
+      balanceExact: me[0] ? { numerator: me[0].balanceNumerator, denominator: me[0].balanceDenominator } : undefined,
     });
   } catch {
     return fail("ERREUR_SERVEUR", "Clôture impossible pour le moment.", 500, lang);

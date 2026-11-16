@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Decimal from "decimal.js";
 import { apiOpenTrade, apiScheduleTrade, ApiError } from "@/lib/api";
 import { useServerOffset } from "@/hooks/useServerOffset";
 import {
@@ -20,10 +21,13 @@ import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
 import { CURRENCIES, convertToUsd, convertUsd, formatCurrency, potentialPayout, roundCurrency, type CurrencyCode } from "@/lib/money";
 import { useLang } from "@/lib/lang-context";
+import { useAuth } from "@/lib/auth-context";
+import { compareExact } from "@/lib/exact-ledger";
 import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS, RULES, SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
-import type { ApiTrade } from "@/lib/types";
+import type { ApiExactMoney, ApiTrade } from "@/lib/types";
+import { addExact, decimalFraction, exactFromUsd, exactToUsd, fraction, multiplyExact, truncateExact } from "@/lib/exact-money";
 import { BottomSheet, Btn } from "./ui";
 import { TimePickerPanel } from "./TimePicker";
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, MinusIcon, PlusIcon } from "./Icons";
@@ -38,6 +42,7 @@ export interface SignalHint {
 export interface ReplayOrder {
   direction: "UP" | "DOWN";
   amount: number;
+  amountExact?: ApiExactMoney;
   durationSec: number;
   /** Change à chaque demande (rejoue même le même trade deux fois). */
   nonce: number;
@@ -47,13 +52,13 @@ interface Props {
   balance: number;
   symbol: string;
   online: boolean;
-  onOpened: (trade: ApiTrade, balance: number) => void;
+  onOpened: (trade: ApiTrade, balance: number, balanceExact?: ApiExactMoney) => void;
   /** Durée pré-choisie (signal). */
   initialDuration?: number;
   /** Bouton conseillé + heure exacte pour miser (signal). */
   signal?: SignalHint | null;
   /** Solde après programmation/annulation d'une mise. */
-  onBalance?: (balance: number) => void;
+  onBalance?: (balance: number, balanceExact?: ApiExactMoney) => void;
   /** Rejoue un trade terminé dès que l'ordre change. */
   replay?: ReplayOrder | null;
   /** Créneau pré-choisi par la page Signaux (« Préparer ma mise »). */
@@ -86,7 +91,7 @@ export function ScheduledTrades({
         {trades.map((trade) => (
           <li key={trade.id} className={TRADER.soonRow}>
             <span className={TRADER.soonMain}>
-              {trade.direction === "UP" ? t("Hausse ▲") : t("Baisse ▼")} {money(trade.amount)}{" "}
+              {trade.direction === "UP" ? t("Hausse ▲") : t("Baisse ▼")} {money(trade.amount, trade.amountExact)}{" "}
               <span className={TRADER.soonSub}>
                 {symbolDisplay(trade.symbol)} {t("à")} {fmtHM(slotOf(trade))}
               </span>
@@ -110,6 +115,7 @@ export function ScheduledTrades({
 interface Pending {
   direction: "UP" | "DOWN";
   amount: number;
+  amountExact?: ApiExactMoney;
   durationSec: number;
   symbol: string;
   slot: number;
@@ -122,7 +128,7 @@ function slotOf(t: ApiTrade): number {
 
 function parseAmount(raw: string): number | null {
   const n = Number(raw.replace(",", ".").trim());
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  return Number.isFinite(n) ? n : null;
 }
 
 /** « HH:MM » → prochaine occurrence (aujourd'hui, ou demain si l'heure est passée). */
@@ -166,6 +172,7 @@ function loadOrderPrefs(currency: CurrencyCode): { durationSec: number; amountSt
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const { currency, money } = useMoney();
+  const { user } = useAuth();
   const { t, lang } = useLang();
   const [prefs] = useState(() => loadOrderPrefs(currency));
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
@@ -363,19 +370,36 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // reste (contrôles, API, base) parle USD : amountUsd fait le passage.
   const amount = useMemo(() => parseAmount(amountStr), [amountStr]);
   const amountUsd = amount == null ? null : convertToUsd(amount, currency);
+  const amountExact = useMemo(() => {
+    try {
+      const value = exactToUsd(decimalFraction(amountStr.replace(",", ".").trim()), currency);
+      return { numerator: value.numerator.toString(), denominator: value.denominator.toString() };
+    } catch { return undefined; }
+  }, [amountStr, currency]);
   // Calculer dans la devise saisie évite les écarts dus aux deux conversions USD.
   const payout = potentialPayout(amount, RULES.WIN_PAYOUT_RATIO);
+  const exactGain = amountExact && amount != null && amount > 0
+    ? multiplyExact(fraction(BigInt(amountExact.numerator), BigInt(amountExact.denominator)), addExact(decimalFraction("1"), decimalFraction(String(RULES.WIN_PAYOUT_RATIO)))) : null;
+  const payoutExact = exactGain ? { numerator: exactGain.numerator.toString(), denominator: exactGain.denominator.toString() } : undefined;
+  const belowMinimum = (exact: ApiExactMoney | undefined, usd: number) => exact
+    ? compareExact(fraction(BigInt(exact.numerator), BigInt(exact.denominator)), decimalFraction(String(RULES.MIN_BET))) < 0
+    : usd < RULES.MIN_BET;
+  const exceedsBalance = (exact: ApiExactMoney | undefined, usd: number) => exact && user?.balanceExact
+    ? compareExact(fraction(BigInt(exact.numerator), BigInt(exact.denominator)), fraction(BigInt(user.balanceExact.numerator), BigInt(user.balanceExact.denominator))) > 0
+    : usd > maxBet;
 
   // Pas des boutons − / + : la mise minimum, dans la devise affichée.
   const stepBet = (dir: 1 | -1) => {
-    const step = convertUsd(RULES.MIN_BET, currency);
-    const cap = convertUsd(maxBet, currency);
-    const cur = amount != null && amount > 0 ? amount : convertUsd(DEFAULT_BET, currency);
-    const next =
-      dir > 0
-        ? Math.min(cap, cur + step)
-        : Math.max(step, cur - step);
-    setAmountStr(String(Math.max(0, roundCurrency(next, currency))));
+    // Le plus petit pas affichable qui respecte la limite USD ; on ne
+    // l'applique jamais au montant stocké, seulement au choix du bouton.
+    const step = new Decimal(RULES.MIN_BET).mul(CURRENCIES[currency].perUsd)
+      .toDecimalPlaces(CURRENCIES[currency].decimals, Decimal.ROUND_UP);
+    const cap = user?.balanceExact
+      ? truncateExact(exactFromUsd(fraction(BigInt(user.balanceExact.numerator), BigInt(user.balanceExact.denominator)), currency), CURRENCIES[currency].decimals)
+      : String(convertUsd(maxBet, currency));
+    const cur = new Decimal(amount != null && amount > 0 ? amountStr.replace(",", ".") : convertUsd(DEFAULT_BET, currency));
+    const next = dir > 0 ? Decimal.min(cap, cur.plus(step)) : Decimal.max(step, cur.minus(step));
+    setAmountStr(String(Math.max(0, roundCurrency(next.toNumber(), currency))));
   };
 
   // Jeu affiché dans le panneau (pastille + nom + gain).
@@ -384,39 +408,41 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
   const place = async (
     direction: "UP" | "DOWN",
-    ov?: { amount?: number; durationSec?: number; symbol?: string }
+    ov?: { amount?: number; amountExact?: ApiExactMoney; durationSec?: number; symbol?: string }
   ) => {
     // ov.amount (mise programmée, Rejouer) est déjà en USD ; sinon le
     // champ est dans la devise : on le convertit avant tout contrôle.
     const amt = ov?.amount ?? amountUsd;
+    const stakeExact = ov ? ov.amountExact : amountExact;
     setError(null);
     if (!online) {
       setError(t("Hors ligne : reconnectez-vous pour jouer."));
       return;
     }
-    if (amt == null || amt <= 0) {
+    if (amt == null || amt <= 0 || (!ov && !stakeExact)) {
       setError(t("Entrez un montant de mise."));
       return;
     }
-    if (amt < RULES.MIN_BET) {
+    if (belowMinimum(stakeExact, amt)) {
       setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
       return;
     }
-    if (amt > maxBet) {
+    if (exceedsBalance(stakeExact, amt)) {
       setError(t("Solde insuffisant pour cette mise."));
       return;
     }
     setPlacing(direction);
     try {
-      const { trade, balance: newBalance } = await apiOpenTrade({
+      const { trade, balance: newBalance, balanceExact } = await apiOpenTrade({
         symbol: ov?.symbol ?? symbol,
         direction,
         amount: amt,
+        amountExact: stakeExact,
         durationSec: ov?.durationSec ?? durationSec,
       });
       vibrate(VIBRATE.action);
       pickNow(); // On repart sur « Maintenant » : pas de programmation surprise au prochain appui.
-      onOpened(trade, newBalance);
+      onOpened(trade, newBalance, balanceExact);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("Prédiction impossible pour le moment."));
     } finally {
@@ -441,20 +467,20 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         setError(t("Hors ligne : reconnectez-vous pour jouer."));
         return;
       }
-      if (amountUsd == null || amountUsd <= 0) {
+      if (amountUsd == null || amountUsd <= 0 || !amountExact) {
         setError(t("Entrez un montant de mise."));
         return;
       }
-      if (amountUsd < RULES.MIN_BET) {
+      if (belowMinimum(amountExact, amountUsd)) {
         setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
         return;
       }
-      if (amountUsd > maxBet) {
+      if (exceedsBalance(amountExact, amountUsd)) {
         setError(t("Solde insuffisant pour cette mise."));
         return;
       }
       firedRef.current = false;
-      setPending({ direction, amount: amountUsd, durationSec, symbol, slot: Math.floor(signal.atMs / 1000) });
+      setPending({ direction, amount: amountUsd, amountExact, durationSec, symbol, slot: Math.floor(signal.atMs / 1000) });
       return;
     }
     await schedule(direction);
@@ -495,15 +521,15 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       setError(t("Hors ligne : reconnectez-vous pour jouer."));
       return;
     }
-    if (amountUsd == null || amountUsd <= 0) {
+    if (amountUsd == null || amountUsd <= 0 || !amountExact) {
       setError(t("Entrez un montant de mise."));
       return;
     }
-    if (amountUsd < RULES.MIN_BET) {
+    if (belowMinimum(amountExact, amountUsd)) {
       setError(t("La mise minimum est de {min}.", { min: money(RULES.MIN_BET) }));
       return;
     }
-    if (amountUsd > maxBet) {
+    if (exceedsBalance(amountExact, amountUsd)) {
       setError(t("Solde insuffisant pour cette mise."));
       return;
     }
@@ -514,11 +540,12 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           symbol,
           direction,
           amount: amountUsd,
+          amountExact,
           durationSec,
           slot,
         });
         vibrate(VIBRATE.action);
-        onBalance?.(res.balance);
+        onBalance?.(res.balance, res.balanceExact);
         pickNow(); // La mise rejoint la liste « En cours ».
         onScheduledChange?.();
       } catch (err) {
@@ -529,7 +556,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       return;
     }
     firedRef.current = false;
-    setPending({ direction, amount: amountUsd, durationSec, symbol, slot });
+    setPending({ direction, amount: amountUsd, amountExact, durationSec, symbol, slot });
   };
 
   // Envoi précis sur l'appareil : dès que l'heure pile (+150 ms) arrive, la mise part.
@@ -540,6 +567,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     void (async () => {
       await place(pending.direction, {
         amount: pending.amount,
+        amountExact: pending.amountExact,
         durationSec: pending.durationSec,
         symbol: pending.symbol,
       });
@@ -556,9 +584,11 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     replayNonceRef.current = replay.nonce;
     setDurationSec(replay.durationSec);
     // Rejouer arrive en USD (trade terminé) : on réaffiche dans la devise.
-    setAmountStr(String(convertUsd(replay.amount, currency)));
+    setAmountStr(replay.amountExact
+      ? truncateExact(exactFromUsd(fraction(BigInt(replay.amountExact.numerator), BigInt(replay.amountExact.denominator)), currency), CURRENCIES[currency].decimals)
+      : String(convertUsd(replay.amount, currency)));
     pickNow();
-    void place(replay.direction, { amount: replay.amount, durationSec: replay.durationSec });
+    void place(replay.direction, { amount: replay.amount, amountExact: replay.amountExact, durationSec: replay.durationSec });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replay]);
 
@@ -672,7 +702,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           <div className={ORDER.debRow}>
             <span className={ORDER.debLabel}>{t("Gain potentiel")}</span>
             <span className={ORDER.debDots} aria-hidden="true" />
-            <span className={ORDER.debVal}>{formatCurrency(payout, currency, lang)}</span>
+            <span className={ORDER.debVal}>{payoutExact ? money(0, payoutExact) : formatCurrency(payout, currency, lang)}</span>
           </div>
 
           {/* Signal : dans combien de temps appuyer, et sur quel bouton */}
