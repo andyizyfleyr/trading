@@ -26,11 +26,12 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
   const open = trade.status === "OPEN";
   const won = trade.result === "WIN";
   const lost = trade.result === "LOSS";
-  const net = won ? (trade.payout ?? 0) - trade.amount : 0;
+  // Gagné : ce qu'on a touché (mise + bénéfice, 100 → 185).
+  const gain = won ? (trade.payout ?? 0) : 0;
   const right = open
     ? `Fin ${fmtRemainShort(new Date(trade.closesAt).getTime() - now)}`
     : won
-      ? `+${fmtGain(net)}`
+      ? `+${fmtGain(gain)}`
       : lost
         ? `−${fmtMoney(trade.amount)}`
         : "±0";

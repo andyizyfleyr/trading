@@ -19,12 +19,12 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
   const toneText =
     winning == null ? ENCOURS.textFlat : winning ? ENCOURS.textWin : ENCOURS.textLoss;
   const arrow = diff == null || diff === 0 ? "" : diff > 0 ? "▲ " : "▼ ";
-  // Estimation : gain net (+85 %) si ça gagne, mise perdue sinon, « = » si égalité.
+  // Estimation : mise + bénéfice (×1,85) si ça gagne, mise perdue sinon, « = » si égalité.
   const est =
     winning == null
       ? "="
       : winning
-        ? `+${fmtGain(trade.amount * RULES.WIN_PAYOUT_RATIO)}`
+        ? `+${fmtGain(trade.amount * (1 + RULES.WIN_PAYOUT_RATIO))}`
         : `−${fmtMoney(trade.amount)}`;
 
   return (
@@ -65,11 +65,12 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
   const isUp = trade.direction === "UP";
   const won = trade.result === "WIN";
   const lost = trade.result === "LOSS";
-  const net = won ? (trade.payout ?? 0) - trade.amount : 0;
   const move = trade.closePrice == null ? null : trade.closePrice - trade.openPrice;
 
   const title = won ? "Prédiction gagnée" : lost ? "Prédiction ratée" : "Égalité : mise rendue";
-  const amount = won ? `+${fmtGain(net)}` : lost ? `−${fmtMoney(trade.amount)}` : fmtSigned(0);
+  // Gagné : ce qu'on a touché (mise + bénéfice, 100 → 185).
+  const amount =
+    won ? `+${fmtGain(trade.payout ?? 0)}` : lost ? `−${fmtMoney(trade.amount)}` : fmtSigned(0);
   const moveArrow = move == null || move === 0 ? "" : move > 0 ? "▲ " : "▼ ";
 
   return (
