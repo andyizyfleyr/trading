@@ -3,6 +3,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -108,6 +110,7 @@ export function TraderScreen({
   online,
   offsetMs,
   onBalance,
+  onRefresh,
   pendingSignal,
   onConsumeSignal,
 }) {
@@ -121,6 +124,8 @@ export function TraderScreen({
   const [openTrades, setOpenTrades] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [results, setResults] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
 
   const [assetOpen, setAssetOpen] = useState(false);
   const [durSheetOpen, setDurSheetOpen] = useState(false);
@@ -401,6 +406,26 @@ export function TraderScreen({
     const timer = setInterval(loadScheduled, CONFIG.SCHEDULED_REFRESH_MS);
     return () => clearInterval(timer);
   }, [loadScheduled]);
+
+  const handlePullRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setChartRefreshKey((k) => k + 1);
+    try {
+      await Promise.all([
+        onRefresh ? onRefresh() : Promise.resolve(),
+        loadOpen(),
+        loadScheduled(),
+        apiGetPrice(symbol)
+          .then((p) => {
+            if (p != null) setPrice(p);
+          })
+          .catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, onRefresh, loadOpen, loadScheduled, symbol]);
 
   const cancelScheduled = useCallback(
     async (id) => {
@@ -881,20 +906,37 @@ export function TraderScreen({
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Graphique maison en bougies : prend toute la place disponible */}
-      <View style={styles.chartBox}>
-        <CandleChart
-          symbol={symbol}
-          interval={CONFIG.DEFAULT_INTERVAL}
-          livePrice={price}
-          toast={toast}
-          stake={sortedOpen.length > 0 ? sortedOpen[0].amount : null}
-          stakeExact={sortedOpen.length > 0 ? sortedOpen[0].amountExact : null}
-          currency={currency}
-          lang={lang}
-          calm={calm}
-          t={t}
-        />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        overScrollMode="always"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handlePullRefresh}
+            tintColor={INK.action}
+            colors={[INK.action, INK.vert]}
+            progressBackgroundColor={INK.carte}
+          />
+        }
+      >
+        {/* Graphique maison en bougies : prend toute la place disponible */}
+        <View style={styles.chartBox}>
+          <CandleChart
+            symbol={symbol}
+            interval={CONFIG.DEFAULT_INTERVAL}
+            livePrice={price}
+            toast={toast}
+            stake={sortedOpen.length > 0 ? sortedOpen[0].amount : null}
+            stakeExact={sortedOpen.length > 0 ? sortedOpen[0].amountExact : null}
+            currency={currency}
+            lang={lang}
+            calm={calm}
+            refreshKey={chartRefreshKey}
+            t={t}
+          />
 
         {/* Pastille « N en cours » en bas à gauche du graphique */}
         {sortedOpen.length > 0 || scheduledUp.length > 0 ? (
@@ -1115,6 +1157,7 @@ export function TraderScreen({
           </View>
         ) : null}
       </View>
+      </ScrollView>
 
       {/* BottomSheet 1 : Choix du jeu */}
       <SelectSheet
@@ -1361,11 +1404,18 @@ export function TraderScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: INK.fond,
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: INK.fond,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
     gap: 8,
-    backgroundColor: INK.fond,
   },
   chartBox: {
     flex: 1,

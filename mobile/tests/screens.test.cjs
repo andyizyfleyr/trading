@@ -80,6 +80,7 @@ const native = {
   PanResponder: { create: () => ({ panHandlers: {} }) },
   Platform: { OS: 'android' },
   Pressable: 'Pressable',
+  RefreshControl: 'RefreshControl',
   SafeAreaView: 'SafeAreaView',
   ScrollView: 'ScrollView',
   Share: { share: async () => ({}) },
@@ -333,6 +334,21 @@ function findButton(root, label) {
   assert.equal(tradeCall.body.amountExact.denominator, '15087011');
   assert.ok(hasText(root, '1 en cours'), 'Pastille 1 en cours attendue');
 
+  const findRefreshControl = () => {
+    const sc = root.root.findAllByType('ScrollView').find((n) => n.props.refreshControl);
+    return sc ? sc.props.refreshControl : null;
+  };
+
+  // Tirer pour actualiser sur Trader
+  const traderRefresh = findRefreshControl();
+  assert.ok(traderRefresh, 'RefreshControl attendu sur Trader');
+  const beforeTraderCalls = calls.length;
+  await act(async () => {
+    await traderRefresh.props.onRefresh();
+  });
+  await flush();
+  assert.ok(calls.slice(beforeTraderCalls).some((c) => c.path.startsWith('/api/trades')), 'Pull-to-refresh Trader doit recharger /api/trades');
+
   // 4. Écran Signaux : consigne géante + 20 coups + Préparer ma mise →
   await act(async () => findButton(root, 'Signaux').props.onPress());
   await flush();
@@ -340,6 +356,14 @@ function findButton(root, label) {
   assert.ok(hasText(root, 'Comment ne pas louper le coup'), 'Section Comment faire attendue');
   assert.ok(hasText(root, 'Les coups à venir'), 'Section Les coups à venir attendue');
   assert.ok(hasText(root, 'À JOUER'), 'Badge À JOUER attendu');
+  const sigRefresh = findRefreshControl();
+  assert.ok(sigRefresh, 'RefreshControl attendu sur Signaux');
+  const beforeSigCalls = calls.length;
+  await act(async () => {
+    await sigRefresh.props.onRefresh();
+  });
+  await flush();
+  assert.ok(calls.slice(beforeSigCalls).some((c) => c.path.startsWith('/api/price')), 'Pull-to-refresh Signaux doit resynchroniser l horloge via /api/price');
   await act(async () => findButton(root, 'Préparer ma mise →').props.onPress());
   await flush();
   assert.ok(hasText(root, 'appuie sur'), 'Bannière signal active attendue sur Trader');
@@ -358,6 +382,14 @@ function findButton(root, label) {
   assert.ok(hasText(root, 'Réussite'), 'Stat Réussite attendue');
   assert.ok(hasText(root, 'Tous les jeux'), 'Filtre Tous les jeux attendu');
   assert.ok(hasText(root, "Aujourd'hui"), 'Groupe Aujourd hui attendu');
+  const histRefresh = findRefreshControl();
+  assert.ok(histRefresh, 'RefreshControl attendu sur Historique');
+  const beforeHistCalls = calls.length;
+  await act(async () => {
+    await histRefresh.props.onRefresh();
+  });
+  await flush();
+  assert.ok(calls.slice(beforeHistCalls).some((c) => c.path.startsWith('/api/trades')), 'Pull-to-refresh Historique doit recharger /api/trades');
 
   // 6. Écran Profil : Ajouter (BottomSheet), Devise, Langue, Réduire les animations
   const headerPill = root.root
@@ -368,6 +400,14 @@ function findButton(root, label) {
   await flush();
   assert.ok(hasText(root, 'Profil'), 'Titre Profil attendu');
   assert.ok(hasText(root, 'Réduire les animations'), 'Option Réduire les animations attendue');
+  const profRefresh = findRefreshControl();
+  assert.ok(profRefresh, 'RefreshControl attendu sur Profil');
+  const beforeProfCalls = calls.length;
+  await act(async () => {
+    await profRefresh.props.onRefresh();
+  });
+  await flush();
+  assert.ok(calls.slice(beforeProfCalls).some((c) => c.path === '/api/me'), 'Pull-to-refresh Profil doit recharger /api/me');
 
   // Ouvre le panneau Ajouter et ajoute +1000 USD
   await act(async () => findButton(root, 'Ajouter').props.onPress());

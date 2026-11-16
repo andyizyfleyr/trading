@@ -1,6 +1,6 @@
 // Écran Historique : miroir exact de app/historique/page.tsx.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { apiMyStats, apiMyTrades, apiSettle, ApiError } from '../api';
 import { absExact, addExact, money, subtractExact } from '../money';
 import {
@@ -86,13 +86,14 @@ function TradeRow({ trade, now, currency, lang, t }) {
   );
 }
 
-export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance }) {
+export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance, onRefresh }) {
   const [filter, setFilter] = useState('all');
   const [asset, setAsset] = useState('all');
   const [assetSheetOpen, setAssetSheetOpen] = useState(false);
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [exported, setExported] = useState('idle');
@@ -106,13 +107,14 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance 
 
   const serverNow = now + (offsetMs || 0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts) => {
+    const silent = Boolean(opts && opts.silent);
     if (loadingRef.current) {
       queuedRef.current = true;
       return;
     }
     loadingRef.current = true;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       do {
@@ -140,6 +142,19 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance 
       setLoading(false);
     }
   }, [onBalance, t]);
+
+  const handlePullRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        load({ silent: true }),
+        onRefresh ? onRefresh() : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, load, onRefresh]);
 
   useEffect(() => {
     load();
@@ -275,6 +290,16 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance 
       style={styles.scroll}
       contentContainerStyle={styles.root}
       showsVerticalScrollIndicator={false}
+      overScrollMode="always"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handlePullRefresh}
+          tintColor={INK.action}
+          colors={[INK.action, INK.vert]}
+          progressBackgroundColor={INK.carte}
+        />
+      }
     >
       {/* En-tête compacte : titre + Exporter + ↻ */}
       <View style={styles.head}>
