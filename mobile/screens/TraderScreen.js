@@ -74,7 +74,7 @@ function slotFromTime(v, fromMs) {
   return slot;
 }
 
-function DottedLeader() {
+const DottedLeader = React.memo(function DottedLeader() {
   const [width, setWidth] = useState(0);
   return (
     <View
@@ -99,9 +99,9 @@ function DottedLeader() {
       ) : null}
     </View>
   );
-}
+});
 
-export function TraderScreen({
+export const TraderScreen = React.memo(function TraderScreen({
   user,
   currency,
   lang,
@@ -109,6 +109,7 @@ export function TraderScreen({
   calm,
   online,
   offsetMs,
+  isActive = true,
   onBalance,
   onRefresh,
   pendingSignal,
@@ -250,19 +251,31 @@ export function TraderScreen({
     if (onConsumeSignal) onConsumeSignal();
   }, [pendingSignal, offsetMs, onConsumeSignal]);
 
-  // Horloge 1 s (pastille + clôtures).
+  const needsClock =
+    isActive &&
+    (openTrades.length > 0 ||
+      scheduled.length > 0 ||
+      durSheetOpen ||
+      timeSheetOpen ||
+      tradesOpen ||
+      signal != null ||
+      pending != null);
+
+  // Horloge 1 s uniquement quand un élément affiché en a besoin (0 re-render au repos).
   useEffect(() => {
+    if (!needsClock) return undefined;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), CONFIG.FLOAT_TICK_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [needsClock]);
 
   // Horloge rapide 250 ms pendant un signal actif ou une mise armée.
   useEffect(() => {
-    if (!signal && !pending) return;
+    if (!isActive || (!signal && !pending)) return undefined;
     setFastNow(Date.now());
     const timer = setInterval(() => setFastNow(Date.now()), CONFIG.SIGNAL_TICK_MS);
     return () => clearInterval(timer);
-  }, [signal, pending]);
+  }, [isActive, signal, pending]);
 
   // Efface automatiquement un signal expiré après 30 s.
   useEffect(() => {
@@ -291,9 +304,15 @@ export function TraderScreen({
     SecureStore.setItemAsync(CONFIG.STORE.symbol, id).catch(() => {});
   }, []);
 
-  // Sondage du prix en direct toutes les 4 s.
+  const prevSymbolRef = useRef(symbol);
+
+  // Sondage du prix en direct toutes les 4 s (en pause quand l'onglet n'est pas affiché).
   useEffect(() => {
-    setPrice(null);
+    if (prevSymbolRef.current !== symbol) {
+      prevSymbolRef.current = symbol;
+      setPrice(null);
+    }
+    if (!isActive) return undefined;
     let stopped = false;
     let inFlight = false;
     const poll = async () => {
@@ -314,7 +333,7 @@ export function TraderScreen({
       stopped = true;
       clearInterval(timer);
     };
-  }, [symbol]);
+  }, [symbol, isActive]);
 
   // Prix en direct des autres jeux ayant des trades en cours.
   const otherSymbolsKey = useMemo(() => {
@@ -325,8 +344,9 @@ export function TraderScreen({
   useEffect(() => {
     if (!otherSymbolsKey) {
       setOtherPrices({});
-      return;
+      return undefined;
     }
+    if (!isActive) return undefined;
     const syms = otherSymbolsKey.split(',');
     let stopped = false;
     const poll = async () => {
@@ -354,7 +374,7 @@ export function TraderScreen({
       stopped = true;
       clearInterval(timer);
     };
-  }, [otherSymbolsKey]);
+  }, [otherSymbolsKey, isActive]);
 
   // Chargement des prédictions en cours.
   const loadOpen = useCallback(async () => {
@@ -386,10 +406,11 @@ export function TraderScreen({
   }, []);
 
   useEffect(() => {
+    if (!isActive) return undefined;
     loadOpen();
     const timer = setInterval(loadOpen, CONFIG.TRADES_REFRESH_MS);
     return () => clearInterval(timer);
-  }, [loadOpen]);
+  }, [loadOpen, isActive]);
 
   // Chargement des mises programmées.
   const loadScheduled = useCallback(async () => {
@@ -402,10 +423,11 @@ export function TraderScreen({
   }, []);
 
   useEffect(() => {
+    if (!isActive) return undefined;
     loadScheduled();
     const timer = setInterval(loadScheduled, CONFIG.SCHEDULED_REFRESH_MS);
     return () => clearInterval(timer);
-  }, [loadScheduled]);
+  }, [loadScheduled, isActive]);
 
   const handlePullRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -440,8 +462,9 @@ export function TraderScreen({
     [loadScheduled, onBalance, say, t]
   );
 
-  // Clôture automatique à l'échéance.
+  // Clôture automatique à l'échéance (uniquement s'il y a des trades ouverts).
   useEffect(() => {
+    if (!isActive || openTrades.length === 0) return undefined;
     const timer = setInterval(async () => {
       if (settlingRef.current || !online) return;
       const current = Date.now() + (offsetMs || 0);
@@ -485,7 +508,7 @@ export function TraderScreen({
       }
     }, CONFIG.SETTLE_TICK_MS);
     return () => clearInterval(timer);
-  }, [openTrades, online, offsetMs, onBalance, doVibrate, say, t, currency, lang]);
+  }, [isActive, openTrades, online, offsetMs, onBalance, doVibrate, say, t, currency, lang]);
 
   // Calculs du panneau d'ordre
   const serverNowMs = now + (offsetMs || 0);
@@ -917,7 +940,7 @@ export function TraderScreen({
             refreshing={refreshing}
             onRefresh={handlePullRefresh}
             tintColor={INK.action}
-            colors={[INK.action, INK.vert]}
+            colors={[INK.action, INK.hausse]}
             progressBackgroundColor={INK.carte}
           />
         }
@@ -935,6 +958,7 @@ export function TraderScreen({
             lang={lang}
             calm={calm}
             refreshKey={chartRefreshKey}
+            isActive={isActive}
             t={t}
           />
 
@@ -1399,7 +1423,7 @@ export function TraderScreen({
       {showGuide ? <GuideBubbles t={t} onDone={closeGuide} /> : null}
     </KeyboardAvoidingView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

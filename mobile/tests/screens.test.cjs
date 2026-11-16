@@ -60,6 +60,9 @@ function makeAnimatedValue(initial) {
     setValue(v) {
       this._value = v;
     },
+    interpolate() {
+      return initial;
+    },
   };
 }
 
@@ -260,9 +263,23 @@ async function flush() {
   });
 }
 
+function isHiddenNode(node) {
+  let cur = node;
+  while (cur) {
+    const st = cur.props && cur.props.style;
+    if (st) {
+      const list = Array.isArray(st) ? st : [st];
+      if (list.some((s) => s && s.display === 'none')) return true;
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
 function allText(node) {
   return node
     .findAllByType('Text')
+    .filter((t) => !isHiddenNode(t))
     .map((t) =>
       t.children
         .map((c) => (typeof c === 'string' || typeof c === 'number' ? String(c) : ''))
@@ -277,7 +294,7 @@ function hasText(root, needle) {
 function findButton(root, label) {
   const node = root.root
     .findAllByType('TouchableOpacity')
-    .find((n) => allText(n).some((txt) => txt.includes(label)));
+    .find((n) => !isHiddenNode(n) && allText(n).some((txt) => txt.includes(label)));
   assert.ok(node, 'Bouton manquant : ' + label);
   return node;
 }
@@ -335,7 +352,9 @@ function findButton(root, label) {
   assert.ok(hasText(root, '1 en cours'), 'Pastille 1 en cours attendue');
 
   const findRefreshControl = () => {
-    const sc = root.root.findAllByType('ScrollView').find((n) => n.props.refreshControl);
+    const sc = root.root
+      .findAllByType('ScrollView')
+      .find((n) => !isHiddenNode(n) && n.props.refreshControl);
     return sc ? sc.props.refreshControl : null;
   };
 

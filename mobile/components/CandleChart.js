@@ -1,14 +1,14 @@
 // Graphique maison en bougies (SVG + gestes) : miroir exact de components/CandleChart.tsx.
+// Optimisé mobile : bougies regroupées en 2 <Path>, anneau animé natif (GPU), gestes cadencés par rAF.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, ClipPath, Defs, G, Line, Rect, Text as SvgText } from 'react-native-svg';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { apiCandles, ApiError } from '../api';
 import { money } from '../money';
 import { CHART_CFG, CONFIG, INK, fmtHM24, symbolDecimals } from '../theme';
 import { Btn } from './Ui';
 
 const SKELETON_BARS = [55, 70, 45, 80, 60, 75, 50, 65, 72, 58, 66, 48];
-const PULSE_FRAMES = 12;
 const DEFAULT_VIEW = { step: CHART_CFG.stepDef, scroll: 0 };
 
 function clampView(v, len, plotW) {
@@ -18,7 +18,49 @@ function clampView(v, len, plotW) {
   return { step, scroll };
 }
 
-export function CandleChart({
+/** Anneau vivant animé 100 % sur le thread natif (0 re-render JS). */
+const LivePulseRing = React.memo(function LivePulseRing({ x, y, color, calm, isActive }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (calm || !isActive) {
+      progress.setValue(0);
+      return undefined;
+    }
+    const anim = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 1600,
+        useNativeDriver: true,
+      })
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [calm, isActive, progress]);
+
+  if (calm || !isActive) return null;
+
+  const scale = progress.interpolate ? progress.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) : 1;
+  const opacity = progress.interpolate ? progress.interpolate({ inputRange: [0, 1], outputRange: [0.75, 0] }) : 0.4;
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.pulseRing,
+        {
+          left: x - 12,
+          top: y - 12,
+          borderColor: color,
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    />
+  );
+});
+
+export const CandleChart = React.memo(function CandleChart({
   symbol,
   interval = CONFIG.DEFAULT_INTERVAL,
   livePrice,
@@ -29,6 +71,7 @@ export function CandleChart({
   lang = 'fr',
   calm = false,
   refreshKey = 0,
+  isActive = true,
   t,
 }) {
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -37,19 +80,41 @@ export function CandleChart({
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [view, setView] = useState(DEFAULT_VIEW);
-  const [phase, setPhase] = useState(0);
-  const [dispPrice, setDispPrice] = useState(null);
 
   const seriesRef = useRef('');
-  const priceRef = useRef(null);
   const lenRef = useRef(0);
   const viewRef = useRef(view);
   viewRef.current = view;
   const boxRef = useRef(box);
   boxRef.current = box;
+  const rafRef = useRef(null);
+  const pendingViewRef = useRef(null);
 
-  // Charge l'historique des bougies + rafraîchissement toutes les 15 s.
+  const scheduleView = (next) => {
+    pendingViewRef.current = next;
+    if (rafRef.current != null) return;
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+    rafRef.current = raf(() => {
+      rafRef.current = null;
+      if (pendingViewRef.current) {
+        setView(pendingViewRef.current);
+        pendingViewRef.current = null;
+      }
+    });
+  };
+
   useEffect(() => {
+    return () => {
+      if (rafRef.current != null) {
+        if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafRef.current);
+        else clearTimeout(rafRef.current);
+      }
+    };
+  }, []);
+
+  // Charge l'historique des bougies + rafraîchissement toutes les 15 s (en pause hors écran).
+  useEffect(() => {
+    if (!isActive) return undefined;
     let cancelled = false;
     const series = `${symbol}|${interval}`;
     const changed = seriesRef.current !== series;
@@ -57,8 +122,6 @@ export function CandleChart({
       seriesRef.current = series;
       setCandles([]);
       setView(DEFAULT_VIEW);
-      priceRef.current = null;
-      setDispPrice(null);
       lenRef.current = 0;
       setLoading(true);
     } else if (lenRef.current === 0) {
@@ -86,7 +149,7 @@ export function CandleChart({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [symbol, interval, reloadKey, refreshKey, t]);
+  }, [symbol, interval, reloadKey, refreshKey, isActive, t]);
 
   // Bougies affichées + dernier prix en direct (garde-fou anti-pic).
   const { shown, liveTarget } = useMemo(() => {
@@ -122,40 +185,6 @@ export function CandleChart({
       setView((v) => (v.scroll > 0 ? { ...v, scroll: v.scroll + grown } : v));
     }
   }, [shown.length]);
-
-  // Point vivant qui pulse (figé en mode calme).
-  useEffect(() => {
-    if (calm) return;
-    const timer = setInterval(() => {
-      setPhase((p) => (p + 1) % PULSE_FRAMES);
-    }, CHART_CFG.pulseMs);
-    return () => clearInterval(timer);
-  }, [calm]);
-
-  // Transition douce du prix (350 ms) sauf mode calme.
-  useEffect(() => {
-    if (liveTarget == null) return;
-    if (priceRef.current == null || calm) {
-      priceRef.current = liveTarget;
-      setDispPrice(liveTarget);
-      return;
-    }
-    const from = priceRef.current;
-    const t0 = Date.now();
-    let timer = null;
-    const stepAnim = () => {
-      const k = Math.min(1, (Date.now() - t0) / CHART_CFG.tweenMs);
-      const e = 1 - (1 - k) * (1 - k);
-      const next = from + (liveTarget - from) * e;
-      priceRef.current = next;
-      setDispPrice(next);
-      if (k < 1) timer = setTimeout(stepAnim, 32);
-    };
-    stepAnim();
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [liveTarget, calm]);
 
   // Gestes : glisser horizontalement = défiler, pincer = zoomer, double-toucher = retour au direct.
   // Les glissements verticaux sont laissés au ScrollView parent (tirer pour actualiser).
@@ -240,7 +269,7 @@ export function CandleChart({
               const px = Math.min(Math.max(g.pinch.midX, 0), plotW);
               const anchor = len - g.pinch.scroll - plotW / g.pinch.step + px / g.pinch.step;
               const scroll1 = len - plotW / step1 - (anchor - px / step1);
-              setView(clampView({ step: step1, scroll: scroll1 }, len, plotW));
+              scheduleView(clampView({ step: step1, scroll: scroll1 }, len, plotW));
               g.moved = true;
             }
             return;
@@ -255,7 +284,7 @@ export function CandleChart({
 
           const v = viewRef.current;
           const dx = evt.nativeEvent.pageX - g.panStartX;
-          setView(clampView({ step: v.step, scroll: g.panStartScroll + dx / v.step }, len, plotW));
+          scheduleView(clampView({ step: v.step, scroll: g.panStartScroll + dx / v.step }, len, plotW));
         },
         onPanResponderRelease: () => {
           gestureRef.current.pinch = null;
@@ -269,18 +298,19 @@ export function CandleChart({
     []
   );
 
-  // Calcul des géométries SVG
+  // Calcul des géométries SVG regroupées en chemins (<Path>) pour un rendu ultra-fluide.
   const W = box.width || 340;
   const H = box.height || 220;
   const pw = CHART_CFG.axisW;
   const ph = CHART_CFG.axisBottom;
   const plotW = Math.max(1, W - pw);
   const plotB = Math.max(CHART_CFG.padTop + 20, H - ph - CHART_CFG.padBottom);
-  const len = shown.length;
   const dec = symbolDecimals(symbol);
 
-  let chartSvg = null;
-  if (len > 0 && W > 0 && H > 0) {
+  const computed = useMemo(() => {
+    const len = shown.length;
+    if (len === 0 || W <= 0 || H <= 0) return null;
+
     const v = clampView(view, len, plotW);
     const step = v.step;
     const count = plotW / step;
@@ -291,7 +321,7 @@ export function CandleChart({
     const xPos = (i) => (i - start) * step + step / 2;
 
     const tip = shown[len - 1];
-    const disp = liveTarget == null ? tip.close : (dispPrice ?? tip.close);
+    const disp = liveTarget == null ? tip.close : liveTarget;
 
     let hi = -Infinity;
     let lo = Infinity;
@@ -313,46 +343,44 @@ export function CandleChart({
 
     const yPos = (val) => CHART_CFG.padTop + ((hi - val) / (hi - lo)) * (plotB - CHART_CFG.padTop);
     const bodyW = Math.max(1, step * 0.7);
+    const halfBody = bodyW / 2;
     const wickW = step > 16 ? 2 : 1;
+    const halfWick = wickW / 2;
 
-    // Grille + prix à droite
+    // Grille + prix à droite (1 seul <Path> pour toutes les lignes horizontales + graduations)
     const gridRows = [];
+    const gridSegs = [];
     for (let g = 0; g < CHART_CFG.gridLines; g++) {
       const val = hi - ((hi - lo) * g) / (CHART_CFG.gridLines - 1);
-      gridRows.push({ yy: yPos(val), label: val.toFixed(dec) });
+      const yy = yPos(val);
+      gridRows.push({ yy, label: val.toFixed(dec) });
+      gridSegs.push(`M0 ${yy.toFixed(1)}H${plotW.toFixed(1)}`);
     }
 
-    // Bougies visibles
-    const bars = [];
+    // Bougies visibles regroupées en 2 <Path> (haussières et baissières)
+    const upSegs = [];
+    const downSegs = [];
+    const bwStr = bodyW.toFixed(1);
+    const nbwStr = (-bodyW).toFixed(1);
     for (let i = i0; i < i1; i++) {
       const k = shown[i];
       const close = i === len - 1 ? disp : k.close;
       const high = i === len - 1 ? Math.max(k.high, disp) : k.high;
       const low = i === len - 1 ? Math.min(k.low, disp) : k.low;
       const cx = xPos(i);
-      const col = close >= k.open ? INK.hausse : INK.chartDown;
       const yOpen = yPos(k.open);
       const yClose = yPos(close);
-      bars.push({
-        key: k.time,
-        cx,
-        col,
-        yHi: yPos(high),
-        yLo: yPos(low),
-        yTop: Math.min(yOpen, yClose),
-        bh: Math.max(1, Math.abs(yOpen - yClose)),
-      });
+      const yHi = yPos(high);
+      const yLo = yPos(low);
+      const yTop = Math.min(yOpen, yClose);
+      const bh = Math.max(1, Math.abs(yOpen - yClose));
+      const wh = Math.max(1, yLo - yHi);
+      const seg =
+        `M${(cx - halfWick).toFixed(1)} ${yHi.toFixed(1)}h${wickW}v${wh.toFixed(1)}h${-wickW}Z` +
+        `M${(cx - halfBody).toFixed(1)} ${yTop.toFixed(1)}h${bwStr}v${bh.toFixed(1)}h${nbwStr}Z`;
+      if (close >= k.open) upSegs.push(seg);
+      else downSegs.push(seg);
     }
-
-    // Ligne du prix en direct + pastilles
-    const cy = yPos(disp);
-    const pillCy = Math.min(Math.max(cy, CHART_CFG.padTop + 9), plotB - 9);
-    const pillX = W - pw + 2;
-    const pillW = pw - 4;
-    const pillH = 18;
-    const stakeText = stake != null ? money(stake, stakeExact, currency, lang) : null;
-    const stakeW = stakeText ? Math.max(36, stakeText.length * 6.2 + 12) : 0;
-    const stakeX = pillX - 4 - stakeW;
 
     // Heures en bas
     const span = Math.max(0, i1 - 1 - i0);
@@ -363,121 +391,40 @@ export function CandleChart({
       const idx = labelCount === 1 ? i1 - 1 : Math.round(i0 + (span * i) / (labelCount - 1));
       const lx = Math.min(Math.max(xPos(idx), CHART_CFG.timeEdge), W - pw - CHART_CFG.timeEdge);
       timeTicks.push({ key: i, lx, label: fmtHM24(shown[idx].time) });
+      gridSegs.push(`M${lx.toFixed(1)} ${plotBottom.toFixed(1)}v${CHART_CFG.tickLen}`);
     }
 
-    const pulseFrac = phase / (PULSE_FRAMES - 1);
+    const cy = yPos(disp);
+    const pillCy = Math.min(Math.max(cy, CHART_CFG.padTop + 9), plotB - 9);
+    const pillX = W - pw + 2;
+    const pillW = pw - 4;
+    const pillH = 18;
+    const stakeText = stake != null ? money(stake, stakeExact, currency, lang) : null;
+    const stakeW = stakeText ? Math.max(36, stakeText.length * 6.2 + 12) : 0;
+    const stakeX = pillX - 4 - stakeW;
     const liveCol = disp >= tip.open ? INK.hausse : INK.chartDown;
+    const showDot = liveVisible && cy >= CHART_CFG.padTop && cy <= plotB;
 
-    chartSvg = (
-      <Svg width={W} height={H}>
-        <Defs>
-          <ClipPath id="plotClip">
-            <Rect x={0} y={0} width={plotW} height={plotB + 4} />
-          </ClipPath>
-        </Defs>
-
-        {/* Grille horizontale + prix sur l'axe droit */}
-        {gridRows.map((row, idx) => (
-          <React.Fragment key={idx}>
-            <Line x1={0} x2={plotW} y1={row.yy} y2={row.yy} stroke={INK.ligne} strokeWidth={1} />
-            <SvgText x={W - pw + 5} y={row.yy + 3.5} fill={INK.doux} fontSize={10}>
-              {row.label}
-            </SvgText>
-          </React.Fragment>
-        ))}
-
-        {/* Bougies (clippées à la zone du graphique) */}
-        <G clipPath="url(#plotClip)">
-          {bars.map((b) => (
-            <React.Fragment key={b.key}>
-              <Line x1={b.cx} x2={b.cx} y1={b.yHi} y2={b.yLo} stroke={b.col} strokeWidth={wickW} />
-              <Rect x={b.cx - bodyW / 2} y={b.yTop} width={bodyW} height={b.bh} fill={b.col} />
-            </React.Fragment>
-          ))}
-        </G>
-
-        {/* Ligne pointillée blanche du prix actuel */}
-        <Line
-          x1={0}
-          x2={plotW}
-          y1={cy}
-          y2={cy}
-          stroke={INK.texte}
-          strokeWidth={1}
-          strokeDasharray="3,3"
-        />
-
-        {/* Pastille grise de la mise en cours */}
-        {stakeText && stakeX >= 0 ? (
-          <>
-            <Rect x={stakeX} y={pillCy - pillH / 2} width={stakeW} height={pillH} rx={4} fill={INK.countBg} />
-            <SvgText
-              x={stakeX + stakeW / 2}
-              y={pillCy + 3.5}
-              textAnchor="middle"
-              fill={INK.texte}
-              fontSize={10}
-              fontWeight="700"
-            >
-              {stakeText}
-            </SvgText>
-          </>
-        ) : null}
-
-        {/* Pastille bleue du prix en direct */}
-        <Rect x={pillX} y={pillCy - pillH / 2} width={pillW} height={pillH} rx={4} fill={INK.pill} />
-        <SvgText
-          x={pillX + pillW / 2}
-          y={pillCy + 3.5}
-          textAnchor="middle"
-          fill="#FFFFFF"
-          fontSize={10}
-          fontWeight="700"
-        >
-          {disp.toFixed(dec)}
-        </SvgText>
-
-        {/* Point vivant + anneau qui pulse */}
-        {liveVisible && cy >= CHART_CFG.padTop && cy <= plotB ? (
-          <>
-            <Circle cx={liveX} cy={cy} r={3} fill={liveCol} />
-            <Circle
-              cx={liveX}
-              cy={cy}
-              r={3 + pulseFrac * 9}
-              fill="none"
-              stroke={liveCol}
-              strokeWidth={1.5}
-              strokeOpacity={(1 - pulseFrac) * 0.7}
-            />
-          </>
-        ) : null}
-
-        {/* Heures + graduations sur l'axe du bas */}
-        {timeTicks.map((tk) => (
-          <React.Fragment key={tk.key}>
-            <Line
-              x1={tk.lx}
-              x2={tk.lx}
-              y1={plotBottom}
-              y2={plotBottom + CHART_CFG.tickLen}
-              stroke={INK.ligne}
-              strokeWidth={1}
-            />
-            <SvgText
-              x={tk.lx}
-              y={H - CHART_CFG.timePad}
-              textAnchor="middle"
-              fill={INK.doux}
-              fontSize={10}
-            >
-              {tk.label}
-            </SvgText>
-          </React.Fragment>
-        ))}
-      </Svg>
-    );
-  }
+    return {
+      gridD: gridSegs.join(''),
+      upD: upSegs.join(''),
+      downD: downSegs.join(''),
+      gridRows,
+      timeTicks,
+      cy,
+      pillCy,
+      pillX,
+      pillW,
+      pillH,
+      stakeText,
+      stakeW,
+      stakeX,
+      liveX,
+      liveCol,
+      showDot,
+      dispLabel: disp.toFixed(dec),
+    };
+  }, [shown, view, liveTarget, W, H, pw, plotW, plotB, dec, stake, stakeExact, currency, lang]);
 
   return (
     <View
@@ -491,8 +438,119 @@ export function CandleChart({
       {...panResponder.panHandlers}
     >
       <Pressable onPress={handleChartPress} style={styles.pressFill}>
-        {chartSvg}
+        {computed ? (
+          <Svg width={W} height={H}>
+            <Defs>
+              <ClipPath id="plotClip">
+                <Rect x={0} y={0} width={plotW} height={plotB + 4} />
+              </ClipPath>
+            </Defs>
+
+            {/* Grille horizontale + graduations temps en un seul Path */}
+            {computed.gridD ? (
+              <Path d={computed.gridD} stroke={INK.ligne} strokeWidth={1} fill="none" />
+            ) : null}
+
+            {/* Étiquettes de prix sur l'axe droit */}
+            {computed.gridRows.map((row, idx) => (
+              <SvgText key={idx} x={W - pw + 5} y={row.yy + 3.5} fill={INK.doux} fontSize={10}>
+                {row.label}
+              </SvgText>
+            ))}
+
+            {/* Bougies regroupées en 2 Path (haussières / baissières) */}
+            <G clipPath="url(#plotClip)">
+              {computed.upD ? <Path d={computed.upD} fill={INK.hausse} /> : null}
+              {computed.downD ? <Path d={computed.downD} fill={INK.chartDown} /> : null}
+            </G>
+
+            {/* Ligne pointillée blanche du prix actuel */}
+            <Line
+              x1={0}
+              x2={plotW}
+              y1={computed.cy}
+              y2={computed.cy}
+              stroke={INK.texte}
+              strokeWidth={1}
+              strokeDasharray="3,3"
+            />
+
+            {/* Pastille grise de la mise en cours */}
+            {computed.stakeText && computed.stakeX >= 0 ? (
+              <>
+                <Rect
+                  x={computed.stakeX}
+                  y={computed.pillCy - computed.pillH / 2}
+                  width={computed.stakeW}
+                  height={computed.pillH}
+                  rx={4}
+                  fill={INK.countBg}
+                />
+                <SvgText
+                  x={computed.stakeX + computed.stakeW / 2}
+                  y={computed.pillCy + 3.5}
+                  textAnchor="middle"
+                  fill={INK.texte}
+                  fontSize={10}
+                  fontWeight="700"
+                >
+                  {computed.stakeText}
+                </SvgText>
+              </>
+            ) : null}
+
+            {/* Pastille bleue du prix en direct */}
+            <Rect
+              x={computed.pillX}
+              y={computed.pillCy - computed.pillH / 2}
+              width={computed.pillW}
+              height={computed.pillH}
+              rx={4}
+              fill={INK.pill}
+            />
+            <SvgText
+              x={computed.pillX + computed.pillW / 2}
+              y={computed.pillCy + 3.5}
+              textAnchor="middle"
+              fill="#FFFFFF"
+              fontSize={10}
+              fontWeight="700"
+            >
+              {computed.dispLabel}
+            </SvgText>
+
+            {/* Point vivant fixe (l'anneau qui pulse est animé nativement au-dessus) */}
+            {computed.showDot ? (
+              <Circle cx={computed.liveX} cy={computed.cy} r={3} fill={computed.liveCol} />
+            ) : null}
+
+            {/* Heures sur l'axe du bas */}
+            {computed.timeTicks.map((tk) => (
+              <SvgText
+                key={tk.key}
+                x={tk.lx}
+                y={H - CHART_CFG.timePad}
+                textAnchor="middle"
+                fill={INK.doux}
+                fontSize={10}
+              >
+                {tk.label}
+              </SvgText>
+            ))}
+          </Svg>
+        ) : null}
       </Pressable>
+
+      {/* Anneau animé sur le GPU (0 re-render JS) */}
+      {computed && computed.showDot ? (
+        <LivePulseRing
+          x={computed.liveX}
+          y={computed.cy}
+          color={computed.liveCol}
+          calm={calm}
+          isActive={isActive}
+        />
+      ) : null}
 
       {/* Bouton retour au direct quand on a fait défiler l'historique */}
       {view.scroll > 0.5 ? (
@@ -545,7 +603,7 @@ export function CandleChart({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -559,16 +617,23 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  pulseRing: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
   liveBtn: {
     position: 'absolute',
     bottom: 24,
     right: 8,
     zIndex: 4,
-    borderRadius: 999,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: INK.ligne,
-    backgroundColor: INK.puce,
-    paddingHorizontal: 10,
+    backgroundColor: INK.carte,
+    paddingHorizontal: 8,
     paddingVertical: 4,
   },
   liveBtnText: {
@@ -581,15 +646,15 @@ const styles = StyleSheet.create({
     top: 10,
     left: 0,
     right: 0,
-    zIndex: 5,
     alignItems: 'center',
+    zIndex: 5,
   },
   toast: {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: INK.ligne,
-    backgroundColor: INK.puce,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(28, 31, 46, 0.94)',
+    paddingHorizontal: 14,
     paddingVertical: 6,
   },
   toastText: {
@@ -607,25 +672,27 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 4,
-    padding: 16,
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
   },
   skelBar: {
-    flex: 1,
-    borderRadius: 4,
-    backgroundColor: '#283044',
+    width: 8,
+    borderRadius: 3,
+    backgroundColor: INK.carte,
   },
   errBox: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(42,48,64,0.95)',
-    padding: 24,
+    gap: 10,
+    paddingHorizontal: 16,
+    backgroundColor: INK.fond,
   },
   errText: {
-    fontSize: 15,
-    color: INK.texte,
+    fontSize: 13,
+    color: INK.doux,
     textAlign: 'center',
   },
 });

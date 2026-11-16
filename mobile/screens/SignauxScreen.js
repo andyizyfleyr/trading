@@ -18,13 +18,76 @@ function verdictLabel(v, t) {
   return v === 'UP' ? t('Hausse ▲') : v === 'DOWN' ? t('Baisse ▼') : t('Égalité =');
 }
 
-export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySync, onRefresh }) {
+function computeFirstSlot(serverNowMs) {
+  return Math.floor((serverNowMs + CONFIG.TIME_SLOT_BOOK_MARGIN_MS) / 60000 + 1) * 60;
+}
+
+/** Seul bloc qui avance seconde par seconde : évite de rerendre les 20 lignes à chaque tick. */
+const SignalLiveMeter = React.memo(function SignalLiveMeter({
+  targetStart,
+  offsetMs,
+  isActive,
+  onSlotAdvance,
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isActive) return undefined;
+    setNow(Date.now());
+    const timer = setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      if (onSlotAdvance) onSlotAdvance(n);
+    }, 250);
+    return () => clearInterval(timer);
+  }, [isActive, onSlotAdvance]);
+
+  const serverNowMs = now + (offsetMs ?? 0);
+  const remainingMs = Math.max(0, targetStart * 1000 - serverNowMs);
+  const spanStartMs = (targetStart - 60) * 1000;
+  const spanMs = Math.max(1, targetStart * 1000 - spanStartMs);
+  const elapsedPct = Math.min(100, Math.max(0, ((serverNowMs - spanStartMs) / spanMs) * 100));
+
+  return (
+    <>
+      <Text style={styles.countdown}>
+        {remainingMs < CONFIG.GO_THRESHOLD_MS ? 'GO !' : fmtRemain(remainingMs)}
+      </Text>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${elapsedPct.toFixed(1)}%` }]} />
+      </View>
+    </>
+  );
+});
+
+export const SignauxScreen = React.memo(function SignauxScreen({
+  offsetMs,
+  online,
+  calm,
+  t,
+  isActive = true,
+  onPrepare,
+  onRetrySync,
+  onRefresh,
+}) {
   const [gameId, setGameId] = useState(GAMES[0] ? GAMES[0].id : '');
   const [duration, setDuration] = useState(CONFIG.DEFAULT_DURATION_SEC);
-  const [now, setNow] = useState(() => Date.now());
+  const [firstSlot, setFirstSlot] = useState(() => computeFirstSlot(Date.now() + (offsetMs ?? 0)));
   const [refreshing, setRefreshing] = useState(false);
 
   const game = GAMES.find((g) => g.id === gameId) || GAMES[0];
+
+  const syncSlot = useCallback(
+    (nowMs) => {
+      const next = computeFirstSlot(nowMs + (offsetMs ?? 0));
+      setFirstSlot((prev) => (prev === next ? prev : next));
+    },
+    [offsetMs]
+  );
+
+  useEffect(() => {
+    if (isActive) syncSlot(Date.now());
+  }, [isActive, syncSlot]);
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -32,29 +95,21 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
     try {
       if (onRefresh) await onRefresh();
       else if (onRetrySync) await onRetrySync();
-      setNow(Date.now());
+      syncSlot(Date.now());
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing, onRefresh, onRetrySync]);
+  }, [refreshing, onRefresh, onRetrySync, syncSlot]);
 
   const refreshControl = (
     <RefreshControl
       refreshing={refreshing}
       onRefresh={handleRefresh}
       tintColor={INK.action}
-      colors={[INK.action, INK.vert]}
+      colors={[INK.action, INK.hausse]}
       progressBackgroundColor={INK.carte}
     />
   );
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), CONFIG.COUNTDOWN_TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
-
-  const serverNowMs = now + (offsetMs ?? 0);
-  const firstSlot = Math.floor((serverNowMs + CONFIG.TIME_SLOT_BOOK_MARGIN_MS) / 60000 + 1) * 60;
 
   const slots = useMemo(() => {
     if (offsetMs == null || !game) return [];
@@ -65,10 +120,6 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
   }, [offsetMs, firstSlot, game, duration]);
 
   const target = slots.find((s) => s.v !== 'TIE') || slots[0];
-  const remainingMs = target ? Math.max(0, target.start * 1000 - serverNowMs) : 0;
-  const spanStartMs = target ? (target.start - 60) * 1000 : 0;
-  const spanMs = target ? target.start * 1000 - spanStartMs : 1;
-  const elapsedPct = Math.min(100, Math.max(0, ((serverNowMs - spanStartMs) / spanMs) * 100));
 
   if (GAMES.length === 0) {
     return (
@@ -166,13 +217,12 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
             </View>
 
             <Text style={styles.miseDans}>{t('Mise dans')}</Text>
-            <Text style={styles.countdown}>
-              {remainingMs < CONFIG.GO_THRESHOLD_MS ? 'GO !' : fmtRemain(remainingMs)}
-            </Text>
-
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${elapsedPct}%` }]} />
-            </View>
+            <SignalLiveMeter
+              targetStart={target.start}
+              offsetMs={offsetMs}
+              isActive={isActive}
+              onSlotAdvance={syncSlot}
+            />
 
             <Btn
               onPress={() =>
@@ -316,7 +366,7 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
       </View>
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scroll: {

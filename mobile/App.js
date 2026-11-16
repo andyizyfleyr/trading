@@ -37,7 +37,13 @@ export default function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register' | 'welcome'
   const [screen, setScreen] = useState('Trader'); // 'Trader' | 'Signaux' | 'Historique' | 'Profil'
+  const [visited, setVisited] = useState({ Trader: true });
   const [lang, setLangState] = useState('fr');
+
+  const goScreen = useCallback((next) => {
+    setScreen(next);
+    setVisited((prev) => (prev[next] ? prev : { ...prev, [next]: true }));
+  }, []);
   const [calm, setCalm] = useState(false);
   const [online, setOnline] = useState(true);
   const [offsetMs, setOffsetMs] = useState(null);
@@ -58,6 +64,7 @@ export default function App() {
     setSessionExpired(true);
     setAuthScreen('login');
     setScreen('Trader');
+    setVisited({ Trader: true });
   }, []);
 
   // Synchronise le contexte HTTP (token, langue, gestion expiration & réseau).
@@ -201,7 +208,7 @@ export default function App() {
       clearInterval(timer);
       if (sub && typeof sub.remove === 'function') sub.remove();
     };
-  }, [token, screen, syncBalance, syncClock]);
+  }, [token, syncBalance, syncClock]);
 
   // Bouton retour Android.
   useEffect(() => {
@@ -210,7 +217,7 @@ export default function App() {
     }
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (token && screen !== 'Trader') {
-        setScreen('Trader');
+        goScreen('Trader');
         return true;
       }
       if (!token && authScreen !== 'login') {
@@ -222,7 +229,7 @@ export default function App() {
     return () => {
       if (sub && typeof sub.remove === 'function') sub.remove();
     };
-  }, [token, screen, authScreen]);
+  }, [token, screen, authScreen, goScreen]);
 
   const setLang = useCallback(
     async (nextLang) => {
@@ -257,6 +264,7 @@ export default function App() {
     setUser(newUser);
     setSessionExpired(false);
     setScreen('Trader');
+    setVisited({ Trader: true });
     if (newUser && isLang(newUser.lang)) {
       setLangState(newUser.lang);
       SecureStore.setItemAsync(CONFIG.STORE.lang, newUser.lang).catch(() => {});
@@ -271,12 +279,16 @@ export default function App() {
     setSessionExpired(false);
     setAuthScreen('login');
     setScreen('Trader');
+    setVisited({ Trader: true });
   }, []);
 
-  const handlePrepareSignal = useCallback((payload) => {
-    setPendingSignal(payload);
-    setScreen('Trader');
-  }, []);
+  const handlePrepareSignal = useCallback(
+    (payload) => {
+      setPendingSignal(payload);
+      goScreen('Trader');
+    },
+    [goScreen]
+  );
 
   const consumeSignal = useCallback(() => setPendingSignal(null), []);
 
@@ -344,7 +356,7 @@ export default function App() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t('Accueil Trader')}
-            onPress={() => setScreen('Trader')}
+            onPress={() => goScreen('Trader')}
             style={styles.logo}
           >
             <View style={styles.logoMark}>
@@ -359,7 +371,7 @@ export default function App() {
             accessibilityLabel={t('Mon solde : {x}. Aller au profil.', {
               x: money(user.balance, user.balanceExact, currency, lang),
             })}
-            onPress={() => setScreen('Profil')}
+            onPress={() => goScreen('Profil')}
             style={styles.balancePill}
           >
             <WalletIcon size={14} color={INK.action} />
@@ -379,61 +391,84 @@ export default function App() {
         </View>
       ) : null}
 
-      {/* Contenu principal */}
+      {/* Contenu principal : onglets visités conservés en mémoire pour un changement instantané */}
       <View style={styles.main}>
-        {screen === 'Trader' ? (
-          <TraderScreen
-            user={user}
-            currency={currency}
-            lang={lang}
-            t={t}
-            calm={calm}
-            online={online}
-            offsetMs={offsetMs}
-            onBalance={setBalance}
-            onRefresh={refreshAll}
-            pendingSignal={pendingSignal}
-            onConsumeSignal={consumeSignal}
-          />
+        {visited.Trader ? (
+          <View
+            style={[styles.tabPane, screen !== 'Trader' && styles.tabHidden]}
+            pointerEvents={screen === 'Trader' ? 'auto' : 'none'}
+          >
+            <TraderScreen
+              user={user}
+              currency={currency}
+              lang={lang}
+              t={t}
+              calm={calm}
+              online={online}
+              offsetMs={offsetMs}
+              isActive={screen === 'Trader'}
+              onBalance={setBalance}
+              onRefresh={refreshAll}
+              pendingSignal={pendingSignal}
+              onConsumeSignal={consumeSignal}
+            />
+          </View>
         ) : null}
 
-        {screen === 'Signaux' ? (
-          <SignauxScreen
-            offsetMs={offsetMs}
-            online={online}
-            calm={calm}
-            t={t}
-            onPrepare={handlePrepareSignal}
-            onRetrySync={syncClock}
-            onRefresh={refreshAll}
-          />
+        {visited.Signaux ? (
+          <View
+            style={[styles.tabPane, screen !== 'Signaux' && styles.tabHidden]}
+            pointerEvents={screen === 'Signaux' ? 'auto' : 'none'}
+          >
+            <SignauxScreen
+              offsetMs={offsetMs}
+              online={online}
+              calm={calm}
+              t={t}
+              isActive={screen === 'Signaux'}
+              onPrepare={handlePrepareSignal}
+              onRetrySync={syncClock}
+              onRefresh={refreshAll}
+            />
+          </View>
         ) : null}
 
-        {screen === 'Historique' ? (
-          <HistoriqueScreen
-            currency={currency}
-            lang={lang}
-            calm={calm}
-            offsetMs={offsetMs}
-            t={t}
-            onBalance={setBalance}
-            onRefresh={refreshAll}
-          />
+        {visited.Historique ? (
+          <View
+            style={[styles.tabPane, screen !== 'Historique' && styles.tabHidden]}
+            pointerEvents={screen === 'Historique' ? 'auto' : 'none'}
+          >
+            <HistoriqueScreen
+              currency={currency}
+              lang={lang}
+              calm={calm}
+              offsetMs={offsetMs}
+              t={t}
+              isActive={screen === 'Historique'}
+              onBalance={setBalance}
+              onRefresh={refreshAll}
+            />
+          </View>
         ) : null}
 
-        {screen === 'Profil' ? (
-          <ProfilScreen
-            user={user}
-            currency={currency}
-            lang={lang}
-            setLang={setLang}
-            calm={calm}
-            onToggleCalm={toggleCalm}
-            t={t}
-            onUserUpdated={setUser}
-            onRefresh={refreshProfile}
-            onLogout={handleLogout}
-          />
+        {visited.Profil ? (
+          <View
+            style={[styles.tabPane, screen !== 'Profil' && styles.tabHidden]}
+            pointerEvents={screen === 'Profil' ? 'auto' : 'none'}
+          >
+            <ProfilScreen
+              user={user}
+              currency={currency}
+              lang={lang}
+              setLang={setLang}
+              calm={calm}
+              onToggleCalm={toggleCalm}
+              t={t}
+              onUserUpdated={setUser}
+              onRefresh={refreshProfile}
+              onLogout={handleLogout}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -446,7 +481,8 @@ export default function App() {
               key={id}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              onPress={() => setScreen(id)}
+              activeOpacity={0.7}
+              onPress={() => goScreen(id)}
               style={styles.navTab}
             >
               {active ? <View style={styles.navTick} /> : null}
@@ -537,6 +573,12 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
+  },
+  tabPane: {
+    flex: 1,
+  },
+  tabHidden: {
+    display: 'none',
   },
   navBar: {
     flexDirection: 'row',

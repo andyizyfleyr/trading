@@ -1,5 +1,5 @@
 // Écran Historique : miroir exact de app/historique/page.tsx.
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { apiMyStats, apiMyTrades, apiSettle, ApiError } from '../api';
 import { absExact, addExact, money, subtractExact } from '../money';
@@ -20,7 +20,7 @@ import { ErrorState, SelectSheet, Skeleton } from '../components/Ui';
 
 const FILTERS = ['all', 'open', 'settled'];
 
-function TradeRow({ trade, now, currency, lang, t }) {
+const TradeRow = React.memo(function TradeRow({ trade, now, currency, lang, t }) {
   const isUp = trade.direction === 'UP';
   const open = trade.status === 'OPEN';
   const won = trade.result === 'WIN';
@@ -84,9 +84,18 @@ function TradeRow({ trade, now, currency, lang, t }) {
       </View>
     </View>
   );
-}
+});
 
-export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance, onRefresh }) {
+export const HistoriqueScreen = React.memo(function HistoriqueScreen({
+  currency,
+  lang,
+  calm,
+  offsetMs,
+  t,
+  isActive = true,
+  onBalance,
+  onRefresh,
+}) {
   const [filter, setFilter] = useState('all');
   const [asset, setAsset] = useState('all');
   const [assetSheetOpen, setAssetSheetOpen] = useState(false);
@@ -156,17 +165,29 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
     }
   }, [refreshing, load, onRefresh]);
 
-  useEffect(() => {
-    load();
-  }, [load, asset]);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    if (!isActive) return;
+    load({ silent: hasLoadedRef.current });
+    hasLoadedRef.current = true;
+  }, [load, asset, isActive]);
+
+  const hasOpenTrades = useMemo(
+    () => trades.some((tr) => tr.status === 'OPEN'),
+    [trades]
+  );
+
+  useEffect(() => {
+    if (!isActive || !hasOpenTrades) return undefined;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), CONFIG.SETTLE_TICK_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [isActive, hasOpenTrades]);
 
   // Clôture automatique des trades ouverts arrivés à échéance.
   useEffect(() => {
+    if (!isActive || !hasOpenTrades) return undefined;
     const openIds = new Set(trades.filter((tr) => tr.status === 'OPEN').map((tr) => tr.id));
     retryRef.current.forEach((_, id) => {
       if (!openIds.has(id)) retryRef.current.delete(id);
@@ -177,13 +198,13 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
         new Date(tr.closesAt).getTime() <= serverNow &&
         (retryRef.current.get(tr.id) ?? 0) <= serverNow
     );
-    if (due.length === 0) return;
+    if (due.length === 0) return undefined;
     due.forEach((tr) => retryRef.current.set(tr.id, serverNow + CONFIG.SETTLE_RETRY_MS));
     let cancelled = false;
     (async () => {
       try {
         const res = await apiSettle(due.map((tr) => tr.id));
-        if (!cancelled && res && res.settled && res.settled.length > 0) load();
+        if (!cancelled && res && res.settled && res.settled.length > 0) load({ silent: true });
       } catch {
         /* réessaiera plus tard */
       }
@@ -191,7 +212,7 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
     return () => {
       cancelled = true;
     };
-  }, [serverNow, trades, load]);
+  }, [isActive, hasOpenTrades, serverNow, trades, load]);
 
   useEffect(() => {
     return () => {
@@ -199,56 +220,87 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
     };
   }, []);
 
-  const visible = trades
-    .filter(
-      (tr) =>
-        (filter === 'all' ? true : filter === 'open' ? tr.status === 'OPEN' : tr.status === 'SETTLED') &&
-        (asset === 'all' || tr.symbol === asset)
-    )
-    .sort((a, b) => +new Date(b.openedAt) - +new Date(a.openedAt));
+  const { visible, finished, settledCount, winRate, net, netText, groups } = useMemo(() => {
+    const vis = trades
+      .filter(
+        (tr) =>
+          (filter === 'all' ? true : filter === 'open' ? tr.status === 'OPEN' : tr.status === 'SETTLED') &&
+          (asset === 'all' || tr.symbol === asset)
+      )
+      .sort((a, b) => +new Date(b.openedAt) - +new Date(a.openedAt));
 
-  const finished = trades.filter(
-    (tr) => tr.status === 'SETTLED' && (asset === 'all' || tr.symbol === asset)
+    const fin = trades.filter(
+      (tr) => tr.status === 'SETTLED' && (asset === 'all' || tr.symbol === asset)
+    );
+    const localWins = fin.filter((tr) => tr.result === 'WIN').length;
+    const wonAmount = fin
+      .filter((tr) => tr.result === 'WIN')
+      .reduce((sum, tr) => sum + ((tr.payout ?? 0) - tr.amount), 0);
+    const lostAmount = fin
+      .filter((tr) => tr.result === 'LOSS')
+      .reduce((sum, tr) => sum + ((tr.payout ?? 0) - tr.amount), 0);
+
+    const sCount = stats ? stats.settled : fin.length;
+    const wRate = stats
+      ? stats.winRate
+      : fin.length === 0
+        ? 0
+        : Math.round((localWins / fin.length) * 100);
+    const netVal = stats ? stats.pnl : wonAmount + lostAmount;
+
+    let fallbackExact = { numerator: '0', denominator: '1' };
+    let hasExact = true;
+    for (const tr of fin) {
+      if (tr.result !== 'WIN' && tr.result !== 'LOSS') continue;
+      if (!tr.amountExact || !tr.payoutExact) {
+        hasExact = false;
+        break;
+      }
+      const diff = subtractExact(tr.payoutExact, tr.amountExact);
+      if (!diff) {
+        hasExact = false;
+        break;
+      }
+      fallbackExact = addExact(fallbackExact, diff);
+    }
+    const netExact = (stats && stats.pnlExact) || (hasExact ? fallbackExact : undefined);
+    const nText =
+      netVal > 0
+        ? `+${money(netVal, netExact, currency, lang)}`
+        : netVal < 0
+          ? `−${money(Math.abs(netVal), absExact(netExact), currency, lang)}`
+          : money(0, null, currency, lang);
+
+    const grp = [];
+    for (const tr of vis) {
+      const day = fmtDay(tr.openedAt, lang);
+      const last = grp[grp.length - 1];
+      if (last && last.day === day) last.rows.push(tr);
+      else grp.push({ day, rows: [tr] });
+    }
+
+    return {
+      visible: vis,
+      finished: fin,
+      settledCount: sCount,
+      winRate: wRate,
+      net: netVal,
+      netText: nText,
+      groups: grp,
+    };
+  }, [trades, filter, asset, stats, currency, lang]);
+
+  const assetOptions = useMemo(
+    () => [
+      { value: 'all', label: t('Tous les jeux') },
+      ...SYMBOLS.map((s) => ({
+        value: s.id,
+        label: symbolDisplay(s.id),
+        color: s.color,
+      })),
+    ],
+    [t]
   );
-  const localWins = finished.filter((tr) => tr.result === 'WIN').length;
-  const wonAmount = finished
-    .filter((tr) => tr.result === 'WIN')
-    .reduce((sum, tr) => sum + ((tr.payout ?? 0) - tr.amount), 0);
-  const lostAmount = finished
-    .filter((tr) => tr.result === 'LOSS')
-    .reduce((sum, tr) => sum + ((tr.payout ?? 0) - tr.amount), 0);
-
-  const settledCount = stats ? stats.settled : finished.length;
-  const winRate = stats
-    ? stats.winRate
-    : finished.length === 0
-      ? 0
-      : Math.round((localWins / finished.length) * 100);
-  const net = stats ? stats.pnl : wonAmount + lostAmount;
-
-  let fallbackExact = { numerator: '0', denominator: '1' };
-  let hasExact = true;
-  for (const tr of finished) {
-    if (tr.result !== 'WIN' && tr.result !== 'LOSS') continue;
-    if (!tr.amountExact || !tr.payoutExact) {
-      hasExact = false;
-      break;
-    }
-    const diff = subtractExact(tr.payoutExact, tr.amountExact);
-    if (!diff) {
-      hasExact = false;
-      break;
-    }
-    fallbackExact = addExact(fallbackExact, diff);
-  }
-  const netExact = (stats && stats.pnlExact) || (hasExact ? fallbackExact : undefined);
-
-  const netText =
-    net > 0
-      ? `+${money(net, netExact, currency, lang)}`
-      : net < 0
-        ? `−${money(Math.abs(net), absExact(netExact), currency, lang)}`
-        : money(0, null, currency, lang);
 
   const exportCsv = async () => {
     const done = trades.filter((tr) => tr.status === 'SETTLED');
@@ -274,15 +326,6 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
     exportTimerRef.current = setTimeout(() => setExported('idle'), CONFIG.COPIED_MS);
   };
 
-  // Groupes par jour (« Aujourd'hui », « Hier », date)
-  const groups = [];
-  for (const tr of visible) {
-    const day = fmtDay(tr.openedAt, lang);
-    const last = groups[groups.length - 1];
-    if (last && last.day === day) last.rows.push(tr);
-    else groups.push({ day, rows: [tr] });
-  }
-
   const assetLabel = asset === 'all' ? t('Tous les jeux') : symbolDisplay(asset);
 
   return (
@@ -296,7 +339,7 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
           refreshing={refreshing}
           onRefresh={handlePullRefresh}
           tintColor={INK.action}
-          colors={[INK.action, INK.vert]}
+          colors={[INK.action, INK.hausse]}
           progressBackgroundColor={INK.carte}
         />
       }
@@ -396,7 +439,7 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
                 <TradeRow
                   key={trade.id}
                   trade={trade}
-                  now={serverNow}
+                  now={trade.status === 'OPEN' ? serverNow : 0}
                   currency={currency}
                   lang={lang}
                   t={t}
@@ -419,20 +462,13 @@ export function HistoriqueScreen({ currency, lang, calm, offsetMs, t, onBalance,
         open={assetSheetOpen}
         onClose={() => setAssetSheetOpen(false)}
         title={t('Filtrer par jeu')}
-        options={[
-          { value: 'all', label: t('Tous les jeux') },
-          ...SYMBOLS.map((s) => ({
-            value: s.id,
-            label: symbolDisplay(s.id),
-            color: s.color,
-          })),
-        ]}
+        options={assetOptions}
         selectedValue={asset}
         onSelect={setAsset}
       />
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scroll: {
