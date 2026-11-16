@@ -2,6 +2,7 @@
   "expo": {
     "name": "TradeFacile",
     "slug": "tradefacile-mobile",
+    "owner": "andyizyfleur",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
     "orientation": "portrait",
@@ -37,6 +38,11 @@
     },
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3a7955bc-cab3-464a-ac6b-0c03a330d0c3"
+      }
+    }
   }
 }
