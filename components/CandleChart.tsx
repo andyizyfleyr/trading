@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT, CANDLES_REFRESH_MS, DOUBLE_TAP_MS } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
-import { fmtHM24, fmtMoney } from "@/lib/format";
+import { fmtHM24 } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
@@ -64,6 +65,7 @@ function reduceMotion(): boolean {
  * l'historique, molette/pincement pour zoomer, double-toucher pour revenir.
  */
 export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake }: Props) {
+  const { currency, money } = useMoney();
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [candles, setCandles] = useState<ApiCandle[]>([]);
@@ -249,12 +251,13 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       tip.time,
       disp.toFixed(5),
       stakeShown == null ? "-" : stakeShown,
+      currency,
       phaseRef.current,
       W,
       H,
     ].join("|");
-    // Rien de neuf (taille, vue, prix, pulse, compte à rebours) : on ne
-    // touche pas au canvas, sinon la page rame et le graphique scintille.
+    // Rien de neuf (taille, vue, prix, devise, pulse) : on ne touche pas
+    // au canvas, sinon la page rame et le graphique scintille.
     if (sig === drawnRef.current) return;
     const ctx = cv.getContext("2d");
     if (!ctx) return;
@@ -369,7 +372,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
     const pillW = pw - 4;
     const pillH = 18;
     if (stakeShown != null) {
-      const txt = fmtMoney(stakeShown);
+      const txt = money(stakeShown);
       const cw2 = ctx.measureText(txt).width + 12;
       const cx = pillX - 4 - cw2;
       if (cx >= 0) {

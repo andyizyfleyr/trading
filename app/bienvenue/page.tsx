@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ROUTES } from "@/lib/config";
 import { AUTH, FLEX, INK } from "@/lib/design";
-import { fmtMoney } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
 import { Btn } from "@/components/ui";
 
 /** Petites illustrations SVG (légères, pas d'images à télécharger). */
 function SlideArt({ variant }: { variant: number }) {
+  const { money } = useMoney();
   if (variant === 0) {
     return (
       <svg viewBox="0 0 200 140" className={AUTH.art} aria-hidden="true">
@@ -51,7 +52,7 @@ function SlideArt({ variant }: { variant: number }) {
     <svg viewBox="0 0 200 140" className={AUTH.art} aria-hidden="true">
       <rect x="55" y="25" width="90" height="70" rx="10" fill={INK.carte} stroke={INK.action} strokeWidth="3" />
       <text x="100" y="58" textAnchor="middle" fill={INK.texte} fontSize="22" fontWeight="800">
-        {fmtMoney(0)}
+        {money(0)}
       </text>
       <text x="100" y="80" textAnchor="middle" fill={INK.doux} fontSize="13">
         recharge pour jouer

@@ -7,20 +7,6 @@ const DEC_BIG = 2;
 
 const moneyFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: DEC_BIG });
 
-export function fmtMoney(n: number): string {
-  return moneyFmt.format(Number(n) || 0);
-}
-
-/** Gain net (+85 %) avec 1 décimale : « 42,5 » (boutons HAUSSE/BAISSE, En cours). */
-const gainFmt = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-export function fmtGain(n: number): string {
-  return gainFmt.format(Number(n) || 0);
-}
-
 /**
  * Prix d'un jeu avec SES décimales (Lucky 7 : 3, Jackpot et Turbo : 2),
  * comme l'axe du graphique. Même formateur pour les écarts (mouvements).

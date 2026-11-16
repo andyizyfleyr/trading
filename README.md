@@ -60,6 +60,8 @@ Ouvrez http://localhost:3000 — créez un compte (solde à 0), puis rechargez v
 | Règle | Valeur |
 |---|---|
 | Solde de départ | 0 (recharge via « Ajouter ») |
+| Devise de base | USD (tout est stocké en $, affichage converti) |
+| Devises d'affichage | USD ($), EUR (€), XOF (F), GBP (£), NGN (₦), GHS (₵) |
 | Mise minimum / maximum | 10 / tout le solde |
 | Durées | 3 s, 10 s, 30 s, 1 min, 5 min |
 | Prix d'ouverture / clôture | Prix du jeu rejoué par le serveur à la seconde pile |

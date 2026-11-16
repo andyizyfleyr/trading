@@ -6,14 +6,16 @@ import { RequireAuth } from "@/components/AppShell";
 import { BottomSheet, Btn } from "@/components/ui";
 import { LogoutIcon, MinusIcon, PlusIcon } from "@/components/Icons";
 import { useAuth } from "@/lib/auth-context";
-import { apiDeposit, apiWithdraw, ApiError } from "@/lib/api";
+import { apiDeposit, apiSetCurrency, apiWithdraw, ApiError } from "@/lib/api";
 import { DEPOSIT_OPTIONS, ROUTES, STORE, VIBRATE, WITHDRAW_OPTIONS } from "@/lib/config";
 import { ICON, PROFILE, SHEET, SIDE } from "@/lib/design";
-import { fmtMoney } from "@/lib/format";
+import { useMoney } from "@/hooks/useMoney";
+import { COUNTRIES, CURRENCIES, isCurrency } from "@/lib/money";
 import { vibrate } from "@/lib/vibrate";
 
 export default function ProfilPage() {
-  const { user, setBalance, logout } = useAuth();
+  const { money } = useMoney();
+  const { user, setBalance, logout, refresh } = useAuth();
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,7 +80,7 @@ export default function ProfilPage() {
           <div className={SIDE.acctMain}>
             <p className={PROFILE.mail}>{user?.email}</p>
             <p className={PROFILE.balance}>
-              {user ? fmtMoney(user.balance) : "…"}
+              {user ? money(user.balance) : "…"}
             </p>
           </div>
         </div>
@@ -103,6 +105,66 @@ export default function ProfilPage() {
             Retirer
           </Btn>
         </div>
+
+        {/* Devise & pays : seul l'affichage change (tout est stocké en USD) */}
+        <div className={PROFILE.curBox}>
+          <label className={PROFILE.curLabel}>
+            Pays
+            <select
+              value={user?.country ?? ""}
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) {
+                  run(
+                    async () => {
+                      const { user: updated } = await apiSetCurrency({ country: e.target.value });
+                      await refresh();
+                      return { user: updated };
+                    },
+                    "Pays et devise mis à jour."
+                  );
+                }
+              }}
+              aria-label="Pays"
+              className={PROFILE.curSelect}
+            >
+              <option value="" disabled>
+                Choisir…
+              </option>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={PROFILE.curLabel}>
+            Devise
+            <select
+              value={user && isCurrency(user.currency) ? user.currency : "USD"}
+              disabled={busy}
+              onChange={(e) =>
+                run(
+                  async () => {
+                    const { user: updated } = await apiSetCurrency({ currency: e.target.value });
+                    await refresh();
+                    return { user: updated };
+                  },
+                  "Devise mise à jour."
+                )
+              }
+              aria-label="Devise d'affichage"
+              className={PROFILE.curSelect}
+            >
+              {(Object.keys(CURRENCIES) as (keyof typeof CURRENCIES)[]).map((code) => (
+                <option key={code} value={code}>
+                  {code} ({CURRENCIES[code].symbol}) · {CURRENCIES[code].label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className={PROFILE.sheetNote}>Solde, mises et gains s&apos;affichent dans cette devise.</p>
 
         {/* Préférences */}
         <button
@@ -139,11 +201,11 @@ export default function ProfilPage() {
               key={v}
               variant="card"
               disabled={busy}
-              onClick={() => run(() => apiDeposit(v), `+${fmtMoney(v)} ajoutés.`)}
+              onClick={() => run(() => apiDeposit(v), `+${money(v)} ajoutés.`)}
               className={PROFILE.optBtn}
             >
               <PlusIcon className={ICON.lg} />
-              {fmtMoney(v)}
+              {money(v)}
             </Btn>
           ))}
           <p className={PROFILE.sheetNote}>Fonds d&apos;entraînement. Aucun paiement réel, jamais.</p>
@@ -158,11 +220,11 @@ export default function ProfilPage() {
               key={v}
               variant="card"
               disabled={busy}
-              onClick={() => run(() => apiWithdraw(v), `-${fmtMoney(v)} retirés.`)}
+              onClick={() => run(() => apiWithdraw(v), `-${money(v)} retirés.`)}
               className={PROFILE.optBtn}
             >
               <MinusIcon className={ICON.lg} />
-              {fmtMoney(v)}
+              {money(v)}
             </Btn>
           ))}
           <p className={PROFILE.sheetNote}>Pour te fixer une limite de jeu.</p>

@@ -5,7 +5,9 @@ import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
+import { formatMoney } from "@/lib/money";
 import { RULES } from "@/lib/symbols";
+import { userCurrency } from "@/lib/user-currency";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,12 @@ export async function POST(req: NextRequest) {
 
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount < RULES.MIN_WITHDRAW) {
-    return fail("MONTANT_INVALIDE", `Le montant minimum est de ${RULES.MIN_WITHDRAW}.`, 400);
+    const cur = await userCurrency(userId);
+    return fail(
+      "MONTANT_INVALIDE",
+      `Le montant minimum est de ${formatMoney(RULES.MIN_WITHDRAW, cur)}.`,
+      400
+    );
   }
 
   try {

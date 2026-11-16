@@ -2,13 +2,13 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 
 /**
- * Alignement du schéma (même contenu que drizzle/0002_combos.sql) :
- * tables des combinés + solde par défaut à 0 (fini les 10 000 offerts).
+ * Alignement du schéma (cumul de drizzle/0002 + 0003, rejouable sans risque) :
+ * tables des combinés, solde par défaut à 0, colonnes devise/pays.
  * Appliqué tout seul au premier appel qui en a besoin : le bac à sable
  * ne peut pas joindre Neon, donc aucune migration manuelle n'est possible.
  * IF NOT EXISTS / SET DEFAULT : ré-appeler ne fait jamais rien.
  */
-export const COMBO_TABLE_STATEMENTS = [
+export const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "combos" (
     "id" SERIAL PRIMARY KEY,
     "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
@@ -36,11 +36,14 @@ export const COMBO_TABLE_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "combo_legs_open_idx" ON "combo_legs" ("status", "closes_at")`,
   // Les comptes existants gardent leur solde : seul le défaut change (10 000 → 0).
   `ALTER TABLE "users" ALTER COLUMN "balance" SET DEFAULT 0`,
+  // Devise d'affichage (comptes existants : USD, la base) + pays (vide).
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD'`,
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "country" TEXT`,
 ];
 
 /** Crée les tables des combinés si elles manquent (sans toucher au reste). */
-export async function ensureComboTables(): Promise<void> {
-  for (const stmt of COMBO_TABLE_STATEMENTS) {
+export async function ensureSchema(): Promise<void> {
+  for (const stmt of SCHEMA_STATEMENTS) {
     await db().execute(sql.raw(stmt));
   }
 }
@@ -54,12 +57,12 @@ function isMissingTable(err: unknown): boolean {
  * Exécute fn ; si les tables des combinés manquent, les crée puis rejoue
  * une seule fois. Toute autre erreur (ou nouvel échec) remonte aussitôt.
  */
-export async function withComboTables<T>(fn: () => Promise<T>): Promise<T> {
+export async function withSchema<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     if (!isMissingTable(err)) throw err;
-    await ensureComboTables();
+    await ensureSchema();
     return await fn();
   }
 }

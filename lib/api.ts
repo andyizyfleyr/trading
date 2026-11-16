@@ -128,6 +128,9 @@ export const apiMe = () => request<{ user: ApiUser }>("/api/me");
 export const apiDeposit = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/deposit", { method: "POST", body: { amount } });
 
+export const apiSetCurrency = (input: { currency?: string; country?: string }) =>
+  request<{ user: ApiUser }>("/api/me/currency", { method: "PUT", body: input });
+
 export const apiWithdraw = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/withdraw", { method: "POST", body: { amount } });
 

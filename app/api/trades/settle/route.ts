@@ -5,7 +5,7 @@ import { comboLegs, combos, trades, users, type Combo, type ComboLeg, type Trade
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
 import { round2, toApiCombo, toApiTrade } from "@/lib/trade-shape";
-import { withComboTables } from "@/lib/combo-tables";
+import { withSchema } from "@/lib/schema-ensure";
 import { getPrice } from "@/lib/market";
 import { otcPriceAt } from "@/lib/otc";
 import { isOtc, RULES } from "@/lib/symbols";
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     let openCombos: Combo[] = [];
     let dueLegs: ComboLeg[] = [];
     try {
-      ({ openCombos, dueLegs } = await withComboTables(async () => {
+      ({ openCombos, dueLegs } = await withSchema(async () => {
         const fetched = await db()
           .select()
           .from(combos)

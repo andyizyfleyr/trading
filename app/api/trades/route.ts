@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { formatMoney } from "@/lib/money";
+import { userCurrency } from "@/lib/user-currency";
 import { round2, toApiTrade } from "@/lib/trade-shape";
 import { getPrice, MarketError } from "@/lib/market";
 import { isDuration, isSymbol, RULES } from "@/lib/symbols";
@@ -78,7 +80,12 @@ export async function POST(req: NextRequest) {
     return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
   }
   if (amount < RULES.MIN_BET) {
-    return fail("MISE_TROP_PETITE", `La mise minimum est de ${RULES.MIN_BET}.`, 400);
+    const cur = await userCurrency(userId);
+    return fail(
+      "MISE_TROP_PETITE",
+      `La mise minimum est de ${formatMoney(RULES.MIN_BET, cur)}.`,
+      400
+    );
   }
 
   try {

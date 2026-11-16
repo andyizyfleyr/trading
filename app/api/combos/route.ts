@@ -4,8 +4,10 @@ import { db } from "@/lib/db";
 import { comboLegs, combos, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { formatMoney } from "@/lib/money";
+import { userCurrency } from "@/lib/user-currency";
 import { round2, toApiCombo } from "@/lib/trade-shape";
-import { withComboTables } from "@/lib/combo-tables";
+import { withSchema } from "@/lib/schema-ensure";
 import { getPrice, MarketError } from "@/lib/market";
 import { isDuration, isSymbol, RULES } from "@/lib/symbols";
 
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Tables créées toutes seules au premier appel si elles manquent.
-    const { rows, legs } = await withComboTables(async () => {
+    const { rows, legs } = await withSchema(async () => {
       const rows = await db()
         .select()
         .from(combos)
@@ -113,14 +115,19 @@ export async function POST(req: NextRequest) {
     return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
   }
   if (amount < RULES.MIN_BET) {
-    return fail("MISE_TROP_PETITE", `La mise minimum est de ${RULES.MIN_BET}.`, 400);
+    const cur = await userCurrency(userId);
+    return fail(
+      "MISE_TROP_PETITE",
+      `La mise minimum est de ${formatMoney(RULES.MIN_BET, cur)}.`,
+      400
+    );
   }
 
   try {
     // Limite : 20 combinés par minute et par utilisateur (anti-rafale).
     // Premier accès aux tables : les crée au besoin (la suite suit).
     const since = new Date(Date.now() - 60_000);
-    const recent = await withComboTables(() =>
+    const recent = await withSchema(() =>
       db()
         .select({ n: count() })
         .from(combos)
