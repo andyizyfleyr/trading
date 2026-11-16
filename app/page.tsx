@@ -314,7 +314,7 @@ export default function TraderPage() {
             tickCandle={tickCandle}
             livePrice={price}
             toast={toast}
-            endsInMs={sortedOpen.length > 0 ? nearestMs : null}
+            stake={sortedOpen.length > 0 ? sortedOpen[0].amount : null}
           />
           {/* Pastille « N en cours » en bas à gauche du graphique (maquette). */}
           {openTrades.length > 0 && (

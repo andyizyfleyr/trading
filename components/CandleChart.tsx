@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT, CANDLES_REFRESH_MS, DOUBLE_TAP_MS } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
-import { fmtHM24, fmtRemain } from "@/lib/format";
+import { fmtHM24, fmtMoney } from "@/lib/format";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
 import { Btn } from "./ui";
@@ -28,8 +28,8 @@ interface Props {
   /** Dernier prix connu : anime la clôture de la bougie en cours. */
   livePrice: number | null;
   toast: ChartToast | null;
-  /** Temps restant du trade le plus proche (pastille sur la ligne du prix). */
-  endsInMs?: number | null;
+  /** Mise du trade en cours le plus proche (pastille sur la ligne du prix). */
+  stake?: number | null;
 }
 
 /** Vue du graphique : largeur d'une bougie + bougies cachées à droite (0 = direct). */
@@ -63,7 +63,7 @@ function reduceMotion(): boolean {
  * Comme les vrais graphiques de trading : glisser pour défiler dans
  * l'historique, molette/pincement pour zoomer, double-toucher pour revenir.
  */
-export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, endsInMs }: Props) {
+export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [candles, setCandles] = useState<ApiCandle[]>([]);
@@ -156,8 +156,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
   // Miroirs pour le dessin et les gestes (le dessin ne lit que des refs).
   const shownRef = useRef(shown);
   shownRef.current = shown;
-  const endsRef = useRef(endsInMs ?? null);
-  endsRef.current = endsInMs ?? null;
+  const stakeRef = useRef(stake ?? null);
+  stakeRef.current = stake ?? null;
   const viewRef = useRef(view);
   viewRef.current = view;
   const phaseRef = useRef(phase);
@@ -238,7 +238,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
     if (i1 <= i0) return;
     const x = (i: number) => (i - start) * step + step / 2;
 
-    const remain = endsRef.current;
+    const stakeShown = stakeRef.current;
     const tip = data[len - 1];
     const target = liveTargetRef.current;
     const disp = target == null ? tip.close : (priceRef.current ?? tip.close);
@@ -248,7 +248,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
       v.scroll.toFixed(2),
       tip.time,
       disp.toFixed(5),
-      remain == null ? "-" : Math.floor(remain / 1000),
+      stakeShown == null ? "-" : stakeShown,
       phaseRef.current,
       W,
       H,
@@ -342,7 +342,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
     }
 
     // Prix actuel façon Quotex : ligne blanche pointillée, pastille grise
-    // du compte à rebours (si trade en cours), pastille bleue du prix.
+    // de la mise (si trade en cours), pastille bleue du prix.
     const rrect = (rx: number, ry: number, rw: number, rh: number, rr: number) => {
       ctx.beginPath();
       ctx.moveTo(rx + rr, ry);
@@ -368,8 +368,8 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, en
     const pillX = W - pw + 2;
     const pillW = pw - 4;
     const pillH = 18;
-    if (remain != null) {
-      const txt = fmtRemain(Math.max(0, remain));
+    if (stakeShown != null) {
+      const txt = fmtMoney(stakeShown);
       const cw2 = ctx.measureText(txt).width + 12;
       const cx = pillX - 4 - cw2;
       if (cx >= 0) {
