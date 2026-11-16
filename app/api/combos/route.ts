@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { comboLegs, combos, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
+import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
 import { round2, toApiCombo } from "@/lib/trade-shape";
@@ -17,8 +19,9 @@ export const dynamic = "force-dynamic";
  * GET /api/combos?limit=50 — Mes combinés, jambes incluses (protégé).
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   const { searchParams } = new URL(req.url);
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
@@ -47,7 +50,7 @@ export async function GET(req: NextRequest) {
     }
     return ok({ combos: rows.map((c) => toApiCombo(c, byCombo.get(c.id) ?? [])) });
   } catch {
-    return fail("ERREUR_SERVEUR", "Combinés temporairement indisponibles.", 500);
+    return fail("ERREUR_SERVEUR", "Combinés temporairement indisponibles.", 500, lang);
   }
 }
 
@@ -58,14 +61,15 @@ export async function GET(req: NextRequest) {
  * Le client n'envoie jamais de prix : les prix d'ouverture sont lus serveur.
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   let body: { amount?: unknown; legs?: unknown };
   try {
     body = await req.json();
   } catch {
-    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400, lang);
   }
 
   const legs = Array.isArray(body.legs) ? body.legs : [];
@@ -73,19 +77,19 @@ export async function POST(req: NextRequest) {
     return fail(
       "JAMBES_INVALIDES",
       `Un combiné, c'est ${RULES.COMBO_MIN_LEGS} à ${RULES.COMBO_MAX_LEGS} prédictions.`,
-      400
+      400, lang
     );
   }
   for (const leg of legs) {
     const l = leg as { symbol?: unknown; direction?: unknown; durationSec?: unknown };
     if (!isSymbol(l.symbol)) {
-      return fail("ACTIF_INVALIDE", "Choisissez des jeux proposés dans la liste.", 400);
+      return fail("ACTIF_INVALIDE", "Choisissez des jeux proposés dans la liste.", 400, lang);
     }
     if (l.direction !== "UP" && l.direction !== "DOWN") {
-      return fail("DIRECTION_INVALIDE", "Choisissez HAUSSE (ça monte) ou BAISSE (ça descend).", 400);
+      return fail("DIRECTION_INVALIDE", "Choisissez Hausse (ça monte) ou Baisse (ça descend).", 400, lang);
     }
     if (!isDuration(l.durationSec)) {
-      return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
+      return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400, lang);
     }
   }
   // Pas deux fois la même sélection, ni deux sens opposés sur le même
@@ -96,15 +100,15 @@ export async function POST(req: NextRequest) {
     const l = leg as { symbol: string; direction: string; durationSec: number };
     const key = `${l.symbol}|${l.direction}|${l.durationSec}`;
     if (seen.has(key)) {
-      return fail("DOUBLON", "Deux jambes identiques : ça ne compte pas double.", 400);
+      return fail("DOUBLON", "Deux jambes identiques : ça ne compte pas double.", 400, lang);
     }
     seen.add(key);
     const game = `${l.symbol}|${l.durationSec}`;
     if (dirs.has(game) && dirs.get(game) !== l.direction) {
       return fail(
         "SENS_OPPOSES",
-        "HAUSSE et BAISSE sur le même jeu : combiné perdu d'avance.",
-        400
+        "Hausse et Baisse sur le même jeu : combiné perdu d'avance.",
+        400, lang
       );
     }
     dirs.set(game, l.direction);
@@ -112,14 +116,15 @@ export async function POST(req: NextRequest) {
 
   const amount = round2(Number(body.amount));
   if (!Number.isFinite(amount) || amount <= 0) {
-    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
+    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
   }
   if (amount < RULES.MIN_BET) {
     const cur = await userCurrency(userId);
     return fail(
       "MISE_TROP_PETITE",
-      `La mise minimum est de ${formatMoney(RULES.MIN_BET, cur)}.`,
-      400
+      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur) }),
+      400,
+      lang
     );
   }
 
@@ -137,17 +142,17 @@ export async function POST(req: NextRequest) {
       return fail(
         "LIMITE_ATTEINTE",
         "Doucement : 20 combinés par minute maximum. Attendez quelques secondes.",
-        429
+        429, lang
       );
     }
 
     const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
     const user = userRows[0];
-    if (!user) return UNAUTHORIZED();
+    if (!user) return UNAUTHORIZED(lang);
 
     const balance = round2(user.balance ?? 0);
     if (amount > balance) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     // Prix serveurs AVANT de débiter (un prix indisponible = pas de débit).
@@ -162,9 +167,9 @@ export async function POST(req: NextRequest) {
       );
     } catch (err) {
       if (err instanceof MarketError) {
-        return fail("PRIX_INDISPONIBLES", err.message, 503);
+        return fail("PRIX_INDISPONIBLES", err.message, 503, lang);
       }
-      return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503);
+      return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503, lang);
     }
     const openedAt = new Date();
 
@@ -175,7 +180,7 @@ export async function POST(req: NextRequest) {
       .where(and(eq(users.id, userId), gte(users.balance, amount)))
       .returning({ balance: users.balance });
     if (debited.length === 0) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     const [created] = await db()
@@ -206,6 +211,6 @@ export async function POST(req: NextRequest) {
       201
     );
   } catch {
-    return fail("ERREUR_SERVEUR", "Combiné impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Combiné impossible pour le moment.", 500, lang);
   }
 }

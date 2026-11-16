@@ -484,6 +484,9 @@ export const AUTH = {
   foot: "mt-4 text-center text-[13px] text-doux",
   link: "font-bold text-action underline",
   topRow: "flex items-center justify-between",
+  langRow: "mt-4 flex justify-center",
+  langSelect:
+    "h-9 rounded-[10px] border border-ligne bg-carte px-2 text-xs font-bold outline-none focus:border-action",
   skip: "min-h-[42px] px-3 text-sm font-semibold text-doux active:text-texte",
   slideBox: "anim-in flex flex-1 flex-col justify-center gap-4 py-8 text-center",
   art: "h-40 w-full",

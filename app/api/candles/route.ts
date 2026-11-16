@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getKlines, MarketError } from "@/lib/market";
 import { isInterval, isSymbol } from "@/lib/symbols";
 import { fail } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 
 export const dynamic = "force-dynamic";
 
@@ -14,16 +15,17 @@ const TTL_MS = 5_000;
  * Prix des jeux. Réponse : { "data": { "symbol", "interval", "candles": [...] } }
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") ?? "EURUSDOTC";
   const interval = searchParams.get("interval") ?? "1m";
   const limit = Number(searchParams.get("limit") ?? 200);
 
   if (!isSymbol(symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400, lang);
   }
   if (!isInterval(interval)) {
-    return fail("INTERVALLE_INVALIDE", "Choisissez un intervalle : 1m, 5m ou 15m.", 400);
+    return fail("INTERVALLE_INVALIDE", "Choisissez un intervalle : 1m, 5m ou 15m.", 400, lang);
   }
 
   const key = `${symbol}:${interval}:${limit}`;
@@ -46,8 +48,8 @@ export async function GET(req: NextRequest) {
     );
   } catch (err) {
     if (err instanceof MarketError) {
-      return fail("PRIX_INDISPONIBLES", err.message, 503);
+      return fail("PRIX_INDISPONIBLES", err.message, 503, lang);
     }
-    return fail("PRIX_INDISPONIBLES", "Graphique temporairement indisponible.", 503);
+    return fail("PRIX_INDISPONIBLES", "Graphique temporairement indisponible.", 503, lang);
   }
 }

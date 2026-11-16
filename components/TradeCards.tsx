@@ -3,6 +3,7 @@
 import type { ApiTrade } from "@/lib/types";
 import { fmtGamePrice, fmtSigned } from "@/lib/format";
 import { useMoney } from "@/hooks/useMoney";
+import { useLang } from "@/lib/lang-context";
 import { RULES, durationLabel, symbolDisplay } from "@/lib/symbols";
 import { ENCOURS, RESULT, RING } from "@/lib/design";
 import { CountdownRing } from "./CountdownRing";
@@ -11,6 +12,7 @@ import { CountdownRing } from "./CountdownRing";
 
 export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: number | null }) {
   const { money } = useMoney();
+  const { t } = useLang();
   const isUp = trade.direction === "UP";
   // Écart prix actuel − prix de départ : la flèche suit le prix,
   // la couleur (vert/rouge) dit si le trade gagne ou perd.
@@ -40,14 +42,14 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
       <div className={ENCOURS.mid}>
         <div className={ENCOURS.mid1}>
           <span className={isUp ? ENCOURS.dirUp : ENCOURS.dirDown}>
-            {isUp ? "HAUSSE ▲" : "BAISSE ▼"}
+            {isUp ? t("Hausse ▲") : t("Baisse ▼")}
           </span>
           <span>
             {symbolDisplay(trade.symbol)} · {durationLabel(trade.durationSec)}
           </span>
         </div>
         <p className={ENCOURS.mid2}>
-          Mise <b className={ENCOURS.mid2B}>{money(trade.amount)}</b> · Départ{" "}
+          {t("Mise")} <b className={ENCOURS.mid2B}>{money(trade.amount)}</b> · {t("Départ")}{" "}
           <b className={ENCOURS.mid2B}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
         </p>
       </div>
@@ -65,12 +67,13 @@ export function ActiveTradeCard({ trade, price }: { trade: ApiTrade; price: numb
 
 export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () => void }) {
   const { money } = useMoney();
+  const { t } = useLang();
   const isUp = trade.direction === "UP";
   const won = trade.result === "WIN";
   const lost = trade.result === "LOSS";
   const move = trade.closePrice == null ? null : trade.closePrice - trade.openPrice;
 
-  const title = won ? "Prédiction gagnée" : lost ? "Prédiction ratée" : "Égalité : mise rendue";
+  const title = won ? t("Prédiction gagnée") : lost ? t("Prédiction ratée") : t("Égalité : mise rendue");
   // Gagné : ce qu'on a touché (mise + bénéfice, 100 → 185).
   const amount =
     won ? `+${money(trade.payout ?? 0)}` : lost ? `−${money(trade.amount)}` : fmtSigned(0);
@@ -89,7 +92,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
           <p className={RESULT.title}>
             {title}
             <small className={RESULT.sub}>
-              {isUp ? "HAUSSE ▲" : "BAISSE ▼"} · {symbolDisplay(trade.symbol)} ·{" "}
+              {isUp ? t("Hausse ▲") : t("Baisse ▼")} · {symbolDisplay(trade.symbol)} ·{" "}
               {durationLabel(trade.durationSec)}
             </small>
           </p>
@@ -99,11 +102,11 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </div>
         <p className={RESULT.move}>
           <span>
-            Départ <b className={RESULT.moveB}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
+            {t("Départ")} <b className={RESULT.moveB}>{fmtGamePrice(trade.symbol, trade.openPrice)}</b>
           </span>
           <span aria-hidden="true">→</span>
           <span>
-            Arrivée{" "}
+            {t("Arrivée")}{" "}
             <b className={RESULT.moveB}>
               {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
             </b>
@@ -114,7 +117,7 @@ export function ResultCard({ trade, onReplay }: { trade: ApiTrade; onReplay: () 
         </p>
       </div>
       <button type="button" onClick={onReplay} className={RESULT.again}>
-        Rejouer · {money(trade.amount)} {isUp ? "▲" : "▼"}
+        {t("Rejouer")} · {money(trade.amount)} {isUp ? "▲" : "▼"}
       </button>
     </>
   );

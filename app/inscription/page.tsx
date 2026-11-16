@@ -8,9 +8,12 @@ import { ApiError } from "@/lib/api";
 import { PASSWORD_MIN, ROUTES } from "@/lib/config";
 import { AUTH, FORM, TRADER } from "@/lib/design";
 import { Btn, Field } from "@/components/ui";
+import { LangSelect } from "@/components/LangSelect";
+import { useLang } from "@/lib/lang-context";
 
 export default function InscriptionPage() {
   const { register, user, loading } = useAuth();
+  const { t } = useLang();
   const router = useRouter();
 
   // Déjà connecté : pas besoin de recréer un compte.
@@ -31,7 +34,7 @@ export default function InscriptionPage() {
       await register(email.trim(), password);
       router.replace(ROUTES.trader);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Inscription impossible.");
+      setError(err instanceof ApiError ? err.message : t("Inscription impossible."));
     } finally {
       setBusy(false);
     }
@@ -47,13 +50,13 @@ export default function InscriptionPage() {
         <span className={AUTH.brandName}>TradeFacile</span>
       </div>
 
-      <h1 className={AUTH.title}>Crée ton compte</h1>
+      <h1 className={AUTH.title}>{t("Crée ton compte")}</h1>
       <p className={AUTH.sub}>
-        Crée ton compte, puis touche « Ajouter » dans ton profil pour recharger ton solde.
+        {t("Crée ton compte, puis touche « Ajouter » dans ton profil pour recharger ton solde.")}
       </p>
 
       <form onSubmit={submit} className={AUTH.form}>
-        <Field label="E-mail">
+        <Field label={t("E-mail")}>
           <input
             type="email"
             required
@@ -64,7 +67,7 @@ export default function InscriptionPage() {
             className={FORM.input}
           />
         </Field>
-        <Field label={`Mot de passe (${PASSWORD_MIN} caractères minimum)`}>
+        <Field label={t("Mot de passe ({min} caractères minimum)", { min: PASSWORD_MIN })}>
           <input
             type="password"
             required
@@ -72,7 +75,7 @@ export default function InscriptionPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Choisis un mot de passe"
+            placeholder={t("Choisis un mot de passe")}
             className={FORM.input}
           />
         </Field>
@@ -84,16 +87,19 @@ export default function InscriptionPage() {
         )}
 
         <Btn type="submit" disabled={busy}>
-          {busy ? "Création…" : "Créer mon compte"}
+          {busy ? t("Création…") : t("Créer mon compte")}
         </Btn>
       </form>
 
       <p className={AUTH.foot}>
-        Déjà un compte ?{" "}
+        {t("Déjà un compte ?")}{" "}
         <Link href={ROUTES.login} className={AUTH.link}>
-          Se connecter
+          {t("Se connecter")}
         </Link>
       </p>
+      <div className={AUTH.langRow}>
+        <LangSelect className={AUTH.langSelect} />
+      </div>
     </div>
   );
 }

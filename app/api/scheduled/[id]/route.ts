@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 import { round2 } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +15,13 @@ export const dynamic = "force-dynamic";
  * La mise est remboursée aussitôt.
  */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   const id = Number(params.id);
   if (!Number.isInteger(id) || id <= 0) {
-    return fail("REQUETE_INVALIDE", "Programmation introuvable.", 404);
+    return fail("REQUETE_INVALIDE", "Programmation introuvable.", 404, lang);
   }
 
   try {
@@ -30,10 +32,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       .limit(1);
     const row = rows[0];
     if (!row || row.status !== "OPEN") {
-      return fail("INTROUVABLE", "Programmation introuvable ou déjà traitée.", 404);
+      return fail("INTROUVABLE", "Programmation introuvable ou déjà traitée.", 404, lang);
     }
     if (new Date(row.openedAt).getTime() <= Date.now()) {
-      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400);
+      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400, lang);
     }
 
     // Supprime seulement si encore OPEN (protège d'une clôture simultanée).
@@ -42,7 +44,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       .where(and(eq(trades.id, id), eq(trades.status, "OPEN")))
       .returning({ amount: trades.amount });
     if (deleted.length === 0) {
-      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400);
+      return fail("TROP_TARD", "Trop tard : la mise est déjà partie.", 400, lang);
     }
 
     const refunded = await db()
@@ -53,6 +55,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     return ok({ balance: round2(refunded[0]?.balance ?? 0) });
   } catch {
-    return fail("ERREUR_SERVEUR", "Annulation impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Annulation impossible pour le moment.", 500, lang);
   }
 }

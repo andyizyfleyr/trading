@@ -10,11 +10,14 @@ import { apiDeposit, apiSetCurrency, apiWithdraw, ApiError } from "@/lib/api";
 import { DEPOSIT_OPTIONS, ROUTES, STORE, VIBRATE, WITHDRAW_OPTIONS } from "@/lib/config";
 import { ICON, PROFILE, SHEET, SIDE } from "@/lib/design";
 import { useMoney } from "@/hooks/useMoney";
+import { useLang } from "@/lib/lang-context";
+import { LangSelect } from "@/components/LangSelect";
 import { COUNTRIES, CURRENCIES, isCurrency } from "@/lib/money";
 import { vibrate } from "@/lib/vibrate";
 
 export default function ProfilPage() {
   const { money } = useMoney();
+  const { t } = useLang();
   const { user, setBalance, logout, refresh } = useAuth();
   const router = useRouter();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -53,7 +56,7 @@ export default function ProfilPage() {
     } catch (err) {
       setMessage({
         kind: "err",
-        text: err instanceof ApiError ? err.message : "Opération impossible pour le moment.",
+        text: err instanceof ApiError ? err.message : t("Opération impossible pour le moment."),
       });
     } finally {
       setBusy(false);
@@ -70,7 +73,7 @@ export default function ProfilPage() {
   return (
     <RequireAuth>
       <div className={PROFILE.root}>
-        <h1 className={PROFILE.title}>Profil</h1>
+        <h1 className={PROFILE.title}>{t("Profil")}</h1>
 
         {/* Identité + solde */}
         <div className={PROFILE.idCard}>
@@ -98,18 +101,18 @@ export default function ProfilPage() {
         <div className={PROFILE.addRow}>
           <Btn variant="card" onClick={() => setSheet("deposit")} className={PROFILE.bigBtn}>
             <PlusIcon className={ICON.lg} />
-            Ajouter
+            {t("Ajouter")}
           </Btn>
           <Btn variant="card" onClick={() => setSheet("withdraw")} className={PROFILE.bigBtn}>
             <MinusIcon className={ICON.lg} />
-            Retirer
+            {t("Retirer")}
           </Btn>
         </div>
 
         {/* Devise & pays : seul l'affichage change (tout est stocké en USD) */}
         <div className={PROFILE.curBox}>
           <label className={PROFILE.curLabel}>
-            Pays
+            {t("Pays")}
             <select
               value={user?.country ?? ""}
               disabled={busy}
@@ -121,25 +124,25 @@ export default function ProfilPage() {
                       await refresh();
                       return { user: updated };
                     },
-                    "Pays et devise mis à jour."
+                    t("Pays et devise mis à jour.")
                   );
                 }
               }}
-              aria-label="Pays"
+              aria-label={t("Pays")}
               className={PROFILE.curSelect}
             >
               <option value="" disabled>
-                Choisir…
+                {t("Choisir…")}
               </option>
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {t(c.name)}
                 </option>
               ))}
             </select>
           </label>
           <label className={PROFILE.curLabel}>
-            Devise
+            {t("Devise")}
             <select
               value={user && isCurrency(user.currency) ? user.currency : "USD"}
               disabled={busy}
@@ -150,23 +153,27 @@ export default function ProfilPage() {
                     await refresh();
                     return { user: updated };
                   },
-                  "Devise mise à jour."
+                  t("Devise mise à jour.")
                 )
               }
-              aria-label="Devise d'affichage"
+              aria-label={t("Devise d'affichage")}
               className={PROFILE.curSelect}
             >
               {(Object.keys(CURRENCIES) as (keyof typeof CURRENCIES)[]).map((code) => (
                 <option key={code} value={code}>
-                  {code} ({CURRENCIES[code].symbol}) · {CURRENCIES[code].label}
+                  {code} ({CURRENCIES[code].symbol}) · {t(CURRENCIES[code].label)}
                 </option>
               ))}
             </select>
           </label>
         </div>
-        <p className={PROFILE.sheetNote}>Solde, mises et gains s&apos;affichent dans cette devise.</p>
+        <p className={PROFILE.sheetNote}>{t("Solde, mises et gains s'affichent dans cette devise.")}</p>
 
         {/* Préférences */}
+        <div className={PROFILE.prefRow}>
+          <span className={PROFILE.prefLabel}>{t("Langue")}</span>
+          <LangSelect className={PROFILE.curSelect} />
+        </div>
         <button
           type="button"
           role="switch"
@@ -174,7 +181,7 @@ export default function ProfilPage() {
           onClick={toggleCalm}
           className={PROFILE.prefRow}
         >
-          <span className={PROFILE.prefLabel}>Réduire les animations</span>
+          <span className={PROFILE.prefLabel}>{t("Réduire les animations")}</span>
           <span
             className={calm ? PROFILE.calmOn : PROFILE.calmOff}
           >
@@ -189,45 +196,45 @@ export default function ProfilPage() {
           className={PROFILE.logout}
         >
           <LogoutIcon className={ICON.md} />
-          Se déconnecter
+          {t("Se déconnecter")}
         </Btn>
       </div>
 
       {/* Panneau : ajouter au solde (aucun paiement réel) */}
-      <BottomSheet open={sheet === "deposit"} onClose={() => setSheet(null)} title="Ajouter au solde">
+      <BottomSheet open={sheet === "deposit"} onClose={() => setSheet(null)} title={t("Ajouter au solde")}>
         <div className={SHEET.list2}>
           {DEPOSIT_OPTIONS.map((v) => (
             <Btn
               key={v}
               variant="card"
               disabled={busy}
-              onClick={() => run(() => apiDeposit(v), `+${money(v)} ajoutés.`)}
+              onClick={() => run(() => apiDeposit(v), t("+{amt} ajoutés.", { amt: money(v) }))}
               className={PROFILE.optBtn}
             >
               <PlusIcon className={ICON.lg} />
               {money(v)}
             </Btn>
           ))}
-          <p className={PROFILE.sheetNote}>Fonds d&apos;entraînement. Aucun paiement réel, jamais.</p>
+          <p className={PROFILE.sheetNote}>{t("Fonds d'entraînement. Aucun paiement réel, jamais.")}</p>
         </div>
       </BottomSheet>
 
       {/* Panneau : retirer du solde */}
-      <BottomSheet open={sheet === "withdraw"} onClose={() => setSheet(null)} title="Retirer du solde">
+      <BottomSheet open={sheet === "withdraw"} onClose={() => setSheet(null)} title={t("Retirer du solde")}>
         <div className={SHEET.list2}>
           {WITHDRAW_OPTIONS.map((v) => (
             <Btn
               key={v}
               variant="card"
               disabled={busy}
-              onClick={() => run(() => apiWithdraw(v), `-${money(v)} retirés.`)}
+              onClick={() => run(() => apiWithdraw(v), t("-{amt} retirés.", { amt: money(v) }))}
               className={PROFILE.optBtn}
             >
               <MinusIcon className={ICON.lg} />
               {money(v)}
             </Btn>
           ))}
-          <p className={PROFILE.sheetNote}>Pour te fixer une limite de jeu.</p>
+          <p className={PROFILE.sheetNote}>{t("Pour te fixer une limite de jeu.")}</p>
         </div>
       </BottomSheet>
     </RequireAuth>

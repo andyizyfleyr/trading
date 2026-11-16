@@ -18,6 +18,7 @@ import {
 } from "@/lib/config";
 import { ORDER, SHEET, TRADER } from "@/lib/design";
 import { fmtDurMS, fmtHM, fmtRemain, fmtSlot } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { vibrate } from "@/lib/vibrate";
 import { DURATIONS, RULES, SYMBOLS, isDuration, isOtc, symbolDisplay } from "@/lib/symbols";
@@ -71,25 +72,28 @@ export function ScheduledTrades({
   onCancel: (id: number) => void;
 }) {
   const { money } = useMoney();
+  const { t } = useLang();
   if (trades.length === 0) return null;
   return (
     <div className={TRADER.soonBox}>
       <p className={TRADER.soonTitle}>
-        Programmé{trades.length > 1 ? "es" : ""} ({trades.length}/{RULES.MAX_SCHEDULED})
+        {trades.length > 1
+          ? t("Programmées ({n}/{max})", { n: trades.length, max: RULES.MAX_SCHEDULED })
+          : t("Programmé ({n}/{max})", { n: trades.length, max: RULES.MAX_SCHEDULED })}
       </p>
       <ul className={TRADER.soonList}>
-        {trades.map((t) => (
-          <li key={t.id} className={TRADER.soonRow}>
+        {trades.map((trade) => (
+          <li key={trade.id} className={TRADER.soonRow}>
             <span className={TRADER.soonMain}>
-              {t.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {money(t.amount)}{" "}
+              {trade.direction === "UP" ? t("Hausse ▲") : t("Baisse ▼")} {money(trade.amount)}{" "}
               <span className={TRADER.soonSub}>
-                {symbolDisplay(t.symbol)} à {fmtHM(slotOf(t))}
+                {symbolDisplay(trade.symbol)} {t("à")} {fmtHM(slotOf(trade))}
               </span>
             </span>
             <button
               type="button"
-              onClick={() => onCancel(t.id)}
-              aria-label={`Annuler la mise programmée à ${fmtSlot(slotOf(t))} (remboursée)`}
+              onClick={() => onCancel(trade.id)}
+              aria-label={t("Annuler la mise programmée à {hm} (remboursée)", { hm: fmtSlot(slotOf(trade)) })}
               className={TRADER.soonX}
             >
               ✕
@@ -155,6 +159,7 @@ function loadOrderPrefs(): { durationSec: number; amountStr: string } {
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
 export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
   const { money } = useMoney();
+  const { t } = useLang();
   const [prefs] = useState(loadOrderPrefs);
   const [durationSec, setDurationSec] = useState<number>(initialDuration ?? prefs.durationSec);
   const [amountStr, setAmountStr] = useState(prefs.amountStr);
@@ -247,7 +252,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   // (horloge locale + écart mesuré), sinon il sonne trop tôt ou trop tard.
   const signalRemainMs = signal ? signal.atMs - (signalNow + (offsetMs ?? 0)) : 0;
   const signalLive = signal != null && signalRemainMs > 0;
-  const signalLabel = signal?.direction === "DOWN" ? "BAISSE ▼" : "HAUSSE ▲";
+  const signalLabel = signal?.direction === "DOWN" ? t("Baisse ▼") : t("Hausse ▲");
   // Dans les 3 dernières secondes, le bouton conseillé arme le tir :
   // la mise part toute seule à la seconde pile (entrée exacte, verdict juste).
   const signalArmed = signalLive && signalRemainMs <= SIGNAL_PRESS_WINDOW_MS;
@@ -330,7 +335,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     if (pending && pending.symbol !== symbol) {
       setPending(null);
       firedRef.current = false;
-      setError("Jeu changé : programmation annulée.");
+      setError(t("Jeu changé : programmation annulée."));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
@@ -363,19 +368,19 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     const amt = ov?.amount ?? amount;
     setError(null);
     if (!online) {
-      setError("Hors ligne : reconnectez-vous pour jouer.");
+      setError(t("Hors ligne : reconnectez-vous pour jouer."));
       return;
     }
     if (amt == null || amt <= 0) {
-      setError("Entrez un montant de mise.");
+      setError(t("Entrez un montant de mise."));
       return;
     }
     if (amt < RULES.MIN_BET) {
-      setError(`La mise minimum est de ${RULES.MIN_BET}.`);
+      setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
       return;
     }
     if (amt > maxBet) {
-      setError("Solde insuffisant pour cette mise.");
+      setError(t("Solde insuffisant pour cette mise."));
       return;
     }
     setPlacing(direction);
@@ -390,7 +395,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       pickNow(); // On repart sur « Maintenant » : pas de programmation surprise au prochain appui.
       onOpened(trade, newBalance);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Prédiction impossible pour le moment.");
+      setError(err instanceof ApiError ? err.message : t("Prédiction impossible pour le moment."));
     } finally {
       setPlacing(null);
     }
@@ -405,24 +410,24 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
   const press = async (direction: "UP" | "DOWN") => {
     if (signalLive && signal && direction === signal.direction) {
       if (!signalArmed) {
-        setError("Trop tôt : attends la fin du compte à rebours, le coup part à la seconde pile.");
+        setError(t("Trop tôt : attends la fin du compte à rebours, le coup part à la seconde pile."));
         return;
       }
       setError(null);
       if (!online) {
-        setError("Hors ligne : reconnectez-vous pour jouer.");
+        setError(t("Hors ligne : reconnectez-vous pour jouer."));
         return;
       }
       if (amount == null || amount <= 0) {
-        setError("Entrez un montant de mise.");
+        setError(t("Entrez un montant de mise."));
         return;
       }
       if (amount < RULES.MIN_BET) {
-        setError(`La mise minimum est de ${RULES.MIN_BET}.`);
+        setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
         return;
       }
       if (amount > maxBet) {
-        setError("Solde insuffisant pour cette mise.");
+        setError(t("Solde insuffisant pour cette mise."));
         return;
       }
       firedRef.current = false;
@@ -445,38 +450,38 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
     if (quand === BAD_TIME) {
       setError(
         typedPassed
-          ? "Heure passée : choisis une heure à venir."
+          ? t("Heure passée : choisis une heure à venir.")
           : typedTooSoon
-            ? "Heure trop proche : choisis une heure plus tardive."
-            : "Choisis une heure à venir dans la liste."
+            ? t("Heure trop proche : choisis une heure plus tardive.")
+            : t("Choisis une heure à venir dans la liste.")
       );
       return;
     }
     const slot = Number(quand);
     const bookAfter = Date.now() + (offsetMs ?? 0) + TIME_SLOT_BOOK_MARGIN_MS;
     if (!Number.isFinite(slot) || slot * 1000 <= Date.now() + (offsetMs ?? 0)) {
-      setError("Heure passée : choisis une autre heure.");
+      setError(t("Heure passée : choisis une autre heure."));
       return;
     }
     if (slot * 1000 <= bookAfter) {
-      setError("Heure trop proche : choisis une heure plus tardive.");
+      setError(t("Heure trop proche : choisis une heure plus tardive."));
       return;
     }
     setError(null);
     if (!online) {
-      setError("Hors ligne : reconnectez-vous pour jouer.");
+      setError(t("Hors ligne : reconnectez-vous pour jouer."));
       return;
     }
     if (amount == null || amount <= 0) {
-      setError("Entrez un montant de mise.");
+      setError(t("Entrez un montant de mise."));
       return;
     }
     if (amount < RULES.MIN_BET) {
-      setError(`La mise minimum est de ${RULES.MIN_BET}.`);
+      setError(t("La mise minimum est de {min}.", { min: RULES.MIN_BET }));
       return;
     }
     if (amount > maxBet) {
-      setError("Solde insuffisant pour cette mise.");
+      setError(t("Solde insuffisant pour cette mise."));
       return;
     }
     if (isOtc(symbol)) {
@@ -494,7 +499,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         pickNow(); // La mise rejoint la liste « En cours ».
         onScheduledChange?.();
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Programmation impossible pour le moment.");
+        setError(err instanceof ApiError ? err.message : t("Programmation impossible pour le moment."));
       } finally {
         setPlacing(null);
       }
@@ -543,7 +548,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         /* Mise programmée sur l'appareil : attente de l'heure choisie */
         <div role="status" className={TRADER.waitBox}>
           <p className={TRADER.waitTitle}>
-            {pending.direction === "UP" ? "HAUSSE ▲" : "BAISSE ▼"} {money(pending.amount)} à{" "}
+            {pending.direction === "UP" ? t("Hausse ▲") : t("Baisse ▼")} {money(pending.amount)} {t("à")}{" "}
             {fmtSlot(pending.slot)}
           </p>
           <p className={TRADER.waitClock}>
@@ -551,14 +556,14 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           </p>
           {hidden && (
             <p role="alert" className={TRADER.waitWarn}>
-              Reviens vite sur cette page, sinon la mise ne partira pas !
+              {t("Reviens vite sur cette page, sinon la mise ne partira pas !")}
             </p>
           )}
           <Btn variant="ghost" onClick={() => setPending(null)} className={TRADER.waitBtn}>
-            Annuler
+            {t("Annuler")}
           </Btn>
           <p className={TRADER.waitNote}>
-            Reste sur cette page jusqu&apos;au départ.
+            {t("Reste sur cette page jusqu'au départ.")}
           </p>
         </div>
       ) : (
@@ -570,7 +575,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               type="button"
               onClick={onPickAsset}
               aria-haspopup="dialog"
-              aria-label={`Jeu : ${symbolDisplay(symbol)}. Changer de jeu.`}
+              aria-label={t("Jeu : {name}. Changer de jeu.", { name: symbolDisplay(symbol) })}
               className={ORDER.assetBtn}
             >
               <span
@@ -587,15 +592,15 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           {/* Durée + Investissement */}
           <div className={ORDER.boxes}>
             <div id="guide-duration" className={ORDER.box}>
-              <span className={ORDER.boxLabel}>{effectiveSlot != null ? "Départ" : "Durée"}</span>
+              <span className={ORDER.boxLabel}>{effectiveSlot != null ? t("Départ") : t("Durée")}</span>
               <button
                 type="button"
                 onClick={openDurSheet}
                 aria-haspopup="dialog"
                 aria-label={
                   effectiveSlot != null
-                    ? `Départ à ${fmtHM(effectiveSlot)}, durée ${fmtDurMS(durationSec)}. Changer.`
-                    : `Durée ${fmtDurMS(durationSec)}. Changer.`
+                    ? t("Départ à {hm}, durée {dur}. Changer.", { hm: fmtHM(effectiveSlot), dur: fmtDurMS(durationSec) })
+                    : t("Durée {dur}. Changer.", { dur: fmtDurMS(durationSec) })
                 }
                 className={ORDER.minBtn}
               >
@@ -603,17 +608,17 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                   {effectiveSlot != null ? fmtHM(effectiveSlot) : fmtDurMS(durationSec)}
                 </span>
                 {effectiveSlot != null && (
-                  <span className={ORDER.minSub}>durée {fmtDurMS(durationSec)}</span>
+                  <span className={ORDER.minSub}>{t("durée {dur}", { dur: fmtDurMS(durationSec) })}</span>
                 )}
               </button>
             </div>
             <div id="guide-amount" className={ORDER.box}>
-              <span className={ORDER.boxLabel}>Investissement</span>
+              <span className={ORDER.boxLabel}>{t("Investissement")}</span>
               <div className={ORDER.invRow}>
                 <button
                   type="button"
                   onClick={() => stepBet(-1)}
-                  aria-label="Diminuer la mise"
+                  aria-label={t("Diminuer la mise")}
                   className={ORDER.step}
                 >
                   <MinusIcon className={ORDER.stepIcon} />
@@ -623,13 +628,13 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                   onChange={(e) => setAmountStr(e.target.value)}
                   inputMode="decimal"
                   autoComplete="off"
-                  aria-label="Montant de la mise"
+                  aria-label={t("Montant de la mise")}
                   className={ORDER.invInput}
                 />
                 <button
                   type="button"
                   onClick={() => stepBet(1)}
-                  aria-label="Augmenter la mise"
+                  aria-label={t("Augmenter la mise")}
                   className={ORDER.step}
                 >
                   <PlusIcon className={ORDER.stepIcon} />
@@ -640,7 +645,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
 
           {/* Ce qu'on touche si ça gagne : mise + bénéfice (100 → 185) */}
           <div className={ORDER.debRow}>
-            <span className={ORDER.debLabel}>Gain potentiel</span>
+            <span className={ORDER.debLabel}>{t("Gain potentiel")}</span>
             <span className={ORDER.debDots} aria-hidden="true" />
             <span className={ORDER.debVal}>{money(payout)}</span>
           </div>
@@ -651,17 +656,12 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               <p className={TRADER.signalText}>
                 {signalArmed ? (
                   <>
-                    C&apos;est le moment : appuie sur{" "}
-                    <span className={TRADER.signalClock}>{signalLabel}</span>
+                    {t("C'est le moment : appuie sur")} <span className={TRADER.signalClock}>{signalLabel}</span>
                   </>
                 ) : (
                   <>
-                    Dans{" "}
-                    <span className={TRADER.signalClock}>
-                      {fmtRemain(signalRemainMs)}
-                    </span>
-                    , appuie sur{" "}
-                    <span className={TRADER.signalClock}>{signalLabel}</span>
+                    {t("Dans")} <span className={TRADER.signalClock}>{fmtRemain(signalRemainMs)}</span>
+                    {t(", appuie sur")} <span className={TRADER.signalClock}>{signalLabel}</span>
                   </>
                 )}
               </p>
@@ -670,7 +670,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
           {signal && !signalLive && (
             <div role="alert" className={TRADER.lateBox}>
               <p className={TRADER.lateText}>
-                Trop tard : ce coup est passé. Choisis une autre heure dans « Départ ».
+                {t("Trop tard : ce coup est passé. Choisis une autre heure dans « Départ ».")}
               </p>
             </div>
           )}
@@ -678,10 +678,10 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             <p className={TRADER.hintErr}>
               {quand === BAD_TIME
                 ? typedPassed
-                  ? "Heure passée : choisis une heure à venir."
+                  ? t("Heure passée : choisis une heure à venir.")
                   : typedTooSoon
-                    ? "Heure trop proche : choisis une heure plus tardive."
-                    : "Choisis une heure à venir dans la liste."
+                    ? t("Heure trop proche : choisis une heure plus tardive.")
+                    : t("Choisis une heure à venir dans la liste.")
                 : "Heure passée : choisis une autre heure."}
             </p>
           )}
@@ -692,7 +692,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               type="button"
               onClick={() => press("UP")}
               disabled={placing !== null}
-              aria-label="HAUSSE : je prédis que le prix va monter"
+              aria-label={t("Hausse : je prédis que le prix va monter")}
               className={`${ORDER.go} ${ORDER.buy} ${
                 signalLive && signal?.direction === "UP" ? TRADER.advised : ""
               }`}
@@ -701,7 +701,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  <span>HAUSSE</span>
+                  <span>{t("Hausse")}</span>
                   <span className={ORDER.arrowDot} aria-hidden="true">
                     <ArrowUpIcon className={ORDER.arrowIcon} />
                   </span>
@@ -712,7 +712,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               type="button"
               onClick={() => press("DOWN")}
               disabled={placing !== null}
-              aria-label="BAISSE : je prédis que le prix va descendre"
+              aria-label={t("Baisse : je prédis que le prix va descendre")}
               className={`${ORDER.go} ${ORDER.sell} ${
                 signalLive && signal?.direction === "DOWN" ? TRADER.advised : ""
               }`}
@@ -721,7 +721,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 "…"
               ) : (
                 <>
-                  <span>BAISSE</span>
+                  <span>{t("Baisse")}</span>
                   <span className={ORDER.arrowDot} aria-hidden="true">
                     <ArrowDownIcon className={ORDER.arrowIcon} />
                   </span>
@@ -739,11 +739,11 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       )}
 
       {/* Panneau unique : durée + départ au même endroit (fini les onglets) */}
-      <BottomSheet open={durSheetOpen} onClose={() => setDurSheetOpen(false)} title="Durée ou départ" hideTitle>
+      <BottomSheet open={durSheetOpen} onClose={() => setDurSheetOpen(false)} title={t("Durée ou départ")} hideTitle>
         <div className={SHEET.list2}>
           <div>
-            <p className={ORDER.secTitle}>Durée</p>
-            <div className={ORDER.grid} role="group" aria-label="Choisir la durée">
+            <p className={ORDER.secTitle}>{t("Durée")}</p>
+            <div className={ORDER.grid} role="group" aria-label={t("Choisir la durée")}>
               {DURATIONS.map((d) => (
                 <button
                   key={d}
@@ -758,15 +758,15 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
             </div>
           </div>
           <div>
-            <p className={ORDER.secTitle}>Départ</p>
-            <div className={ORDER.grid} role="group" aria-label="Choisir l'heure de la mise">
+            <p className={ORDER.secTitle}>{t("Départ")}</p>
+            <div className={ORDER.grid} role="group" aria-label={t("Choisir l'heure de la mise")}>
               <button
                 type="button"
                 onClick={pickNow}
                 aria-pressed={quand === "now"}
                 className={quand === "now" ? ORDER.cellOn : ORDER.cellOff}
               >
-                Maintenant
+                {t("Maintenant")}
               </button>
               {timeSlots.map((s) => (
                 <button
@@ -786,7 +786,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
                 aria-pressed={customTime !== ""}
                 className={customTime !== "" ? ORDER.cellOn : ORDER.cellOff}
               >
-                Autre
+                {t("Autre")}
               </button>
             </div>
           </div>
@@ -794,7 +794,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
       </BottomSheet>
 
       {/* Panneau : choisir son heure (liste des prochaines heures) */}
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Choisir l'heure" hideTitle>
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t("Choisir l'heure")} hideTitle>
         <div className={SHEET.list2}>
           <TimePickerPanel
             value={draftTime}

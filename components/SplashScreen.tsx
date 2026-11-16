@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useLang } from "@/lib/lang-context";
 import { SPLASH_FADE_MS, SPLASH_MIN_MS } from "@/lib/config";
 import { INK, SPLASH } from "@/lib/design";
 
@@ -14,10 +15,11 @@ const CANDLE_STAGGER_S = 0.12;
 
 /** Écran d'ouverture : bougies animées seules, le temps que ça charge. */
 export function SplashScreen({ leaving }: { leaving: boolean }) {
+  const { t } = useLang();
   return (
     <div
       role="status"
-      aria-label="Chargement de TradeFacile…"
+      aria-label={t("Chargement de TradeFacile…")}
       className={`${SPLASH.root} ${leaving ? "opacity-0" : "opacity-100"}`}
       style={{ transitionDuration: `${SPLASH_FADE_MS}ms` }}
     >

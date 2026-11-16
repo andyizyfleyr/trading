@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -13,15 +14,16 @@ export const dynamic = "force-dynamic";
  * En-tête requis : Authorization: Bearer <token>
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   try {
     const rows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
     const user = rows[0];
-    if (!user) return UNAUTHORIZED();
+    if (!user) return UNAUTHORIZED(lang);
     return ok({ user: toApiUser(user) });
   } catch {
-    return fail("ERREUR_SERVEUR", "Profil temporairement indisponible.", 500);
+    return fail("ERREUR_SERVEUR", "Profil temporairement indisponible.", 500, lang);
   }
 }

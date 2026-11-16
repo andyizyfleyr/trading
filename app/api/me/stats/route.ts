@@ -5,6 +5,7 @@ import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { isSymbol } from "@/lib/symbols";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 import { round2 } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,9 @@ export const dynamic = "force-dynamic";
  * Calculées sur TOUS les trades (jamais tronquées comme la liste).
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   const { searchParams } = new URL(req.url);
   const symbolParam = searchParams.get("symbol");
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
     const winRate = settled > 0 ? Math.round((wins / settled) * 100) : 0;
 
     const me = await db().select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!me[0]) return UNAUTHORIZED();
+    if (!me[0]) return UNAUTHORIZED(lang);
     const above = await db()
       .select({ n: count() })
       .from(users)
@@ -80,6 +82,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch {
-    return fail("ERREUR_SERVEUR", "Statistiques temporairement indisponibles.", 500);
+    return fail("ERREUR_SERVEUR", "Statistiques temporairement indisponibles.", 500, lang);
   }
 }

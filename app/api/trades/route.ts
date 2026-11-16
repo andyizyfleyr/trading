@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
+import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
 import { round2, toApiTrade } from "@/lib/trade-shape";
@@ -19,8 +21,9 @@ export const dynamic = "force-dynamic";
  * « open » = parties (ouverture passée), « scheduled » = programmées (ouverture à venir).
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") ?? "all";
@@ -44,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     return ok({ trades: rows.map(toApiTrade) });
   } catch {
-    return fail("ERREUR_SERVEUR", "Historique temporairement indisponible.", 500);
+    return fail("ERREUR_SERVEUR", "Historique temporairement indisponible.", 500, lang);
   }
 }
 
@@ -56,35 +59,37 @@ export async function GET(req: NextRequest) {
  * est le prix du jeu rejoué côté serveur, la mise est retirée du solde.
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   let body: { symbol?: unknown; direction?: unknown; amount?: unknown; durationSec?: unknown };
   try {
     body = await req.json();
   } catch {
-    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400, lang);
   }
 
   if (!isSymbol(body.symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400, lang);
   }
   if (body.direction !== "UP" && body.direction !== "DOWN") {
-    return fail("DIRECTION_INVALIDE", "Choisissez HAUSSE (ça monte) ou BAISSE (ça descend).", 400);
+    return fail("DIRECTION_INVALIDE", "Choisissez Hausse (ça monte) ou Baisse (ça descend).", 400, lang);
   }
   if (!isDuration(body.durationSec)) {
-    return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
+    return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400, lang);
   }
   const amount = round2(Number(body.amount));
   if (!Number.isFinite(amount) || amount <= 0) {
-    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
+    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
   }
   if (amount < RULES.MIN_BET) {
     const cur = await userCurrency(userId);
     return fail(
       "MISE_TROP_PETITE",
-      `La mise minimum est de ${formatMoney(RULES.MIN_BET, cur)}.`,
-      400
+      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur) }),
+      400,
+      lang
     );
   }
 
@@ -99,18 +104,18 @@ export async function POST(req: NextRequest) {
       return fail(
         "LIMITE_ATTEINTE",
         "Doucement : 20 prédictions par minute maximum. Attendez quelques secondes.",
-        429
+        429, lang
       );
     }
 
     const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
     const user = userRows[0];
-    if (!user) return UNAUTHORIZED();
+    if (!user) return UNAUTHORIZED(lang);
 
     // Pas de plafond : l'utilisateur mise librement jusqu'à tout son solde.
     const balance = round2(user.balance ?? 0);
     if (amount > balance) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     // Prix serveur (jamais fourni par le client). L'heure d'ouverture est
@@ -124,9 +129,9 @@ export async function POST(req: NextRequest) {
       closesAt = new Date(openedAt.getTime() + body.durationSec * 1000);
     } catch (err) {
       if (err instanceof MarketError) {
-        return fail("PRIX_INDISPONIBLES", err.message, 503);
+        return fail("PRIX_INDISPONIBLES", err.message, 503, lang);
       }
-      return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503);
+      return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponibles.", 503, lang);
     }
 
     // Retire la mise du solde de façon atomique.
@@ -136,7 +141,7 @@ export async function POST(req: NextRequest) {
       .where(and(eq(users.id, userId), gte(users.balance, amount)))
       .returning({ balance: users.balance });
     if (debited.length === 0) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     const [created] = await db()
@@ -156,6 +161,6 @@ export async function POST(req: NextRequest) {
 
     return ok({ trade: toApiTrade(created), balance: round2(debited[0].balance ?? 0) }, 201);
   } catch {
-    return fail("ERREUR_SERVEUR", "Prédiction impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Prédiction impossible pour le moment.", 500, lang);
   }
 }

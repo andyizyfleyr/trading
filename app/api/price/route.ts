@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrice, MarketError } from "@/lib/market";
 import { isSymbol } from "@/lib/symbols";
 import { fail } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,12 @@ const TTL_MS = 2_000;
  * Prix servi par sondage régulier.
  */
 export async function GET(req: NextRequest) {
+  const lang = reqLang(req);
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") ?? "EURUSDOTC";
 
   if (!isSymbol(symbol)) {
-    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400);
+    return fail("ACTIF_INVALIDE", "Choisissez un jeu proposé dans la liste.", 400, lang);
   }
 
   const hit = cache.get(symbol);
@@ -31,8 +33,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: { symbol, price, time: Date.now() } });
   } catch (err) {
     if (err instanceof MarketError) {
-      return fail("PRIX_INDISPONIBLES", err.message, 503);
+      return fail("PRIX_INDISPONIBLES", err.message, 503, lang);
     }
-    return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponible.", 503);
+    return fail("PRIX_INDISPONIBLES", "Prix temporairement indisponible.", 503, lang);
   }
 }

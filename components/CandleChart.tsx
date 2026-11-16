@@ -5,6 +5,7 @@ import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT, CANDLES_REFRESH_MS, DOUBLE_TAP_MS } from "@/lib/config";
 import { CHART, INK, TRADER } from "@/lib/design";
 import { fmtHM24 } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle } from "@/lib/types";
@@ -65,6 +66,7 @@ function reduceMotion(): boolean {
  * l'historique, molette/pincement pour zoomer, double-toucher pour revenir.
  */
 export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake }: Props) {
+  const { t } = useLang();
   const { currency, money } = useMoney();
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,7 +113,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
           if (cancelled) return;
           setLoading(false);
           setError(
-            err instanceof ApiError ? err.message : "Graphique temporairement indisponible."
+            err instanceof ApiError ? err.message : t("Graphique temporairement indisponible.")
           );
         });
     };
@@ -122,7 +124,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       cancelled = true;
       clearInterval(timer);
     };
-  }, [symbol, interval, reloadKey]);
+  }, [symbol, interval, reloadKey, t]);
 
   // Bougies affichées : TOUT l'historique (on s'y promène) + tick + dernier prix.
   let shown = candles;
@@ -609,14 +611,14 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       ref={boxRef}
       className={TRADER.chartCard}
       role="img"
-      aria-label="Graphique en bougies. Glisser pour défiler, pincer ou molette pour zoomer, double-toucher pour revenir au direct."
+      aria-label={t("Graphique en bougies. Glisser pour défiler, pincer ou molette pour zoomer, double-toucher pour revenir au direct.")}
     >
       <canvas ref={canvasRef} className={CHART.canvas} />
 
       {/* Loin du direct : retour en un toucher (le zoom est gardé). */}
       {view.scroll > 0.5 && (
         <button type="button" onClick={() => setView((v) => ({ ...v, scroll: 0 }))} className={CHART.liveBtn}>
-          Direct ▸
+          {t("Direct ▸")}
         </button>
       )}
 
@@ -633,7 +635,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       )}
 
       {loading && shown.length === 0 && (
-        <div className={CHART.load} aria-label="Chargement du graphique...">
+        <div className={CHART.load} aria-label={t("Chargement du graphique...")}>
           {SKELETON_BARS.map((h, i) => (
             <div key={i} className={CHART.bar} style={{ height: `${h}%` }} />
           ))}
@@ -644,7 +646,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
         <div className={CHART.errBox}>
           <p className={CHART.errText}>{error}</p>
           <Btn variant="card" onClick={() => setReloadKey((k) => k + 1)}>
-            Réessayer
+            {t("Réessayer")}
           </Btn>
         </div>
       )}

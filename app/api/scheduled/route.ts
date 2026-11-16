@@ -5,6 +5,8 @@ import { trades, users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { TIME_SLOT_BOOK_MARGIN_MS } from "@/lib/config";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
+import { tr } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { userCurrency } from "@/lib/user-currency";
 import { round2, toApiTrade } from "@/lib/trade-shape";
@@ -23,8 +25,9 @@ export const dynamic = "force-dynamic";
  * La mise est retirée aussitôt (annulation = remboursée).
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   let body: {
     symbol?: unknown;
@@ -36,47 +39,49 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400, lang);
   }
 
   if (!isSymbol(body.symbol) || !isOtc(body.symbol)) {
     return fail(
       "JEU_SEULEMENT",
       "La programmation à l'avance est réservée aux jeux casino (Lucky 7, Jackpot, Turbo).",
-      400
+      400,
+      lang
     );
   }
   if (body.direction !== "UP" && body.direction !== "DOWN") {
-    return fail("DIRECTION_INVALIDE", "Choisissez HAUSSE (ça monte) ou BAISSE (ça descend).", 400);
+    return fail("DIRECTION_INVALIDE", "Choisissez Hausse (ça monte) ou Baisse (ça descend).", 400, lang);
   }
   if (!isDuration(body.durationSec)) {
-    return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400);
+    return fail("DUREE_INVALIDE", "Choisissez une durée : 3 s, 10 s, 30 s, 1 min ou 5 min.", 400, lang);
   }
   const amount = round2(Number(body.amount));
   if (!Number.isFinite(amount) || amount <= 0) {
-    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400);
+    return fail("MISE_INVALIDE", "Montant de mise invalide.", 400, lang);
   }
   if (amount < RULES.MIN_BET) {
     const cur = await userCurrency(userId);
     return fail(
       "MISE_TROP_PETITE",
-      `La mise minimum est de ${formatMoney(RULES.MIN_BET, cur)}.`,
-      400
+      tr(lang, "La mise minimum est de {x}.", { x: formatMoney(RULES.MIN_BET, cur) }),
+      400,
+      lang
     );
   }
   const slot = Number(body.slot);
   const nowMs = Date.now();
   const nowSec = Math.floor(nowMs / 1000);
   if (!Number.isInteger(slot) || slot % 60 !== 0) {
-    return fail("HEURE_INVALIDE", "Choisissez une heure pile (ex : 14:35:00).", 400);
+    return fail("HEURE_INVALIDE", "Choisissez une heure pile (ex : 14:35:00).", 400, lang);
   }
   // Même marge que le client (8 s) : un créneau trop proche est refusé
   // avec un message clair, pas « heure passée ».
   if (slot * 1000 <= nowMs + TIME_SLOT_BOOK_MARGIN_MS) {
-    return fail("HEURE_TROP_PROCHE", "Heure trop proche : choisissez une heure plus tardive.", 400);
+    return fail("HEURE_TROP_PROCHE", "Heure trop proche : choisissez une heure plus tardive.", 400, lang);
   }
   if (slot > nowSec + 24 * 3600) {
-    return fail("HEURE_TROP_LOIN", "On ne programme pas au-delà de 24 heures.", 400);
+    return fail("HEURE_TROP_LOIN", "On ne programme pas au-delà de 24 heures.", 400, lang);
   }
 
   try {
@@ -89,17 +94,17 @@ export async function POST(req: NextRequest) {
       return fail(
         "LIMITE_ATTEINTE",
         `${RULES.MAX_SCHEDULED} mises programmées maximum. Annulez-en une pour continuer.`,
-        429
+        429, lang
       );
     }
 
     const userRows = await db().select().from(users).where(eq(users.id, userId)).limit(1);
     const user = userRows[0];
-    if (!user) return UNAUTHORIZED();
+    if (!user) return UNAUTHORIZED(lang);
 
     const balance = round2(user.balance ?? 0);
     if (amount > balance) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     // Prix d'ouverture exact, rejoué à la seconde pile choisie.
@@ -114,7 +119,7 @@ export async function POST(req: NextRequest) {
       .where(and(eq(users.id, userId), gte(users.balance, amount)))
       .returning({ balance: users.balance });
     if (debited.length === 0) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour cette mise.", 400, lang);
     }
 
     const [created] = await db()
@@ -134,6 +139,6 @@ export async function POST(req: NextRequest) {
 
     return ok({ scheduled: toApiTrade(created), balance: round2(debited[0].balance ?? 0) }, 201);
   } catch {
-    return fail("ERREUR_SERVEUR", "Programmation impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Programmation impossible pour le moment.", 500, lang);
   }
 }

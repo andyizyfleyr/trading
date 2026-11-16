@@ -148,6 +148,10 @@ drizzle/0001_init.sql Schéma SQL de référence
 
 ## Notes produit
 
+- **3 langues (FR/EN/ES)** : tout le site est traduit, messages d'erreur
+  serveur compris (en-tête `x-lang`, langue mémorisée sur le compte).
+  Le français sert de clé : `t("...")` ne renvoie jamais de vide.
+  Dictionnaires générés : éditer `tools/mkdict.py` puis `python3 tools/mkdict.py`.
 - **Mobile first 360 px** : barre du bas (Trader, Historique),
   profil via l'avatar, boutons ≥ 48 px, chiffres tabulaires, français simple.
 - **Temps réel** : prix des jeux actualisé par sondage régulier de `/api/price`.

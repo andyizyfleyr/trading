@@ -16,6 +16,8 @@ export const users = pgTable("users", {
   /** Devise d'affichage (tout est stocké en USD). Pays ou null. */
   currency: text("currency").notNull().default("USD"),
   country: text("country"),
+  /** Langue (fr/en/es). */
+  lang: text("lang").notNull().default("fr"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
