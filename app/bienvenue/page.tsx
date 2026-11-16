@@ -7,10 +7,13 @@ import { ROUTES } from "@/lib/config";
 import { AUTH, FLEX, INK } from "@/lib/design";
 import { useMoney } from "@/hooks/useMoney";
 import { Btn } from "@/components/ui";
+import { LangSelect } from "@/components/LangSelect";
+import { useLang } from "@/lib/lang-context";
 
 /** Petites illustrations SVG (légères, pas d'images à télécharger). */
 function SlideArt({ variant }: { variant: number }) {
   const { money } = useMoney();
+  const { t } = useLang();
   if (variant === 0) {
     return (
       <svg viewBox="0 0 200 140" className={AUTH.art} aria-hidden="true">
@@ -25,7 +28,7 @@ function SlideArt({ variant }: { variant: number }) {
         <rect x="158" y="52" width="16" height="38" rx="3" fill={INK.baisse} />
         <rect x="164" y="42" width="4" height="58" fill={INK.baisse} />
         <text x="100" y="130" textAnchor="middle" fill={INK.doux} fontSize="14">
-          ▲ monte · ▼ descend
+          {t("▲ monte · ▼ descend")}
         </text>
       </svg>
     );
@@ -43,7 +46,7 @@ function SlideArt({ variant }: { variant: number }) {
         />
         <circle cx="190" cy="30" r="7" fill={INK.hausse} />
         <text x="100" y="130" textAnchor="middle" fill={INK.doux} fontSize="14">
-          prix en direct
+          {t("prix en direct")}
         </text>
       </svg>
     );
@@ -55,7 +58,7 @@ function SlideArt({ variant }: { variant: number }) {
         {money(0)}
       </text>
       <text x="100" y="80" textAnchor="middle" fill={INK.doux} fontSize="13">
-        recharge pour jouer
+        {t("recharge pour jouer")}
       </text>
       <path d="M85 108l10 10 20-22" fill="none" stroke={INK.hausse} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -65,7 +68,7 @@ function SlideArt({ variant }: { variant: number }) {
 const SLIDES = [
   {
     title: "Prédis si le prix monte ou descend",
-    text: "Regarde le graphique en bougies, choisis une durée et une mise, puis touche HAUSSE ▲ ou BAISSE ▼.",
+    text: "Regarde le graphique en bougies, choisis une durée et une mise, puis touche Hausse ▲ ou Baisse ▼.",
   },
   {
     title: "3 jeux, 100 % hasard",
@@ -79,6 +82,7 @@ const SLIDES = [
 
 export default function BienvenuePage() {
   const { user } = useAuth();
+  const { t } = useLang();
   const router = useRouter();
   const [slide, setSlide] = useState(0);
   const last = slide === SLIDES.length - 1;
@@ -103,18 +107,18 @@ export default function BienvenuePage() {
             onClick={finish}
             className={AUTH.skip}
           >
-            Passer
+            {t("Passer")}
           </button>
         )}
       </div>
 
       <div key={slide} className={AUTH.slideBox}>
         <SlideArt variant={slide} />
-        <h1 className={AUTH.title}>{SLIDES[slide].title}</h1>
-        <p className={AUTH.slideText}>{SLIDES[slide].text}</p>
+        <h1 className={AUTH.title}>{t(SLIDES[slide].title)}</h1>
+        <p className={AUTH.slideText}>{t(SLIDES[slide].text)}</p>
       </div>
 
-      <div className={AUTH.dots} aria-label={`Écran ${slide + 1} sur ${SLIDES.length}`}>
+      <div className={AUTH.dots} aria-label={t("Écran {a} sur {b}", { a: slide + 1, b: SLIDES.length })}>
         {SLIDES.map((_, i) => (
           <span
             key={i}
@@ -123,14 +127,18 @@ export default function BienvenuePage() {
         ))}
       </div>
 
+      <div className={AUTH.langRow}>
+        <LangSelect className={AUTH.langSelect} />
+      </div>
+
       <div className={AUTH.bottomBar}>
         {slide > 0 && (
           <Btn variant="ghost" onClick={() => setSlide((s) => s - 1)} className={FLEX.fill}>
-            Retour
+            {t("Retour")}
           </Btn>
         )}
         <Btn onClick={() => (last ? finish() : setSlide((s) => s + 1))} className={FLEX.wide}>
-          {last ? "Commencer" : "Suivant"}
+          {last ? t("Commencer") : t("Suivant")}
         </Btn>
       </div>
     </div>

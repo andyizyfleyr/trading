@@ -5,6 +5,7 @@ import { useServerOffset } from "@/hooks/useServerOffset";
 import { RING_TICK_MS, RING_URGENT_MS } from "@/lib/config";
 import { LAYOUT, RING, RINGTEXT } from "@/lib/design";
 import { fmtRemainShort } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 
 /**
  * Compte à rebours circulaire basé sur l'heure de fin serveur.
@@ -23,6 +24,7 @@ export function CountdownRing({
   compact?: boolean;
 }) {
   const offsetMs = useServerOffset();
+  const { t } = useLang();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -46,17 +48,17 @@ export function CountdownRing({
 
   const label =
     remaining <= 0
-      ? "Terminé, calcul du résultat…"
+      ? t("Terminé, calcul du résultat…")
       : secs >= 60
-        ? `${Math.floor(secs / 60)} min ${String(secs % 60).padStart(2, "0")}`
-        : `${secs} s`;
+        ? t("{m} min {s}", { m: Math.floor(secs / 60), s: String(secs % 60).padStart(2, "0") })
+        : t("{s} s", { s: secs });
 
   return (
     <div
       className={LAYOUT.ringWrap}
       style={{ width: size, height: size }}
       role="timer"
-      aria-label={`Temps restant : ${label}`}
+      aria-label={t("Temps restant : {label}", { label })}
     >
       <svg width={size} height={size} className={LAYOUT.ringFlip}>
         <circle
@@ -88,7 +90,7 @@ export function CountdownRing({
             <span className={big ? RINGTEXT.numBig : RINGTEXT.numSmall}>
               {remaining <= 0 ? "…" : secs >= 60 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}` : secs}
             </span>
-            <span className={big ? RINGTEXT.unitBig : RINGTEXT.unitSmall}>{remaining <= 0 ? "résultat…" : secs >= 60 ? "min" : "sec"}</span>
+            <span className={big ? RINGTEXT.unitBig : RINGTEXT.unitSmall}>{remaining <= 0 ? t("résultat…") : secs >= 60 ? t("min") : t("sec")}</span>
           </>
         )}
       </div>

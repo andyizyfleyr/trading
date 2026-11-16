@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useLang } from "@/lib/lang-context";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { ROUTES } from "@/lib/config";
 import { HEADER, ICON, SIDE } from "@/lib/design";
@@ -23,6 +24,7 @@ const ITEMS = [
 
 /** Barre latérale desktop (écrans larges uniquement) : navigation + déconnexion. */
 export function Sidebar() {
+  const { t } = useLang();
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
   const router = useRouter();
@@ -37,7 +39,7 @@ export function Sidebar() {
 
   return (
     <aside className={SIDE.bar}>
-      <Link href={ROUTES.trader} className={SIDE.logo} aria-label="Accueil Trader">
+      <Link href={ROUTES.trader} className={SIDE.logo} aria-label={t("Accueil Trader")}>
         <span className={SIDE.logoMark} aria-hidden="true">
           <span className={HEADER.markUp}>▲</span>
           <span className={HEADER.markDown}>▼</span>
@@ -45,7 +47,7 @@ export function Sidebar() {
         <span className={SIDE.logoName}>TradeFacile</span>
       </Link>
 
-      <nav aria-label="Navigation principale" className={SIDE.nav}>
+      <nav aria-label={t("Navigation principale")} className={SIDE.nav}>
         {ITEMS.map(({ href, label, Icon }) => {
           const active = href === ROUTES.trader ? pathname === ROUTES.trader : pathname.startsWith(href);
           return (
@@ -56,7 +58,7 @@ export function Sidebar() {
               className={active ? SIDE.linkOn : SIDE.linkOff}
             >
               <Icon className={SIDE.linkIcon} />
-              {label}
+              {t(label)}
             </Link>
           );
         })}
@@ -70,7 +72,7 @@ export function Sidebar() {
         className={SIDE.logout}
       >
         <LogoutIcon className={ICON.md} />
-        Se déconnecter
+        {t("Se déconnecter")}
       </button>
     </aside>
   );

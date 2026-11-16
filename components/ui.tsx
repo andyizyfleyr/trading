@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { BTN, FORM, LAYOUT, SHEET, SKELETON, STATE } from "@/lib/design";
+import { useLang } from "@/lib/lang-context";
 import { XIcon } from "./Icons";
 
 /* ---------- Bouton ---------- */
@@ -63,12 +64,13 @@ export function EmptyState({
 /* ---------- État d'erreur ---------- */
 
 export function ErrorState({ text, retry }: { text: string; retry?: () => void }) {
+  const { t } = useLang();
   return (
     <div className={STATE.errorBox}>
       <p className={STATE.errorText}>{text}</p>
       {retry && (
         <Btn variant="ghost" onClick={retry}>
-          Réessayer
+          {t("Réessayer")}
         </Btn>
       )}
     </div>
@@ -96,6 +98,7 @@ export function BottomSheet({
   /** En-tête sur mesure (remplace le titre + bouton fermer par défaut). */
   header?: ReactNode;
 }) {
+  const { t } = useLang();
   // Panneaux empilés (Durée/Départ + « Choisir l'heure ») : un compteur, sinon
   // la fermeture du panneau du dessus rend le scroll alors que l'autre
   // est encore ouvert.
@@ -127,7 +130,7 @@ export function BottomSheet({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fermer"
+              aria-label={t("Fermer")}
               className={SHEET.close}
             >
               <XIcon className={SHEET.closeIcon} />

@@ -8,6 +8,8 @@ export interface ApiUser {
   currency: string;
   /** Pays (code : BJ, FR…) ou null si non choisi. */
   country: string | null;
+  /** Langue (fr/en/es). */
+  lang: string;
   createdAt: string;
 }
 

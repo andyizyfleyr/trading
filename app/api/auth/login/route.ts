@@ -5,6 +5,7 @@ import { users } from "@/lib/schema";
 import { isValidEmail, normalizeEmail, signToken, verifyPassword } from "@/lib/auth";
 import { LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS } from "@/lib/config";
 import { fail, ok } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 import { toApiUser } from "@/lib/trade-shape";
 
 export const dynamic = "force-dynamic";
@@ -54,12 +55,13 @@ function recordFailure(ip: string): void {
  * Réponse : { "data": { "token": "JWT", "user": {...} } }
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const ip = clientIp(req);
   if (tooManyAttempts(ip)) {
     return fail(
       "TROP_DE_TENTATIVES",
       "Trop de tentatives. Réessayez dans quelques minutes.",
-      429
+      429, lang
     );
   }
 
@@ -67,12 +69,12 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400, lang);
   }
 
   if (!isValidEmail(body.email) || typeof body.password !== "string") {
     recordFailure(ip);
-    return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401);
+    return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401, lang);
   }
   const email = normalizeEmail(body.email);
 
@@ -81,20 +83,20 @@ export async function POST(req: NextRequest) {
     const user = rows[0];
     if (!user) {
       recordFailure(ip);
-      return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401);
+      return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401, lang);
     }
     const valid = await verifyPassword(body.password, user.passwordHash);
     if (!valid) {
       recordFailure(ip);
-      return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401);
+      return fail("IDENTIFIANTS_INVALIDES", "E-mail ou mot de passe incorrect.", 401, lang);
     }
     attempts.delete(ip);
     const token = await signToken(user.id);
     return ok({ token, user: toApiUser(user) });
   } catch (err) {
     if (err instanceof Error && err.message.includes("DATABASE_URL")) {
-      return fail("ERREUR_SERVEUR", "Service temporairement indisponible.", 500);
+      return fail("ERREUR_SERVEUR", "Service temporairement indisponible.", 500, lang);
     }
-    return fail("ERREUR_SERVEUR", "Connexion impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Connexion impossible pour le moment.", 500, lang);
   }
 }

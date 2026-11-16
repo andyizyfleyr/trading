@@ -23,6 +23,8 @@ export const STORE = {
   calm: "tf_calme",
   /** Durée + Investissement : retrouvés après refresh, déconnexion, fermeture. */
   order: "tf_order",
+  /** Langue (fr/en/es) : immédiate + marche déconnecté, syncée au compte. */
+  lang: "tf_lang",
 } as const;
 
 /** Paramètres du lien « Préparer ma mise » (signaux → trader). */

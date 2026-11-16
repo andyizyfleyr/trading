@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { LangProvider } from "@/lib/lang-context";
 import { AppShell } from "@/components/AppShell";
 import { SplashGate } from "@/components/SplashScreen";
 import { SwRegister } from "@/components/SwRegister";
@@ -54,8 +55,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AuthProvider>
-          <AppShell>{children}</AppShell>
-          <SplashGate />
+          <LangProvider>
+            <AppShell>{children}</AppShell>
+            <SplashGate />
+          </LangProvider>
         </AuthProvider>
         <SwRegister />
       </body>

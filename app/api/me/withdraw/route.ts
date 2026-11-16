@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
+import { tr } from "@/lib/i18n";
 import { toApiUser } from "@/lib/trade-shape";
 import { formatMoney } from "@/lib/money";
 import { RULES } from "@/lib/symbols";
@@ -16,14 +18,15 @@ export const dynamic = "force-dynamic";
  * Corps : { "amount": 1000 }. Aucun paiement réel, jamais.
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   let body: { amount?: unknown };
   try {
     body = await req.json();
   } catch {
-    return fail("REQUETE_INVALIDE", "Requête illisible.", 400);
+    return fail("REQUETE_INVALIDE", "Requête illisible.", 400, lang);
   }
 
   const amount = Number(body.amount);
@@ -31,8 +34,10 @@ export async function POST(req: NextRequest) {
     const cur = await userCurrency(userId);
     return fail(
       "MONTANT_INVALIDE",
-      `Le montant minimum est de ${formatMoney(RULES.MIN_WITHDRAW, cur)}.`,
+      tr(lang, "Le montant minimum est de {x}.", { x: formatMoney(RULES.MIN_WITHDRAW, cur) }),
       400
+    ,
+      lang
     );
   }
 
@@ -44,10 +49,10 @@ export async function POST(req: NextRequest) {
       .returning();
     const user = rows[0];
     if (!user) {
-      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour ce retrait.", 400);
+      return fail("SOLDE_INSUFFISANT", "Solde insuffisant pour ce retrait.", 400, lang);
     }
     return ok({ user: toApiUser(user) });
   } catch {
-    return fail("ERREUR_SERVEUR", "Retrait impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Retrait impossible pour le moment.", 500, lang);
   }
 }

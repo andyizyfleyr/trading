@@ -70,6 +70,13 @@ async function request<T>(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Langue du téléphone : le serveur traduit ses messages d'erreur.
+  try {
+    const lang = window.localStorage.getItem(STORE.lang);
+    if (lang) headers["x-lang"] = lang;
+  } catch {
+    /* ignore */
+  }
 
   // Abandon après 15 s : sans cela, un réseau qui stagne bloque l'écran
   // (bouton « … » infini) au lieu d'afficher une erreur réessayable.
@@ -130,6 +137,9 @@ export const apiDeposit = (amount: number) =>
 
 export const apiSetCurrency = (input: { currency?: string; country?: string }) =>
   request<{ user: ApiUser }>("/api/me/currency", { method: "PUT", body: input });
+
+export const apiSetLang = (lang: string) =>
+  request<{ user: ApiUser }>("/api/me/lang", { method: "PUT", body: { lang } });
 
 export const apiWithdraw = (amount: number) =>
   request<{ user: ApiUser }>("/api/me/withdraw", { method: "POST", body: { amount } });

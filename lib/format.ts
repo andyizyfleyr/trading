@@ -1,7 +1,11 @@
 /** Formatages : français simple, chiffres à largeur fixe (via CSS tabular-nums). */
+import type { Lang } from "./i18n";
+import { tr } from "./i18n";
 import { symbolDecimals } from "./symbols";
 
 const LOCALE = "fr-FR";
+/** Localisation des dates selon la langue (mois « nov. » / « Nov » / « nov »). */
+const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
 /** Décimales des montants (1000, 42,5). */
 const DEC_BIG = 2;
 
@@ -33,9 +37,9 @@ export function fmtSigned(n: number): string {
   return "±0";
 }
 
-export function fmtTime(iso: string): string {
+export function fmtTime(iso: string, lang: Lang = "fr"): string {
   try {
-    return new Date(iso).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" });
   } catch {
     return "";
   }
@@ -80,7 +84,7 @@ export function fmtRemainShort(ms: number): string {
 }
 
 /** Étiquette de jour : « Aujourd'hui », « Hier » ou « 12 nov. » (groupes d'historique). */
-export function fmtDay(iso: string): string {
+export function fmtDay(iso: string, lang: Lang = "fr"): string {
   try {
     const d = new Date(iso);
     const midnight = new Date();
@@ -89,9 +93,9 @@ export function fmtDay(iso: string): string {
     day.setHours(0, 0, 0, 0);
     const diff = Math.round((midnight.getTime() - day.getTime()) / 86400000);
     // Les programmées de demain affichent leur vraie date (pas « Aujourd'hui »).
-    if (diff === 0) return "Aujourd'hui";
-    if (diff === 1) return "Hier";
-    return d.toLocaleDateString(LOCALE, { day: "numeric", month: "short" });
+    if (diff === 0) return tr(lang, "Aujourd'hui");
+    if (diff === 1) return tr(lang, "Hier");
+    return d.toLocaleDateString(LOCALES[lang], { day: "numeric", month: "short" });
   } catch {
     return "";
   }

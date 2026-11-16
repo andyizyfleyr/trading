@@ -17,6 +17,7 @@ import {
 } from "@/lib/config";
 import { ICON, SIGNAL, STACK, TEXT, TONE, TRADER } from "@/lib/design";
 import { fmtRemain, fmtSlot } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 import { Btn, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { SignalIcon } from "@/components/Icons";
 
@@ -30,8 +31,8 @@ function verdict(symbol: string, fromSec: number, durationSec: number): Verdict 
   return to > from ? "UP" : to < from ? "DOWN" : "TIE";
 }
 
-function verdictLabel(v: Verdict): string {
-  return v === "UP" ? "HAUSSE ▲" : v === "DOWN" ? "BAISSE ▼" : "ÉGALITÉ =";
+function verdictLabel(v: Verdict, t: (key: string) => string): string {
+  return v === "UP" ? t("Hausse ▲") : v === "DOWN" ? t("Baisse ▼") : t("Égalité =");
 }
 
 /**
@@ -40,6 +41,7 @@ function verdictLabel(v: Verdict): string {
  * puis les choix (jeu, durée) et tous les coups à venir.
  */
 export default function PredictionsPage() {
+  const { t } = useLang();
   // Même heure serveur que le trader (le coup « À JOUER » part à la seconde pile là-bas).
   const offsetMs = useServerOffset();
   const online = useOnline();
@@ -85,8 +87,8 @@ export default function PredictionsPage() {
     return (
       <EmptyState
         icon={<SignalIcon className={ICON.xl} />}
-        title="Pas de jeu casino"
-        text="Aucun jeu n'est disponible pour le moment."
+        title={t("Pas de jeu casino")}
+        text={t("Aucun jeu n'est disponible pour le moment.")}
       />
     );
   }
@@ -94,7 +96,7 @@ export default function PredictionsPage() {
   if (!online && offsetMs == null) {
     return (
       <ErrorState
-        text="Hors ligne : reconnecte-toi pour voir les signaux."
+        text={t("Hors ligne : reconnecte-toi pour voir les signaux.")}
         retry={() => window.location.reload()}
       />
     );
@@ -102,7 +104,7 @@ export default function PredictionsPage() {
 
   if (offsetMs == null || !game || !target) {
     return (
-      <div className={STACK.c2} aria-label="Chargement des signaux...">
+      <div className={STACK.c2} aria-label={t("Chargement des signaux...")}>
         <Skeleton className={SIGNAL.skelTitle} />
         <Skeleton className={SIGNAL.skelBar} />
         <Skeleton className={SIGNAL.skelBig} />
@@ -115,10 +117,9 @@ export default function PredictionsPage() {
   return (
     <div className={SIGNAL.root}>
       <div className={STACK.c1}>
-        <h1 className={TEXT.pageTitle}>Signaux casino</h1>
+        <h1 className={TEXT.pageTitle}>{t("Signaux casino")}</h1>
         <p className={TEXT.bodyMuted}>
-          On te dit à l&apos;avance s&apos;il faut appuyer sur HAUSSE ou BAISSE, et à
-          quelle seconde exacte.
+          {t("On te dit à l'avance s'il faut appuyer sur Hausse ou Baisse, et à quelle seconde exacte.")}
         </p>
       </div>
 
@@ -134,30 +135,30 @@ export default function PredictionsPage() {
             {game.base} <span className={SIGNAL.titleSub}>· {durationLabel(duration)}</span>
           </p>
           <span className={TRADER.tag}>
-            JEU
+            {t("JEU")}
           </span>
         </div>
 
         {playable ? (
           <>
             <p className={SIGNAL.verdictLine}>
-              À{" "}
+              {t("À")}{" "}
               <span className={SIGNAL.verdictTime}>
                 {fmtSlot(target.start)}
               </span>{" "}
-              précises, appuie sur :
+              {t("précises, appuie sur :")}
             </p>
             <p
               className={`${SIGNAL.pill} ${
                 target.v === "UP" ? SIGNAL.pillUp : SIGNAL.pillDown
               }`}
             >
-              {verdictLabel(target.v)}
+              {verdictLabel(target.v, t)}
             </p>
-            <p className={SIGNAL.miseDans}>Mise dans</p>
+            <p className={SIGNAL.miseDans}>{t("Mise dans")}</p>
             <p
               className={SIGNAL.countdown}
-              aria-label={`Temps restant avant de miser : ${fmtRemain(remainingMs)}`}
+              aria-label={t("Temps restant avant de miser : {x}", { x: fmtRemain(remainingMs) })}
             >
               {remainingMs < GO_THRESHOLD_MS ? "GO !" : fmtRemain(remainingMs)}
             </p>
@@ -169,28 +170,28 @@ export default function PredictionsPage() {
               className={SIGNAL.prepareWrap}
             >
               <Btn className={SIGNAL.prepare}>
-                Préparer ma mise →
+                {t("Préparer ma mise →")}
               </Btn>
             </Link>
             <p className={SIGNAL.prepareNote}>
-              Le jeu, la durée et le bouton sont déjà remplis sur l&apos;écran suivant.
+              {t("Le jeu, la durée et le bouton sont déjà remplis sur l'écran suivant.")}
             </p>
           </>
         ) : (
           <p className={SIGNAL.idle}>
-            Pas de coup jouable pour l&apos;instant : reviens dans une minute.
+            {t("Pas de coup jouable pour l'instant : reviens dans une minute.")}
           </p>
         )}
       </div>
 
       {/* Comment ne pas louper le coup */}
       <div className={SIGNAL.howto}>
-        <p className={TEXT.sectionTitle}>Comment ne pas louper le coup</p>
+        <p className={TEXT.sectionTitle}>{t("Comment ne pas louper le coup")}</p>
         <ol className={SIGNAL.steps}>
           {[
-            "Appuie sur « Préparer ma mise » : tout est déjà rempli.",
-            "Choisis ta mise, puis attends la fin du décompte.",
-            "Dans les 3 dernières secondes, appuie sur le bouton conseillé : ta mise partira toute seule à la seconde pile.",
+            t("Appuie sur « Préparer ma mise » : tout est déjà rempli."),
+            t("Choisis ta mise, puis attends la fin du décompte."),
+            t("Dans les 3 dernières secondes, appuie sur le bouton conseillé : ta mise partira toute seule à la seconde pile."),
           ].map((step, i) => (
             <li key={i} className={SIGNAL.step}>
               <span
@@ -204,17 +205,14 @@ export default function PredictionsPage() {
           ))}
         </ol>
         <p className={SIGNAL.note}>
-          Trop tôt ? Attends : le bouton conseillé ne s&apos;arme que dans les 3 dernières
-          secondes. En retard ? Le coup est raté : attends le suivant. Astuce :
-          sur le trader, choisis ton heure dans « Départ » et ta mise partira toute seule,
-          même si tu quittes l&apos;app.
+          {t("Trop tôt ? Attends : le bouton conseillé ne s'arme que dans les 3 dernières secondes. En retard ? Le coup est raté : attends le suivant. Astuce : sur le trader, choisis ton heure dans « Départ » et ta mise partira toute seule, même si tu quittes l'app.")}
         </p>
       </div>
 
       {/* Choix du jeu et de la durée */}
       <div>
-        <p className={SIGNAL.pickTitle}>Quel jeu ?</p>
-        <div className={SIGNAL.gameGrid} role="group" aria-label="Choisir le jeu">
+        <p className={SIGNAL.pickTitle}>{t("Quel jeu ?")}</p>
+        <div className={SIGNAL.gameGrid} role="group" aria-label={t("Choisir le jeu")}>
           {GAMES.map((g) => {
             const selected = g.id === game.id;
             return (
@@ -238,8 +236,8 @@ export default function PredictionsPage() {
       </div>
 
       <div>
-        <p className={SIGNAL.pickTitle}>Quelle durée ?</p>
-        <div className={SIGNAL.durGrid} role="group" aria-label="Choisir la durée">
+        <p className={SIGNAL.pickTitle}>{t("Quelle durée ?")}</p>
+        <div className={SIGNAL.durGrid} role="group" aria-label={t("Choisir la durée")}>
           {DURATIONS.map((d) => {
             const selected = d === duration;
             return (
@@ -260,7 +258,7 @@ export default function PredictionsPage() {
       {/* Tous les coups à venir */}
       <div className={SIGNAL.list}>
         <p className={SIGNAL.listHead}>
-          Les coups à venir
+          {t("Les coups à venir")}
         </p>
         <ul>
           {slots.map((s) => {
@@ -278,7 +276,7 @@ export default function PredictionsPage() {
                   </span>
                   {isTarget && (
                     <span className={SIGNAL.listPlay}>
-                      À JOUER
+                      {t("À JOUER")}
                     </span>
                   )}
                 </span>
@@ -291,14 +289,14 @@ export default function PredictionsPage() {
                         : TONE.badgePass
                   }
                 >
-                  {verdictLabel(s.v)}
+                  {verdictLabel(s.v, t)}
                 </span>
               </li>
             );
           })}
         </ul>
         <p className={SIGNAL.listFoot}>
-          « ÉGALITÉ » = le prix ne bougera pas : garde ta mise pour le coup d&apos;après.
+          {t("« Égalité » = le prix ne bougera pas : garde ta mise pour le coup d'après.")}
         </p>
       </div>
     </div>

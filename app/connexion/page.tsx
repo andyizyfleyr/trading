@@ -8,9 +8,12 @@ import { ApiError } from "@/lib/api";
 import { NEXT_PARAM, ROUTES } from "@/lib/config";
 import { AUTH, FORM, TRADER } from "@/lib/design";
 import { Btn, Field } from "@/components/ui";
+import { LangSelect } from "@/components/LangSelect";
+import { useLang } from "@/lib/lang-context";
 
 function ConnexionForm() {
   const { login, user, loading, sessionExpired } = useAuth();
+  const { t } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get(NEXT_PARAM) || ROUTES.trader;
@@ -35,7 +38,7 @@ function ConnexionForm() {
       await login(email.trim(), password);
       router.replace(next);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Connexion impossible.");
+      setError(err instanceof ApiError ? err.message : t("Connexion impossible."));
     } finally {
       setBusy(false);
     }
@@ -51,15 +54,15 @@ function ConnexionForm() {
         <span className={AUTH.brandName}>TradeFacile</span>
       </div>
 
-      <h1 className={AUTH.title}>Bon retour !</h1>
+      <h1 className={AUTH.title}>{t("Bon retour !")}</h1>
       <p className={AUTH.sub}>
         {expired
-          ? "Ta session a expiré après 30 jours : reconnecte-toi pour continuer."
-          : "Connecte-toi pour continuer à jouer."}
+          ? t("Ta session a expiré après 30 jours : reconnecte-toi pour continuer.")
+          : t("Connecte-toi pour continuer à jouer.")}
       </p>
 
       <form onSubmit={submit} className={AUTH.form}>
-        <Field label="E-mail">
+        <Field label={t("E-mail")}>
           <input
             type="email"
             required
@@ -70,14 +73,14 @@ function ConnexionForm() {
             className={FORM.input}
           />
         </Field>
-        <Field label="Mot de passe">
+        <Field label={t("Mot de passe")}>
           <input
             type="password"
             required
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Ton mot de passe"
+            placeholder={t("Ton mot de passe")}
             className={FORM.input}
           />
         </Field>
@@ -89,21 +92,24 @@ function ConnexionForm() {
         )}
 
         <Btn type="submit" disabled={busy}>
-          {busy ? "Connexion…" : "Se connecter"}
+          {busy ? t("Connexion…") : t("Se connecter")}
         </Btn>
       </form>
 
       <p className={AUTH.foot}>
-        Pas encore de compte ?{" "}
+        {t("Pas encore de compte ?")}{" "}
         <Link href={ROUTES.signup} className={AUTH.link}>
-          Créer un compte
+          {t("Créer un compte")}
         </Link>
       </p>
       <p className={AUTH.foot}>
         <Link href={ROUTES.welcome} className={AUTH.link}>
-          Découvrir l&apos;app en 3 écrans
+          {t("Découvrir l'app en 3 écrans")}
         </Link>
       </p>
+      <div className={AUTH.langRow}>
+        <LangSelect className={AUTH.langSelect} />
+      </div>
     </div>
   );
 }

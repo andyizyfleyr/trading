@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useLang } from "@/lib/lang-context";
 import { useOnline } from "@/hooks/useOnline";
 import { apiSettle } from "@/lib/api";
 import { useMoney } from "@/hooks/useMoney";
@@ -17,6 +18,7 @@ import { WalletIcon } from "./Icons";
 const CHROMELESS = [ROUTES.login, ROUTES.signup, ROUTES.welcome];
 
 export function RequireAuth({ children }: { children: ReactNode }) {
+  const { t } = useLang();
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -40,7 +42,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className={SHELL.loadBox} aria-label="Chargement...">
+      <div className={SHELL.loadBox} aria-label={t("Chargement...")}>
         <div className={SHELL.loadBig} />
         <div className={SHELL.loadSmall} />
         <div className={SHELL.loadSmall} />
@@ -52,6 +54,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function Header() {
+  const { t } = useLang();
   const { money } = useMoney();
   const { user } = useAuth();
   const initial = (user?.email?.[0] ?? "?").toUpperCase();
@@ -59,7 +62,7 @@ function Header() {
   return (
     <header className={HEADER.bar}>
       <div className={HEADER.wrap}>
-        <Link href={ROUTES.trader} className={HEADER.logo} aria-label="Accueil Trader">
+        <Link href={ROUTES.trader} className={HEADER.logo} aria-label={t("Accueil Trader")}>
           <span className={HEADER.mark} aria-hidden="true">
             <span className={HEADER.markUp}>▲</span>
             <span className={HEADER.markDown}>▼</span>
@@ -70,14 +73,16 @@ function Header() {
           <Link
             href={ROUTES.profile}
             className={HEADER.pill}
-            aria-label={`Mon solde : ${user ? money(user.balance) : "..."}. Aller au profil.`}
+            aria-label={t("Mon solde : {x}. Aller au profil.", {
+              x: user ? money(user.balance) : "...",
+            })}
           >
             <WalletIcon className={HEADER.pillIcon} />
             {user ? money(user.balance) : "…"}
           </Link>
           <Link
             href={ROUTES.profile}
-            aria-label="Mon profil"
+            aria-label={t("Mon profil")}
             className={HEADER.avatar}
           >
             {initial}
@@ -138,11 +143,12 @@ function BalanceSync() {
 
 /** Bandeau « Hors ligne » sur toutes les pages (sinon les boutons semblent morts). */
 function OfflineBanner() {
+  const { t } = useLang();
   const online = useOnline();
   if (online) return null;
   return (
     <p role="alert" className={SHELL.offline}>
-      Hors ligne : reconnecte-toi, tes actions sont en pause.
+      {t("Hors ligne : reconnecte-toi, tes actions sont en pause.")}
     </p>
   );
 }

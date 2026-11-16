@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { comboLegs, combos, trades, users, type Combo, type ComboLeg, type Trade } from "@/lib/schema";
 import { requireUserId } from "@/lib/auth";
 import { fail, ok, UNAUTHORIZED } from "@/lib/respond";
+import { reqLang } from "@/lib/respond";
 import { round2, toApiCombo, toApiTrade } from "@/lib/trade-shape";
 import { withSchema } from "@/lib/schema-ensure";
 import { getPrice } from "@/lib/market";
@@ -33,8 +34,9 @@ function judge(direction: string, openPrice: number, closePrice: number): TradeR
  * perdue = combiné perdu aussitôt, sinon mise × 1,85 ^ jambes gagnées.
  */
 export async function POST(req: NextRequest) {
+  const lang = reqLang(req);
   const userId = await requireUserId(req);
-  if (!userId) return UNAUTHORIZED();
+  if (!userId) return UNAUTHORIZED(lang);
 
   let ids: number[] | null = null;
   try {
@@ -259,6 +261,6 @@ export async function POST(req: NextRequest) {
       balance: round2(me[0]?.balance ?? 0),
     });
   } catch {
-    return fail("ERREUR_SERVEUR", "Clôture impossible pour le moment.", 500);
+    return fail("ERREUR_SERVEUR", "Clôture impossible pour le moment.", 500, lang);
   }
 }

@@ -32,6 +32,7 @@ import {
 } from "@/lib/config";
 import { ENCOURS, SHEET, TRADER } from "@/lib/design";
 import { fmtRemainShort } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, isDuration, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
@@ -50,6 +51,7 @@ function loadSymbol(): string {
 
 export default function TraderPage() {
   const { money } = useMoney();
+  const { t } = useLang();
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>(() => loadSymbol());
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
@@ -108,8 +110,8 @@ export default function TraderPage() {
 
   // Horloge pour le compte à rebours du bouton flottant.
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), FLOAT_TICK_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), FLOAT_TICK_MS);
+    return () => clearInterval(timer);
   }, []);
 
   // Même heure serveur partout (pas l'horloge du téléphone, parfois fausse).
@@ -125,8 +127,8 @@ export default function TraderPage() {
       setSignal(null);
       return;
     }
-    const t = setTimeout(() => setSignal(null), wait);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSignal(null), wait);
+    return () => clearTimeout(timer);
   }, [signal, offsetMs]);
 
   const pickSymbol = (id: string) => {
@@ -178,8 +180,8 @@ export default function TraderPage() {
 
   useEffect(() => {
     loadOpen();
-    const t = setInterval(loadOpen, TRADES_REFRESH_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(loadOpen, TRADES_REFRESH_MS);
+    return () => clearInterval(timer);
   }, [loadOpen]);
 
   // Mises programmées sur le serveur (partent même appli fermée) :
@@ -195,8 +197,8 @@ export default function TraderPage() {
 
   useEffect(() => {
     loadScheduled();
-    const t = setInterval(loadScheduled, SCHEDULED_REFRESH_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(loadScheduled, SCHEDULED_REFRESH_MS);
+    return () => clearInterval(timer);
   }, [loadScheduled]);
 
   const cancelScheduled = useCallback(
@@ -206,15 +208,15 @@ export default function TraderPage() {
         setBalance(res.balance);
         loadScheduled();
       } catch (err) {
-        say(err instanceof ApiError ? err.message : "Annulation impossible pour le moment.", null);
+        say(err instanceof ApiError ? err.message : t("Annulation impossible pour le moment."), null);
       }
     },
-    [loadScheduled, setBalance, say]
+    [loadScheduled, setBalance, say, t]
   );
 
   // Clôture automatique à la fin de chaque compte à rebours.
   useEffect(() => {
-    const t = setInterval(async () => {
+    const timer = setInterval(async () => {
       if (settlingRef.current || !online) return;
       const current = Date.now();
       const due = openTrades.filter((tr) => new Date(tr.closesAt).getTime() <= current);
@@ -234,14 +236,18 @@ export default function TraderPage() {
           // seul le dernier résultat s'affiche.
           if (res.settled.length === 1) {
             const s = res.settled[0];
-            if (s.result === "WIN") say(`Gagné +${money(s.payout ?? 0)}`, "win");
-            else if (s.result === "LOSS") say(`Perdu −${money(s.amount)}`, "loss");
-            else say("Égalité : mise rendue", null);
+            if (s.result === "WIN") say(t("Gagné +{amt}", { amt: money(s.payout ?? 0) }), "win");
+            else if (s.result === "LOSS") say(t("Perdu −{amt}", { amt: money(s.amount) }), "loss");
+            else say(t("Égalité : mise rendue"), null);
           } else {
             const won = res.settled.filter((s) => s.result === "WIN").length;
             const lost = res.settled.filter((s) => s.result === "LOSS").length;
             say(
-              `${res.settled.length} résultats : ${won} gagné${won > 1 ? "s" : ""}, ${lost} perdu${lost > 1 ? "s" : ""}`,
+              t("{n} résultats : {w} · {l}", {
+                n: res.settled.length,
+                w: won > 1 ? t("{n} gagnés", { n: won }) : t("{n} gagné", { n: won }),
+                l: lost > 1 ? t("{n} perdus", { n: lost }) : t("{n} perdu", { n: lost }),
+              }),
               won > lost ? "win" : lost > won ? "loss" : null
             );
           }
@@ -252,7 +258,7 @@ export default function TraderPage() {
         settlingRef.current = false;
       }
     }, SETTLE_TICK_MS);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openTrades, online]);
 
@@ -264,11 +270,15 @@ export default function TraderPage() {
       setSignal(null); // Coup joué : le signal a servi, on l'efface.
       setTradesOpen(true); // Affiche aussitôt le compte à rebours.
       say(
-        `${trade.direction === "UP" ? "Hausse" : "Baisse"} ${money(trade.amount)} · ${trade.durationSec} s`,
+        t("{dir} {amt} · {dur} s", {
+          dir: trade.direction === "UP" ? t("Hausse") : t("Baisse"),
+          amt: money(trade.amount),
+          dur: trade.durationSec,
+        }),
         null
       );
     },
-    [setBalance, say]
+    [setBalance, say, t, money]
   );
 
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
@@ -323,11 +333,11 @@ export default function TraderPage() {
             <button
               type="button"
               onClick={() => setTradesOpen(true)}
-              aria-label={`Voir les ${openTrades.length} prédictions en cours`}
+              aria-label={t("Voir les {n} prédictions en cours", { n: openTrades.length })}
               className={TRADER.pill}
             >
               <span className={TRADER.pillDot} aria-hidden="true" />
-              {openTrades.length} en cours
+              {t("{n} en cours", { n: openTrades.length })}
             </button>
           )}
         </div>
@@ -362,20 +372,20 @@ export default function TraderPage() {
                     <div className={TRADER.openHead}>
                       <p className={TRADER.openTitle}>
                         {sortedOpen.length > 0
-                          ? `En cours (${sortedOpen.length})`
-                          : `Programmé(es) (${scheduledUp.length})`}
+                          ? t("En cours ({n})", { n: sortedOpen.length })
+                          : t("Programmé(es) ({n})", { n: scheduledUp.length })}
                       </p>
                       <p className={TRADER.openSoon}>
                         {sortedOpen.length > 0
-                          ? `Fin dans ${fmtRemainShort(nearestMs)}`
-                          : `Départ dans ${fmtRemainShort(nextSchedMs)}`}
+                          ? t("Fin dans {x}", { x: fmtRemainShort(nearestMs) })
+                          : t("Départ dans {x}", { x: fmtRemainShort(nextSchedMs) })}
                       </p>
                     </div>
                     <p className={TRADER.openStaked}>
-                      {sortedOpen.length > 0 && <>Mises {money(totalStaked)}</>}
+                      {sortedOpen.length > 0 && <>{t("Mises {amt}", { amt: money(totalStaked) })}</>}
                       {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
                       {scheduledUp.length > 0 && (
-                        <>Programmé(es) {money(scheduledStaked)}</>
+                        <>{t("Programmé(es) {amt}", { amt: money(scheduledStaked) })}</>
                       )}
                     </p>
                     {sortedOpen.map((trade) => (
@@ -395,7 +405,7 @@ export default function TraderPage() {
       </div>
 
       {/* Panneau : choix de l'actif */}
-      <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title="Choisir un jeu">
+      <BottomSheet open={assetOpen} onClose={() => setAssetOpen(false)} title={t("Choisir un jeu")}>
         <div className={SHEET.list1}>
           {SYMBOLS.map((s) => {
             const active = s.id === symbol;
@@ -417,7 +427,7 @@ export default function TraderPage() {
                 </span>
                 {s.kind === "otc" && (
                   <span className={TRADER.tag}>
-                    JEU
+                    {t("JEU")}
                   </span>
                 )}
                 {active && <CheckIcon className={SHEET.rowCheck} />}
@@ -433,13 +443,13 @@ export default function TraderPage() {
         onClose={() => setTradesOpen(false)}
         title={
           sortedOpen.length > 0
-            ? `En cours (${openTrades.length})`
-            : `Programmé(es) (${scheduledUp.length})`
+            ? t("En cours ({n})", { n: openTrades.length })
+            : t("Programmé(es) ({n})", { n: scheduledUp.length })
         }
         header={
           <div className={ENCOURS.head}>
             <h2 className={ENCOURS.title}>
-              {sortedOpen.length > 0 ? "En cours" : "Programmé(es)"}
+              {sortedOpen.length > 0 ? t("En cours") : t("Programmé(es)")}
             </h2>
             {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
               <>
@@ -449,18 +459,18 @@ export default function TraderPage() {
                 <p className={ENCOURS.sum}>
                   {sortedOpen.length > 0 && (
                     <>
-                      Mises <b className={ENCOURS.sumB}>{money(totalStaked)}</b> · Fin dans{" "}
+                      {t("Mises")} <b className={ENCOURS.sumB}>{money(totalStaked)}</b> · {t("Fin dans")}{" "}
                       <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
                     </>
                   )}
                   {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
                   {scheduledUp.length > 0 && (
                     <>
-                      Programmé(es){" "}
+                      {t("Programmé(es)")}{" "}
                       <b className={ENCOURS.sumB}>{money(scheduledStaked)}</b>
                       {sortedOpen.length === 0 && (
                         <>
-                          {" "}· Départ dans{" "}
+                          {" "}· {t("Départ dans")}{" "}
                           <b className={ENCOURS.sumB}>{fmtRemainShort(nextSchedMs)}</b>
                         </>
                       )}
@@ -472,7 +482,7 @@ export default function TraderPage() {
             <button
               type="button"
               onClick={() => setTradesOpen(false)}
-              aria-label="Fermer"
+              aria-label={t("Fermer")}
               className={ENCOURS.close}
             >
               ✕
@@ -490,7 +500,7 @@ export default function TraderPage() {
           ))}
           <ScheduledTrades trades={scheduledUp} onCancel={cancelScheduled} />
           {sortedOpen.length === 0 && scheduledUp.length === 0 && (
-            <p className={ENCOURS.empty}>Aucun trade en cours</p>
+            <p className={ENCOURS.empty}>{t("Aucun trade en cours")}</p>
           )}
         </div>
       </BottomSheet>
@@ -499,17 +509,17 @@ export default function TraderPage() {
       <BottomSheet
         open={results.length > 0}
         onClose={() => setResults((prev) => prev.slice(1))}
-        title="Résultat"
+        title={t("Résultat")}
         header={
           <div className={ENCOURS.head}>
-            <h2 className={ENCOURS.title}>Résultat</h2>
+            <h2 className={ENCOURS.title}>{t("Résultat")}</h2>
             <p className={ENCOURS.sum}>
-              Solde <b className={ENCOURS.sumB}>{money(user?.balance ?? 0)}</b>
+              {t("Solde")} <b className={ENCOURS.sumB}>{money(user?.balance ?? 0)}</b>
             </p>
             <button
               type="button"
               onClick={() => setResults((prev) => prev.slice(1))}
-              aria-label="Fermer"
+              aria-label={t("Fermer")}
               className={ENCOURS.close}
             >
               ✕
@@ -520,8 +530,9 @@ export default function TraderPage() {
         <div className={SHEET.list2}>
           {results.length > 1 && (
             <p className={TRADER.moreResults}>
-              +{results.length - 1} autre{results.length > 2 ? "s" : ""} résultat
-              {results.length > 2 ? "s" : ""} après celui-ci
+              {results.length > 2
+                ? t("+{n} autres résultats après celui-ci", { n: results.length - 1 })
+                : t("+{n} autre résultat après celui-ci", { n: results.length - 1 })}
             </p>
           )}
           {results[0] && (

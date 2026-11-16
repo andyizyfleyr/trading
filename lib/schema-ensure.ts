@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 
 /**
- * Alignement du schéma (cumul de drizzle/0002 + 0003, rejouable sans risque) :
- * tables des combinés, solde par défaut à 0, colonnes devise/pays.
+ * Alignement du schéma (cumul de drizzle/0002 + 0003 + 0004, rejouable sans risque) :
+ * tables des combinés, solde par défaut à 0, colonnes devise/pays/langue.
  * Appliqué tout seul au premier appel qui en a besoin : le bac à sable
  * ne peut pas joindre Neon, donc aucune migration manuelle n'est possible.
  * IF NOT EXISTS / SET DEFAULT : ré-appeler ne fait jamais rien.
@@ -39,6 +39,8 @@ export const SCHEMA_STATEMENTS = [
   // Devise d'affichage (comptes existants : USD, la base) + pays (vide).
   `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'USD'`,
   `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+  // Langue (comptes existants : français).
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lang" TEXT NOT NULL DEFAULT 'fr'`,
 ];
 
 /** Crée les tables des combinés si elles manquent (sans toucher au reste). */

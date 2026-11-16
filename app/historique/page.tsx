@@ -9,21 +9,19 @@ import { apiMyStats, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
 import { COPIED_MS, CSV, HISTORY_LIMIT, SETTLE_RETRY_MS, SETTLE_TICK_MS } from "@/lib/config";
 import { HISTORY, STACK } from "@/lib/design";
 import { fmtDateTime, fmtDay, fmtGamePrice, fmtRemainShort, fmtTime } from "@/lib/format";
+import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, durationLabel, symbolDisplay } from "@/lib/symbols";
 import type { ApiStats, ApiTrade } from "@/lib/types";
 
 type Filter = "all" | "open" | "settled";
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "Toutes" },
-  { id: "open", label: "En cours" },
-  { id: "settled", label: "Terminées" },
-];
+const FILTERS: Filter[] = ["all", "open", "settled"];
 
 /** Ligne compacte : sens + jeu + mise + prix, résultat + heure à droite. */
 function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
   const { money } = useMoney();
+  const { t, lang } = useLang();
   const isUp = trade.direction === "UP";
   const open = trade.status === "OPEN";
   const won = trade.result === "WIN";
@@ -31,7 +29,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
   // Gagné : ce qu'on a touché (mise + bénéfice, 100 → 185).
   const gain = won ? (trade.payout ?? 0) : 0;
   const right = open
-    ? `Fin ${fmtRemainShort(new Date(trade.closesAt).getTime() - now)}`
+    ? t("Fin {x}", { x: fmtRemainShort(new Date(trade.closesAt).getTime() - now) })
     : won
       ? `+${money(gain)}`
       : lost
@@ -49,7 +47,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
       <div className={HISTORY.hmid}>
         {symbolDisplay(trade.symbol)} <span className={HISTORY.hsub}>· {durationLabel(trade.durationSec)}</span>
         <p className={HISTORY.hmeta}>
-          Mise {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
+          {t("Mise")} {money(trade.amount)} · {fmtGamePrice(trade.symbol, trade.openPrice)} →{" "}
           {trade.closePrice != null ? fmtGamePrice(trade.symbol, trade.closePrice) : "…"}
         </p>
       </div>
@@ -57,7 +55,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
         className={`${HISTORY.hright} ${open ? HISTORY.hrightRun : won ? HISTORY.hrightWin : lost ? HISTORY.hrightLoss : ""}`}
       >
         {right}
-        <small className={HISTORY.htime}>{fmtTime(trade.openedAt)}</small>
+        <small className={HISTORY.htime}>{fmtTime(trade.openedAt, lang)}</small>
       </p>
     </div>
   );
@@ -65,6 +63,7 @@ function TradeRow({ trade, now }: { trade: ApiTrade; now: number }) {
 
 export default function HistoriquePage() {
   const { money } = useMoney();
+  const { t, lang } = useLang();
   const { setBalance } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
   const [asset, setAsset] = useState<string>("all");
@@ -73,7 +72,7 @@ export default function HistoriquePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [exportLabel, setExportLabel] = useState("Exporter");
+  const [exported, setExported] = useState<"idle" | "copied" | "error">("idle");
   const loadingRef = useRef(false);
   // Recharge demandée pendant un chargement : rejouée après (sinon perdue).
   const queuedRef = useRef(false);
@@ -121,12 +120,12 @@ export default function HistoriquePage() {
         }
       } while (queuedRef.current);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Historique indisponible.");
+      setError(err instanceof ApiError ? err.message : t("Historique indisponible."));
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [setBalance]);
+  }, [setBalance, t]);
 
   useEffect(() => {
     load();
@@ -229,18 +228,18 @@ export default function HistoriquePage() {
     );
     try {
       await navigator.clipboard.writeText([CSV.header, ...lines].join("\n"));
-      setExportLabel("Copié ✓");
+      setExported("copied");
     } catch {
-      setExportLabel("Erreur");
+      setExported("error");
     }
     if (exportTimerRef.current) clearTimeout(exportTimerRef.current);
-    exportTimerRef.current = setTimeout(() => setExportLabel("Exporter"), COPIED_MS);
+    exportTimerRef.current = setTimeout(() => setExported("idle"), COPIED_MS);
   };
 
   // Lignes groupées par jour (« Aujourd'hui », « Hier », date).
   const groups: { day: string; rows: ApiTrade[] }[] = [];
   for (const t of visible) {
-    const day = fmtDay(t.openedAt);
+    const day = fmtDay(t.openedAt, lang);
     const last = groups[groups.length - 1];
     if (last && last.day === day) last.rows.push(t);
     else groups.push({ day, rows: [t] });
@@ -250,16 +249,16 @@ export default function HistoriquePage() {
     <RequireAuth>
       <div className={STACK.c2}>
         <div className={HISTORY.head}>
-          <h1 className={HISTORY.title}>Historique</h1>
+          <h1 className={HISTORY.title}>{t("Historique")}</h1>
           <button
             type="button"
             onClick={exportCsv}
             disabled={finished.length === 0}
             className={HISTORY.exportBtn}
           >
-            {exportLabel}
+            {t(exported === "copied" ? "Copié ✓" : exported === "error" ? "Erreur" : "Exporter")}
           </button>
-          <button type="button" onClick={load} aria-label="Actualiser" className={HISTORY.iconBtn}>
+          <button type="button" onClick={load} aria-label={t("Actualiser")} className={HISTORY.iconBtn}>
             ↻
           </button>
         </div>
@@ -267,17 +266,17 @@ export default function HistoriquePage() {
         <div className={HISTORY.stats}>
           <div className={HISTORY.stat}>
             <b className={HISTORY.statNum}>{settledCount}</b>
-            <span className={HISTORY.statLabel}>Terminés</span>
+            <span className={HISTORY.statLabel}>{t("Terminés")}</span>
           </div>
           <div className={HISTORY.stat}>
             <b className={HISTORY.statNum}>{winRate} %</b>
-            <span className={HISTORY.statLabel}>Réussite</span>
+            <span className={HISTORY.statLabel}>{t("Réussite")}</span>
           </div>
           <div className={HISTORY.stat}>
             <b className={`${HISTORY.statNum} ${net >= 0 ? HISTORY.statUp : HISTORY.statDown}`}>
               {net > 0 ? `+${money(net)}` : net < 0 ? `−${money(Math.abs(net))}` : money(0)}
             </b>
-            <span className={HISTORY.statLabel}>Net</span>
+            <span className={HISTORY.statLabel}>{t("Net")}</span>
           </div>
         </div>
 
@@ -285,26 +284,26 @@ export default function HistoriquePage() {
           <select
             value={asset}
             onChange={(e) => setAsset(e.target.value)}
-            aria-label="Filtrer par jeu"
+            aria-label={t("Filtrer par jeu")}
             className={HISTORY.select}
           >
-            <option value="all">Tous les jeux</option>
+            <option value="all">{t("Tous les jeux")}</option>
             {SYMBOLS.map((s) => (
               <option key={s.id} value={s.id}>
                 {symbolDisplay(s.id)}
               </option>
             ))}
           </select>
-          <div className={HISTORY.chipsBox} role="group" aria-label="Filtrer l'historique">
+          <div className={HISTORY.chipsBox} role="group" aria-label={t("Filtrer l'historique")}>
             {FILTERS.map((f) => (
               <button
-                key={f.id}
+                key={f}
                 type="button"
-                onClick={() => setFilter(f.id)}
-                aria-pressed={filter === f.id}
-                className={filter === f.id ? HISTORY.chipOn : HISTORY.chipOff}
+                onClick={() => setFilter(f)}
+                aria-pressed={filter === f}
+                className={filter === f ? HISTORY.chipOn : HISTORY.chipOff}
               >
-                {f.label}
+                {t(f === "all" ? "Toutes" : f === "open" ? "En cours" : "Terminées")}
               </button>
             ))}
           </div>
@@ -320,7 +319,7 @@ export default function HistoriquePage() {
         ) : error ? (
           <ErrorState text={error} retry={load} />
         ) : visible.length === 0 ? (
-          <p className={HISTORY.empty}>Aucun trade</p>
+          <p className={HISTORY.empty}>{t("Aucun trade")}</p>
         ) : (
           <div className={HISTORY.grid}>
             {groups.map((g) => (
@@ -333,7 +332,7 @@ export default function HistoriquePage() {
             ))}
             {trades.length >= HISTORY_LIMIT && (
               <p className={HISTORY.capped}>
-                Les {HISTORY_LIMIT} derniers affichés : les statistiques, elles, comptent tout.
+                {t("Les {n} derniers affichés : les statistiques, elles, comptent tout.", { n: HISTORY_LIMIT })}
               </p>
             )}
           </div>
