@@ -1,6 +1,6 @@
 // Écran Signaux : miroir exact de app/predictions/page.tsx.
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { otcPriceAt } from '../otc';
 import { CONFIG, DURATIONS, INK, SYMBOLS, durationLabel, fmtRemain, fmtSlot } from '../theme';
 import { SignalIcon } from '../components/Icons';
@@ -18,12 +18,35 @@ function verdictLabel(v, t) {
   return v === 'UP' ? t('Hausse ▲') : v === 'DOWN' ? t('Baisse ▼') : t('Égalité =');
 }
 
-export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySync }) {
+export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySync, onRefresh }) {
   const [gameId, setGameId] = useState(GAMES[0] ? GAMES[0].id : '');
   const [duration, setDuration] = useState(CONFIG.DEFAULT_DURATION_SEC);
   const [now, setNow] = useState(() => Date.now());
+  const [refreshing, setRefreshing] = useState(false);
 
   const game = GAMES.find((g) => g.id === gameId) || GAMES[0];
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      if (onRefresh) await onRefresh();
+      else if (onRetrySync) await onRetrySync();
+      setNow(Date.now());
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, onRefresh, onRetrySync]);
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={INK.action}
+      colors={[INK.action, INK.vert]}
+      progressBackgroundColor={INK.carte}
+    />
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), CONFIG.COUNTDOWN_TICK_MS);
@@ -61,23 +84,33 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
 
   if (!online && offsetMs == null) {
     return (
-      <View style={styles.pad}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.pad, { flexGrow: 1 }]}
+        overScrollMode="always"
+        refreshControl={refreshControl}
+      >
         <ErrorState
           text={t('Hors ligne : reconnecte-toi pour voir les signaux.')}
           retry={onRetrySync}
           retryLabel={t('Réessayer')}
         />
-      </View>
+      </ScrollView>
     );
   }
 
   if (offsetMs == null || !game || !target) {
     return (
-      <View style={[styles.pad, styles.skelStack]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.pad, styles.skelStack, { flexGrow: 1 }]}
+        overScrollMode="always"
+        refreshControl={refreshControl}
+      >
         <Skeleton calm={calm} style={styles.skelTitle} />
         <Skeleton calm={calm} style={styles.skelBar} />
         <Skeleton calm={calm} style={styles.skelBig} />
-      </View>
+      </ScrollView>
     );
   }
 
@@ -96,6 +129,8 @@ export function SignauxScreen({ offsetMs, online, calm, t, onPrepare, onRetrySyn
       style={styles.scroll}
       contentContainerStyle={styles.root}
       showsVerticalScrollIndicator={false}
+      overScrollMode="always"
+      refreshControl={refreshControl}
     >
       {/* En-tête */}
       <View style={styles.headerBlock}>

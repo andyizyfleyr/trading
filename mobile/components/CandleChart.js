@@ -1,6 +1,6 @@
 // Graphique maison en bougies (SVG + gestes) : miroir exact de components/CandleChart.tsx.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 import { apiCandles, ApiError } from '../api';
 import { money } from '../money';
@@ -28,6 +28,7 @@ export function CandleChart({
   currency = 'USD',
   lang = 'fr',
   calm = false,
+  refreshKey = 0,
   t,
 }) {
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -51,15 +52,18 @@ export function CandleChart({
   useEffect(() => {
     let cancelled = false;
     const series = `${symbol}|${interval}`;
-    if (seriesRef.current !== series) {
+    const changed = seriesRef.current !== series;
+    if (changed) {
       seriesRef.current = series;
       setCandles([]);
       setView(DEFAULT_VIEW);
       priceRef.current = null;
       setDispPrice(null);
       lenRef.current = 0;
+      setLoading(true);
+    } else if (lenRef.current === 0) {
+      setLoading(true);
     }
-    setLoading(true);
     setError(null);
 
     const load = () => {
@@ -82,7 +86,7 @@ export function CandleChart({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [symbol, interval, reloadKey, t]);
+  }, [symbol, interval, reloadKey, refreshKey, t]);
 
   // Bougies affichées + dernier prix en direct (garde-fou anti-pic).
   const { shown, liveTarget } = useMemo(() => {
@@ -153,7 +157,8 @@ export function CandleChart({
     };
   }, [liveTarget, calm]);
 
-  // Gestes : glisser = défiler, pincer = zoomer, double-toucher = retour au direct.
+  // Gestes : glisser horizontalement = défiler, pincer = zoomer, double-toucher = retour au direct.
+  // Les glissements verticaux sont laissés au ScrollView parent (tirer pour actualiser).
   const gestureRef = useRef({
     panStartX: 0,
     panStartScroll: 0,
@@ -164,11 +169,32 @@ export function CandleChart({
     lastTapY: 0,
   });
 
+  const handleChartPress = (evt) => {
+    const g = gestureRef.current;
+    const now = Date.now();
+    const px = evt && evt.nativeEvent ? evt.nativeEvent.pageX || 0 : 0;
+    const py = evt && evt.nativeEvent ? evt.nativeEvent.pageY || 0 : 0;
+    const near = Math.hypot(px - g.lastTapX, py - g.lastTapY) < CHART_CFG.tapSlop * 2;
+    if (now - g.lastTapAt < CONFIG.DOUBLE_TAP_MS && near) {
+      g.lastTapAt = 0;
+      setView(DEFAULT_VIEW);
+    } else {
+      g.lastTapAt = now;
+      g.lastTapX = px;
+      g.lastTapY = py;
+    }
+  };
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 4 || Math.abs(gs.dy) > 4,
+        onStartShouldSetPanResponder: (evt) => (evt.nativeEvent.touches || []).length >= 2,
+        onMoveShouldSetPanResponder: (evt, gs) => {
+          const touches = evt.nativeEvent.touches || [];
+          if (touches.length >= 2) return true;
+          return Math.abs(gs.dx) > 6 && Math.abs(gs.dx) > Math.abs(gs.dy);
+        },
+        onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: (evt) => {
           const touches = evt.nativeEvent.touches || [];
           const g = gestureRef.current;
@@ -186,10 +212,10 @@ export function CandleChart({
             g.panStartX = evt.nativeEvent.pageX;
             g.panStartScroll = viewRef.current.scroll;
             g.pinch = null;
-            g.moved = false;
+            g.moved = true;
           }
         },
-        onPanResponderMove: (evt, gs) => {
+        onPanResponderMove: (evt) => {
           const touches = evt.nativeEvent.touches || [];
           const g = gestureRef.current;
           const len = shownLenRef.current;
@@ -227,32 +253,17 @@ export function CandleChart({
             return;
           }
 
-          if (Math.abs(gs.dx) + Math.abs(gs.dy) > CHART_CFG.tapSlop) {
-            g.moved = true;
-          }
-          if (g.moved) {
-            const v = viewRef.current;
-            const dx = evt.nativeEvent.pageX - g.panStartX;
-            setView(clampView({ step: v.step, scroll: g.panStartScroll + dx / v.step }, len, plotW));
-          }
+          const v = viewRef.current;
+          const dx = evt.nativeEvent.pageX - g.panStartX;
+          setView(clampView({ step: v.step, scroll: g.panStartScroll + dx / v.step }, len, plotW));
         },
-        onPanResponderRelease: (evt) => {
-          const g = gestureRef.current;
-          g.pinch = null;
-          if (!g.moved) {
-            const now = Date.now();
-            const px = evt.nativeEvent.pageX;
-            const py = evt.nativeEvent.pageY;
-            const near = Math.hypot(px - g.lastTapX, py - g.lastTapY) < CHART_CFG.tapSlop;
-            if (now - g.lastTapAt < CONFIG.DOUBLE_TAP_MS && near) {
-              g.lastTapAt = 0;
-              setView(DEFAULT_VIEW);
-            } else {
-              g.lastTapAt = now;
-              g.lastTapX = px;
-              g.lastTapY = py;
-            }
-          }
+        onPanResponderRelease: () => {
+          gestureRef.current.pinch = null;
+          gestureRef.current.moved = false;
+        },
+        onPanResponderTerminate: () => {
+          gestureRef.current.pinch = null;
+          gestureRef.current.moved = false;
         },
       }),
     []
@@ -479,7 +490,9 @@ export function CandleChart({
       }}
       {...panResponder.panHandlers}
     >
-      {chartSvg}
+      <Pressable onPress={handleChartPress} style={styles.pressFill}>
+        {chartSvg}
+      </Pressable>
 
       {/* Bouton retour au direct quand on a fait défiler l'historique */}
       {view.scroll > 0.5 ? (
@@ -541,6 +554,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 12,
     backgroundColor: INK.fond,
+  },
+  pressFill: {
+    flex: 1,
+    width: '100%',
   },
   liveBtn: {
     position: 'absolute',

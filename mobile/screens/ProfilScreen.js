@@ -1,6 +1,6 @@
 // Écran Profil : miroir exact de app/profil/page.tsx.
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import { apiDeposit, apiSetCurrency, apiWithdraw, ApiError } from '../api';
 import { LANGS } from '../i18n';
 import { CURRENCIES, isCurrency, money } from '../money';
@@ -17,11 +17,23 @@ export function ProfilScreen({
   onToggleCalm,
   t,
   onUserUpdated,
+  onRefresh,
   onLogout,
 }) {
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null); // 'deposit' | 'withdraw' | 'country' | 'currency' | 'lang' | null
+
+  const handlePullRefresh = useCallback(async () => {
+    if (refreshing || !onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, onRefresh]);
 
   const vibrateTap = () => {
     if (calm) return;
@@ -61,6 +73,16 @@ export function ProfilScreen({
       style={styles.scroll}
       contentContainerStyle={styles.root}
       showsVerticalScrollIndicator={false}
+      overScrollMode="always"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handlePullRefresh}
+          tintColor={INK.action}
+          colors={[INK.action, INK.vert]}
+          progressBackgroundColor={INK.carte}
+        />
+      }
     >
       <Text style={styles.title}>{t('Profil')}</Text>
 

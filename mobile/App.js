@@ -156,6 +156,34 @@ export default function App() {
     }
   }, [setBalance]);
 
+  // Rafraîchissement manuel (tirer pour actualiser).
+  const refreshAll = useCallback(async () => {
+    await Promise.all([syncClock(), syncBalance()]);
+  }, [syncClock, syncBalance]);
+
+  const refreshProfile = useCallback(async () => {
+    await Promise.all([
+      syncClock(),
+      (async () => {
+        if (!tokenRef.current) return;
+        try {
+          await syncBalance();
+          const data = await apiMe();
+          if (data && data.user) {
+            setUser(data.user);
+            if (isLang(data.user.lang)) {
+              setLangState(data.user.lang);
+              configureApi({ lang: data.user.lang });
+              SecureStore.setItemAsync(CONFIG.STORE.lang, data.user.lang).catch(() => {});
+            }
+          }
+        } catch {
+          /* garde le profil actuel */
+        }
+      })(),
+    ]);
+  }, [syncClock, syncBalance]);
+
   useEffect(() => {
     if (!token) return;
     syncBalance();
@@ -363,6 +391,7 @@ export default function App() {
             online={online}
             offsetMs={offsetMs}
             onBalance={setBalance}
+            onRefresh={refreshAll}
             pendingSignal={pendingSignal}
             onConsumeSignal={consumeSignal}
           />
@@ -376,6 +405,7 @@ export default function App() {
             t={t}
             onPrepare={handlePrepareSignal}
             onRetrySync={syncClock}
+            onRefresh={refreshAll}
           />
         ) : null}
 
@@ -387,6 +417,7 @@ export default function App() {
             offsetMs={offsetMs}
             t={t}
             onBalance={setBalance}
+            onRefresh={refreshAll}
           />
         ) : null}
 
@@ -400,6 +431,7 @@ export default function App() {
             onToggleCalm={toggleCalm}
             t={t}
             onUserUpdated={setUser}
+            onRefresh={refreshProfile}
             onLogout={handleLogout}
           />
         ) : null}
