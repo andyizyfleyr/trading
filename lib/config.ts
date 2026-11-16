@@ -21,6 +21,8 @@ export const STORE = {
   token: "tf_token",
   guide: "tf_guide",
   calm: "tf_calme",
+  /** Thème visuel (dark | light). */
+  theme: "tf_theme",
   /** Durée + Investissement : retrouvés après refresh, déconnexion, fermeture. */
   order: "tf_order",
   /** Langue (fr/en/es) : immédiate + marche déconnecté, syncée au compte. */

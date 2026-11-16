@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { otcPriceAt } from '../otc';
-import { CONFIG, DURATIONS, INK, SYMBOLS, durationLabel, fmtRemain, fmtSlot } from '../theme';
+import { CONFIG, DURATIONS, SYMBOLS, durationLabel, fmtRemain, fmtSlot, useTheme, useThemedStyles } from '../theme';
 import { SignalIcon } from '../components/Icons';
 import { Btn, EmptyState, ErrorState, Skeleton } from '../components/Ui';
 
@@ -29,6 +29,7 @@ const SignalLiveMeter = React.memo(function SignalLiveMeter({
   isActive,
   onSlotAdvance,
 }) {
+  const styles = useThemedStyles(makeStyles);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -70,6 +71,8 @@ export const SignauxScreen = React.memo(function SignauxScreen({
   onRetrySync,
   onRefresh,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [gameId, setGameId] = useState(GAMES[0] ? GAMES[0].id : '');
   const [duration, setDuration] = useState(CONFIG.DEFAULT_DURATION_SEC);
   const [firstSlot, setFirstSlot] = useState(() => computeFirstSlot(Date.now() + (offsetMs ?? 0)));
@@ -105,9 +108,9 @@ export const SignauxScreen = React.memo(function SignauxScreen({
     <RefreshControl
       refreshing={refreshing}
       onRefresh={handleRefresh}
-      tintColor={INK.action}
-      colors={[INK.action, INK.hausse]}
-      progressBackgroundColor={INK.carte}
+      tintColor={ink.action}
+      colors={[ink.action, ink.hausse]}
+      progressBackgroundColor={ink.carte}
     />
   );
 
@@ -125,7 +128,7 @@ export const SignauxScreen = React.memo(function SignauxScreen({
     return (
       <View style={styles.pad}>
         <EmptyState
-          icon={<SignalIcon size={32} color={INK.doux} />}
+          icon={<SignalIcon size={32} color={ink.doux} />}
           title={t('Pas de jeu casino')}
           text={t("Aucun jeu n'est disponible pour le moment.")}
         />
@@ -368,8 +371,9 @@ export const SignauxScreen = React.memo(function SignauxScreen({
   );
 });
 
-const styles = StyleSheet.create({
-  scroll: {
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    scroll: {
     flex: 1,
     backgroundColor: INK.fond,
   },

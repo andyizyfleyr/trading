@@ -4,6 +4,50 @@
 
 :root {
   color-scheme: dark;
+  --c-fond: 28 31 46;
+  --c-carte: 42 48 64;
+  --c-ligne: 61 67 86;
+  --c-texte: 240 240 240;
+  --c-doux: 142 147 167;
+  --c-hausse: 12 175 86;
+  --c-baisse: 229 93 79;
+  --c-action: 46 153 251;
+  --c-primary: 2 112 209;
+  --c-vente: 220 70 51;
+  --c-puce: 66 69 84;
+  --c-tag: 122 162 255;
+  --c-tagfond: 22 39 90;
+  --c-vertfonce: 6 33 15;
+  --c-payout: 224 144 56;
+  --c-cadre: 78 84 99;
+  --c-grille: 71 73 85;
+  --c-onglet: 53 58 77;
+  --skel-a: #222839;
+  --skel-b: #303848;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --c-fond: 243 245 250;
+  --c-carte: 255 255 255;
+  --c-ligne: 220 225 236;
+  --c-texte: 21 25 38;
+  --c-doux: 94 102 122;
+  --c-hausse: 10 153 75;
+  --c-baisse: 220 62 48;
+  --c-action: 26 127 232;
+  --c-primary: 2 112 209;
+  --c-vente: 212 61 43;
+  --c-puce: 229 233 242;
+  --c-tag: 29 86 200;
+  --c-tagfond: 226 235 255;
+  --c-vertfonce: 6 33 15;
+  --c-payout: 199 118 27;
+  --c-cadre: 197 204 217;
+  --c-grille: 231 235 244;
+  --c-onglet: 233 237 245;
+  --skel-a: #e5e9f2;
+  --skel-b: #f1f4fa;
 }
 
 html {
@@ -42,7 +86,7 @@ body {
 
 /* Chargement : placeholder animé doux */
 .skeleton {
-  background: linear-gradient(100deg, #222839 40%, #303848 50%, #222839 60%);
+  background: linear-gradient(100deg, var(--skel-a) 40%, var(--skel-b) 50%, var(--skel-a) 60%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite linear;
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RequireAuth } from "@/components/AppShell";
 import { ActiveTradeCard, ResultCard } from "@/components/TradeCards";
 import { CandleChart, type ChartToast } from "@/components/CandleChart";
+import { ComboCard, ComboSheet } from "@/components/ComboSheet";
 import { ScheduledTrades, TradeForm, type ReplayOrder, type SignalHint } from "@/components/TradeForm";
 import { GuideBubbles, hasSeenGuide } from "@/components/GuideBubbles";
 import { BottomSheet } from "@/components/ui";
@@ -13,7 +14,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useLiveMarket } from "@/hooks/useLiveMarket";
 import { useLivePrices } from "@/hooks/useLivePrices";
 import { useServerOffset } from "@/hooks/useServerOffset";
-import { apiCancelScheduled, apiMyTrades, apiSettle, ApiError } from "@/lib/api";
+import { apiCancelScheduled, apiMyCombos, apiMyTrades, apiSettle, ApiError, type ComboLegInput } from "@/lib/api";
 import {
   DEFAULT_INTERVAL,
   FLOAT_TICK_MS,
@@ -36,7 +37,7 @@ import { useLang } from "@/lib/lang-context";
 import { useMoney } from "@/hooks/useMoney";
 import { SYMBOLS, isDuration, symbolDisplay } from "@/lib/symbols";
 import { vibrate } from "@/lib/vibrate";
-import type { ApiExactMoney, ApiTrade } from "@/lib/types";
+import type { ApiCombo, ApiExactMoney, ApiTrade } from "@/lib/types";
 import { addExact, decimalFraction, fraction } from "@/lib/exact-money";
 
 function sumTradeAmounts(trades: ApiTrade[]): ApiExactMoney | undefined {
@@ -65,10 +66,13 @@ export default function TraderPage() {
   const { user, setBalance } = useAuth();
   const [symbol, setSymbol] = useState<string>(() => loadSymbol());
   const [openTrades, setOpenTrades] = useState<ApiTrade[]>([]);
+  const [openCombos, setOpenCombos] = useState<ApiCombo[]>([]);
   const [scheduled, setScheduled] = useState<ApiTrade[]>([]);
   const [results, setResults] = useState<ApiTrade[]>([]);
   const [assetOpen, setAssetOpen] = useState(false);
   const [tradesOpen, setTradesOpen] = useState(false);
+  const [comboOpen, setComboOpen] = useState(false);
+  const [comboLegs, setComboLegs] = useState<ComboLegInput[]>([]);
   const [showGuide, setShowGuide] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [signalDuration, setSignalDuration] = useState<number | undefined>(undefined);
@@ -161,8 +165,12 @@ export default function TraderPage() {
   // Si certaines ont été clôturées ailleurs, leurs résultats sont affichés.
   const loadOpen = useCallback(async () => {
     try {
-      const { trades } = await apiMyTrades("open", TRADES_PAGE_LIMIT);
+      const [{ trades }, comboRes] = await Promise.all([
+        apiMyTrades("open", TRADES_PAGE_LIMIT),
+        apiMyCombos(TRADES_PAGE_LIMIT).catch(() => ({ combos: [] as ApiCombo[] })),
+      ]);
       setOpenTrades(trades);
+      setOpenCombos(comboRes.combos.filter((c) => c.status === "OPEN"));
       const fresh = new Set(trades.map((t) => t.id));
       const vanished = [...openIdsRef.current].filter(
         (id) => !fresh.has(id) && !shownRef.current.has(id)
@@ -224,16 +232,40 @@ export default function TraderPage() {
     [loadScheduled, setBalance, say, t]
   );
 
-  // Clôture automatique à la fin de chaque compte à rebours.
+  // Clôture automatique à la fin de chaque compte à rebours (simples + combinés).
   useEffect(() => {
     const timer = setInterval(async () => {
       if (settlingRef.current || !online) return;
       const current = Date.now();
       const due = openTrades.filter((tr) => new Date(tr.closesAt).getTime() <= current);
-      if (due.length === 0) return;
+      const dueCombo = openCombos.some((c) =>
+        c.legs.some((l) => l.status === "OPEN" && new Date(l.closesAt).getTime() <= current)
+      );
+      if (due.length === 0 && !dueCombo) return;
       settlingRef.current = true;
       try {
-        const res = await apiSettle(due.map((d) => d.id));
+        const res = await apiSettle(due.length > 0 ? due.map((d) => d.id) : undefined);
+        const settledCombos = res.combos ?? [];
+        if (settledCombos.length > 0) {
+          setOpenCombos((prev) =>
+            prev.filter((p) => !settledCombos.some((sc) => sc.id === p.id))
+          );
+          setBalance(res.balance, res.balanceExact);
+          vibrate(VIBRATE.settle);
+          const sc = settledCombos[0];
+          if (sc.result === "WIN") {
+            say(t("Combiné gagné +{amt}", { amt: money(sc.payout ?? 0, sc.payoutExact) }), "win");
+          } else if (sc.result === "LOSS") {
+            say(t("Combiné perdu −{amt}", { amt: money(sc.amount, sc.amountExact) }), "loss");
+          } else {
+            say(t("Égalité : mise rendue"), null);
+          }
+        } else if (dueCombo) {
+          // Une jambe s'est clôturée mais le combiné a encore d'autres jambes en cours : on rafraîchit.
+          void apiMyCombos(TRADES_PAGE_LIMIT)
+            .then((r) => setOpenCombos(r.combos.filter((c) => c.status === "OPEN")))
+            .catch(() => {});
+        }
         if (res.settled.length > 0) {
           res.settled.forEach((s) => shownRef.current.add(s.id));
           setOpenTrades((prev) =>
@@ -270,7 +302,17 @@ export default function TraderPage() {
     }, SETTLE_TICK_MS);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openTrades, online]);
+  }, [openTrades, openCombos, online]);
+
+  const handleComboPlaced = useCallback(
+    (combo: ApiCombo, balance: number, balanceExact?: ApiCombo["amountExact"]) => {
+      setOpenCombos((prev) => [combo, ...prev.filter((c) => c.id !== combo.id)]);
+      setBalance(balance, balanceExact);
+      setTradesOpen(true);
+      say(t("Combiné placé ({n} jambes)", { n: combo.legs.length }), null);
+    },
+    [setBalance, say, t]
+  );
 
   const handleOpened = useCallback(
     (trade: ApiTrade, balance: number, balanceExact?: ApiTrade["amountExact"]) => {
@@ -294,10 +336,17 @@ export default function TraderPage() {
   const sortedOpen = [...openTrades].sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
   // Programmées encore à venir (l'horloge serveur les fait basculer vers « En cours »).
   const scheduledUp = scheduled.filter((t) => new Date(t.openedAt).getTime() > serverNow);
+  const openTotalCount = sortedOpen.length + openCombos.length;
+  const openDeadlines = [
+    ...sortedOpen.map((t) => +new Date(t.closesAt)),
+    ...openCombos.flatMap((c) =>
+      c.legs.filter((l) => l.status === "OPEN").map((l) => +new Date(l.closesAt))
+    ),
+  ];
   const nearestMs =
-    sortedOpen.length === 0
+    openDeadlines.length === 0
       ? 0
-      : Math.max(0, +new Date(sortedOpen[0].closesAt) - serverNow);
+      : Math.max(0, Math.min(...openDeadlines) - serverNow);
   // Prochain départ programmé (pour l'en-tête « En cours »).
   const nextSchedMs =
     scheduledUp.length === 0
@@ -306,10 +355,13 @@ export default function TraderPage() {
           0,
           Math.min(...scheduledUp.map((t) => new Date(t.openedAt).getTime())) - serverNow
         );
-  const totalStaked = sortedOpen.reduce((s, t) => s + t.amount, 0);
+  const totalStaked =
+    sortedOpen.reduce((s, t) => s + t.amount, 0) +
+    openCombos.reduce((s, c) => s + c.amount, 0);
   // Mises programmées : promises au départ, comptées à part.
   const scheduledStaked = scheduledUp.reduce((s, t) => s + t.amount, 0);
-  const totalStakedExact = sumTradeAmounts(sortedOpen);
+  const totalStakedExact =
+    openCombos.length === 0 ? sumTradeAmounts(sortedOpen) : undefined;
   const scheduledStakedExact = sumTradeAmounts(scheduledUp);
   // Prix des autres jeux (trades ouverts ailleurs que sur le jeu affiché).
   const otherSymbols = useMemo(
@@ -324,7 +376,7 @@ export default function TraderPage() {
   // Le panneau se referme tout seul dès qu'il n'y a plus rien dedans.
   // Sur desktop, « En cours » est affiché dans la colonne de droite, pas en panneau.
   const encoursVisible =
-    tradesOpen && (sortedOpen.length > 0 || scheduledUp.length > 0) && !isDesktop;
+    tradesOpen && (openTotalCount > 0 || scheduledUp.length > 0) && !isDesktop;
 
   return (
     <RequireAuth>
@@ -342,15 +394,15 @@ export default function TraderPage() {
             stakeExact={sortedOpen.length > 0 ? sortedOpen[0].amountExact : null}
           />
           {/* Pastille « N en cours » en bas à gauche du graphique (maquette). */}
-          {openTrades.length > 0 && (
+          {openTotalCount > 0 && (
             <button
               type="button"
               onClick={() => setTradesOpen(true)}
-              aria-label={t("Voir les {n} prédictions en cours", { n: openTrades.length })}
+              aria-label={t("Voir les {n} prédictions en cours", { n: openTotalCount })}
               className={TRADER.pill}
             >
               <span className={TRADER.pillDot} aria-hidden="true" />
-              {t("{n} en cours", { n: openTrades.length })}
+              {t("{n} en cours", { n: openTotalCount })}
             </button>
           )}
         </div>
@@ -373,30 +425,32 @@ export default function TraderPage() {
                 setTradesOpen(true); // Montre aussitôt la mise programmée.
               }}
               onPickAsset={() => setAssetOpen(true)}
+              comboCount={comboLegs.length}
+              onOpenCombo={() => setComboOpen(true)}
             />
           </div>
 
           {/* En cours affiché directement sur desktop (panneau sur mobile). */}
-          {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
+          {(openTotalCount > 0 || scheduledUp.length > 0) && (
             <div className={TRADER.onlyDesktop}>
               <div className={TRADER.openPanel}>
-                {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
+                {(openTotalCount > 0 || scheduledUp.length > 0) && (
                   <>
                     <div className={TRADER.openHead}>
                       <p className={TRADER.openTitle}>
-                        {sortedOpen.length > 0
-                          ? t("En cours ({n})", { n: sortedOpen.length })
+                        {openTotalCount > 0
+                          ? t("En cours ({n})", { n: openTotalCount })
                           : t("Programmé(es) ({n})", { n: scheduledUp.length })}
                       </p>
                       <p className={TRADER.openSoon}>
-                        {sortedOpen.length > 0
+                        {openTotalCount > 0
                           ? t("Fin dans {x}", { x: fmtRemainShort(nearestMs) })
                           : t("Départ dans {x}", { x: fmtRemainShort(nextSchedMs) })}
                       </p>
                     </div>
                     <p className={TRADER.openStaked}>
-                      {sortedOpen.length > 0 && <>{t("Mises {amt}", { amt: money(totalStaked, totalStakedExact) })}</>}
-                      {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
+                      {openTotalCount > 0 && <>{t("Mises {amt}", { amt: money(totalStaked, totalStakedExact) })}</>}
+                      {openTotalCount > 0 && scheduledUp.length > 0 && " · "}
                       {scheduledUp.length > 0 && (
                         <>{t("Programmé(es) {amt}", { amt: money(scheduledStaked, scheduledStakedExact) })}</>
                       )}
@@ -407,6 +461,9 @@ export default function TraderPage() {
                         trade={trade}
                         price={priceOf(trade)}
                       />
+                    ))}
+                    {openCombos.map((combo) => (
+                      <ComboCard key={`combo-${combo.id}`} combo={combo} now={serverNow} />
                     ))}
                   </>
                 )}
@@ -455,33 +512,33 @@ export default function TraderPage() {
         open={encoursVisible}
         onClose={() => setTradesOpen(false)}
         title={
-          sortedOpen.length > 0
-            ? t("En cours ({n})", { n: openTrades.length })
+          openTotalCount > 0
+            ? t("En cours ({n})", { n: openTotalCount })
             : t("Programmé(es) ({n})", { n: scheduledUp.length })
         }
         header={
           <div className={ENCOURS.head}>
             <h2 className={ENCOURS.title}>
-              {sortedOpen.length > 0 ? t("En cours") : t("Programmé(es)")}
+              {openTotalCount > 0 ? t("En cours") : t("Programmé(es)")}
             </h2>
-            {(sortedOpen.length > 0 || scheduledUp.length > 0) && (
+            {(openTotalCount > 0 || scheduledUp.length > 0) && (
               <>
                 <span className={ENCOURS.badge}>
-                  {sortedOpen.length > 0 ? sortedOpen.length : scheduledUp.length}
+                  {openTotalCount > 0 ? openTotalCount : scheduledUp.length}
                 </span>
                 <p className={ENCOURS.sum}>
-                  {sortedOpen.length > 0 && (
+                  {openTotalCount > 0 && (
                     <>
                       {t("Mises")} <b className={ENCOURS.sumB}>{money(totalStaked, totalStakedExact)}</b> · {t("Fin dans")}{" "}
                       <b className={ENCOURS.sumB}>{fmtRemainShort(nearestMs)}</b>
                     </>
                   )}
-                  {sortedOpen.length > 0 && scheduledUp.length > 0 && " · "}
+                  {openTotalCount > 0 && scheduledUp.length > 0 && " · "}
                   {scheduledUp.length > 0 && (
                     <>
                       {t("Programmé(es)")}{" "}
                       <b className={ENCOURS.sumB}>{money(scheduledStaked, scheduledStakedExact)}</b>
-                      {sortedOpen.length === 0 && (
+                      {openTotalCount === 0 && (
                         <>
                           {" "}· {t("Départ dans")}{" "}
                           <b className={ENCOURS.sumB}>{fmtRemainShort(nextSchedMs)}</b>
@@ -511,12 +568,26 @@ export default function TraderPage() {
               price={priceOf(trade)}
             />
           ))}
+          {openCombos.map((combo) => (
+            <ComboCard key={`combo-${combo.id}`} combo={combo} now={serverNow} />
+          ))}
           <ScheduledTrades trades={scheduledUp} onCancel={cancelScheduled} />
-          {sortedOpen.length === 0 && scheduledUp.length === 0 && (
+          {openTotalCount === 0 && scheduledUp.length === 0 && (
             <p className={ENCOURS.empty}>{t("Aucun trade en cours")}</p>
           )}
         </div>
       </BottomSheet>
+
+      <ComboSheet
+        open={comboOpen}
+        onClose={() => setComboOpen(false)}
+        defaultSymbol={symbol}
+        balance={user?.balance ?? 0}
+        online={online}
+        legs={comboLegs}
+        onLegsChange={setComboLegs}
+        onPlaced={handleComboPlaced}
+      />
 
       {/* Panneau : résultat, un à la fois (maquette : solde + Rejouer) */}
       <BottomSheet

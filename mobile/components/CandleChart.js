@@ -5,7 +5,7 @@ import { Animated, PanResponder, Pressable, StyleSheet, Text, TouchableOpacity, 
 import Svg, { Circle, ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { apiCandles, ApiError } from '../api';
 import { money } from '../money';
-import { CHART_CFG, CONFIG, INK, fmtHM24, symbolDecimals } from '../theme';
+import { CHART_CFG, CONFIG, fmtHM24, symbolDecimals, useTheme, useThemedStyles } from '../theme';
 import { Btn } from './Ui';
 
 const SKELETON_BARS = [55, 70, 45, 80, 60, 75, 50, 65, 72, 58, 66, 48];
@@ -20,6 +20,7 @@ function clampView(v, len, plotW) {
 
 /** Anneau vivant animé 100 % sur le thread natif (0 re-render JS). */
 const LivePulseRing = React.memo(function LivePulseRing({ x, y, color, calm, isActive }) {
+  const styles = useThemedStyles(makeStyles);
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -74,6 +75,8 @@ export const CandleChart = React.memo(function CandleChart({
   isActive = true,
   t,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [box, setBox] = useState({ width: 0, height: 0 });
   const [candles, setCandles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +405,7 @@ export const CandleChart = React.memo(function CandleChart({
     const stakeText = stake != null ? money(stake, stakeExact, currency, lang) : null;
     const stakeW = stakeText ? Math.max(36, stakeText.length * 6.2 + 12) : 0;
     const stakeX = pillX - 4 - stakeW;
-    const liveCol = disp >= tip.open ? INK.hausse : INK.chartDown;
+    const liveCol = disp >= tip.open ? ink.hausse : ink.chartDown;
     const showDot = liveVisible && cy >= CHART_CFG.padTop && cy <= plotB;
 
     return {
@@ -424,7 +427,7 @@ export const CandleChart = React.memo(function CandleChart({
       showDot,
       dispLabel: disp.toFixed(dec),
     };
-  }, [shown, view, liveTarget, W, H, pw, plotW, plotB, dec, stake, stakeExact, currency, lang]);
+  }, [shown, view, liveTarget, W, H, pw, plotW, plotB, dec, stake, stakeExact, currency, lang, ink]);
 
   return (
     <View
@@ -448,29 +451,29 @@ export const CandleChart = React.memo(function CandleChart({
 
             {/* Grille horizontale + graduations temps en un seul Path */}
             {computed.gridD ? (
-              <Path d={computed.gridD} stroke={INK.ligne} strokeWidth={1} fill="none" />
+              <Path d={computed.gridD} stroke={ink.ligne} strokeWidth={1} fill="none" />
             ) : null}
 
             {/* Étiquettes de prix sur l'axe droit */}
             {computed.gridRows.map((row, idx) => (
-              <SvgText key={idx} x={W - pw + 5} y={row.yy + 3.5} fill={INK.doux} fontSize={10}>
+              <SvgText key={idx} x={W - pw + 5} y={row.yy + 3.5} fill={ink.doux} fontSize={10}>
                 {row.label}
               </SvgText>
             ))}
 
             {/* Bougies regroupées en 2 Path (haussières / baissières) */}
             <G clipPath="url(#plotClip)">
-              {computed.upD ? <Path d={computed.upD} fill={INK.hausse} /> : null}
-              {computed.downD ? <Path d={computed.downD} fill={INK.chartDown} /> : null}
+              {computed.upD ? <Path d={computed.upD} fill={ink.hausse} /> : null}
+              {computed.downD ? <Path d={computed.downD} fill={ink.chartDown} /> : null}
             </G>
 
-            {/* Ligne pointillée blanche du prix actuel */}
+            {/* Ligne pointillée du prix actuel */}
             <Line
               x1={0}
               x2={plotW}
               y1={computed.cy}
               y2={computed.cy}
-              stroke={INK.texte}
+              stroke={ink.texte}
               strokeWidth={1}
               strokeDasharray="3,3"
             />
@@ -484,13 +487,13 @@ export const CandleChart = React.memo(function CandleChart({
                   width={computed.stakeW}
                   height={computed.pillH}
                   rx={4}
-                  fill={INK.countBg}
+                  fill={ink.countBg}
                 />
                 <SvgText
                   x={computed.stakeX + computed.stakeW / 2}
                   y={computed.pillCy + 3.5}
                   textAnchor="middle"
-                  fill={INK.texte}
+                  fill={ink.texte}
                   fontSize={10}
                   fontWeight="700"
                 >
@@ -506,7 +509,7 @@ export const CandleChart = React.memo(function CandleChart({
               width={computed.pillW}
               height={computed.pillH}
               rx={4}
-              fill={INK.pill}
+              fill={ink.pill}
             />
             <SvgText
               x={computed.pillX + computed.pillW / 2}
@@ -531,7 +534,7 @@ export const CandleChart = React.memo(function CandleChart({
                 x={tk.lx}
                 y={H - CHART_CFG.timePad}
                 textAnchor="middle"
-                fill={INK.doux}
+                fill={ink.doux}
                 fontSize={10}
               >
                 {tk.label}
@@ -605,94 +608,95 @@ export const CandleChart = React.memo(function CandleChart({
   );
 });
 
-const styles = StyleSheet.create({
-  card: {
-    flex: 1,
-    width: '100%',
-    overflow: 'hidden',
-    borderRadius: 12,
-    backgroundColor: INK.fond,
-  },
-  pressFill: {
-    flex: 1,
-    width: '100%',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  liveBtn: {
-    position: 'absolute',
-    bottom: 24,
-    right: 8,
-    zIndex: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: INK.ligne,
-    backgroundColor: INK.carte,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  liveBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: INK.texte,
-  },
-  toastWrap: {
-    position: 'absolute',
-    top: 10,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 5,
-  },
-  toast: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: INK.ligne,
-    backgroundColor: 'rgba(28, 31, 46, 0.94)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  toastText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: INK.texte,
-  },
-  toastWin: {
-    color: INK.hausse,
-  },
-  toastLoss: {
-    color: INK.baisse,
-  },
-  loadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  skelBar: {
-    width: 8,
-    borderRadius: 3,
-    backgroundColor: INK.carte,
-  },
-  errBox: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    backgroundColor: INK.fond,
-  },
-  errText: {
-    fontSize: 13,
-    color: INK.doux,
-    textAlign: 'center',
-  },
-});
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    card: {
+      flex: 1,
+      width: '100%',
+      overflow: 'hidden',
+      borderRadius: 12,
+      backgroundColor: INK.fond,
+    },
+    pressFill: {
+      flex: 1,
+      width: '100%',
+    },
+    pulseRing: {
+      position: 'absolute',
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 1.5,
+    },
+    liveBtn: {
+      position: 'absolute',
+      bottom: 24,
+      right: 8,
+      zIndex: 4,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.carte,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    liveBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: INK.texte,
+    },
+    toastWrap: {
+      position: 'absolute',
+      top: 10,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      zIndex: 5,
+    },
+    toast: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+      backgroundColor: INK.toastBg,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+    },
+    toastText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: INK.texte,
+    },
+    toastWin: {
+      color: INK.hausse,
+    },
+    toastLoss: {
+      color: INK.baisse,
+    },
+    loadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 24,
+      paddingBottom: 32,
+    },
+    skelBar: {
+      width: 8,
+      borderRadius: 3,
+      backgroundColor: INK.carte,
+    },
+    errBox: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      backgroundColor: INK.fond,
+    },
+    errText: {
+      fontSize: 13,
+      color: INK.doux,
+      textAlign: 'center',
+    },
+  });

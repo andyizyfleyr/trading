@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { apiCandles, ApiError } from "@/lib/api";
 import { CANDLES_LIMIT, CANDLES_REFRESH_MS, DOUBLE_TAP_MS } from "@/lib/config";
-import { CHART, INK, TRADER } from "@/lib/design";
+import { CHART, TRADER } from "@/lib/design";
 import { fmtHM24 } from "@/lib/format";
 import { useLang } from "@/lib/lang-context";
+import { useTheme } from "@/lib/theme-context";
 import { useMoney } from "@/hooks/useMoney";
 import { symbolDecimals, type Interval } from "@/lib/symbols";
 import type { ApiCandle, ApiExactMoney } from "@/lib/types";
@@ -68,6 +69,7 @@ function reduceMotion(): boolean {
  */
 export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, stake, stakeExact }: Props) {
   const { t } = useLang();
+  const { theme, ink } = useTheme();
   const { currency, money } = useMoney();
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -259,6 +261,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       stakeExactRef.current?.numerator ?? "-",
       stakeExactRef.current?.denominator ?? "-",
       currency,
+      theme,
       phaseRef.current,
       W,
       H,
@@ -282,10 +285,10 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
     }
     ctx.setTransform(d, 0, 0, d, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    const up = INK.hausse;
-    const dn = INK.chartDown;
-    const ln = INK.ligne;
-    const mu = INK.doux;
+    const up = ink.hausse;
+    const dn = ink.chartDown;
+    const ln = ink.ligne;
+    const mu = ink.doux;
 
     // Échelle sur les bougies VISIBLES (comme les vrais graphiques : en
     // zoomant, les détails du passé s'agrandissent au lieu de s'écraser).
@@ -364,7 +367,7 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
     };
     const cy = y(disp);
     ctx.setLineDash([...CHART.dash]);
-    ctx.strokeStyle = INK.texte;
+    ctx.strokeStyle = ink.texte;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, cy);
@@ -384,14 +387,14 @@ export function CandleChart({ symbol, interval, tickCandle, livePrice, toast, st
       const cx = pillX - 4 - cw2;
       if (cx >= 0) {
         rrect(cx, pillCy - pillH / 2, cw2, pillH, 4);
-        ctx.fillStyle = INK.countBg;
+        ctx.fillStyle = ink.countBg;
         ctx.fill();
-        ctx.fillStyle = INK.texte;
+        ctx.fillStyle = ink.texte;
         ctx.fillText(txt, cx + cw2 / 2, pillCy + 3.5);
       }
     }
     rrect(pillX, pillCy - pillH / 2, pillW, pillH, 4);
-    ctx.fillStyle = INK.pill;
+    ctx.fillStyle = ink.pill;
     ctx.fill();
     ctx.fillStyle = "#FFFFFF";
     ctx.fillText(disp.toFixed(dec), pillX + pillW / 2, pillCy + 3.5);

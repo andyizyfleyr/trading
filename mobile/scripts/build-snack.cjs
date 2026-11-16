@@ -17,6 +17,7 @@ const FILES = [
   'components/Ui.js',
   'components/CandleChart.js',
   'components/TradeCards.js',
+  'components/ComboSheet.js',
   'screens/AuthScreens.js',
   'screens/TraderScreen.js',
   'screens/SignauxScreen.js',

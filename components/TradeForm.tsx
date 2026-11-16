@@ -30,7 +30,7 @@ import type { ApiExactMoney, ApiTrade } from "@/lib/types";
 import { addExact, decimalFraction, exactFromUsd, exactToUsd, fraction, multiplyExact, truncateExact } from "@/lib/exact-money";
 import { BottomSheet, Btn } from "./ui";
 import { TimePickerPanel } from "./TimePicker";
-import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, MinusIcon, PlusIcon } from "./Icons";
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, LayersIcon, MinusIcon, PlusIcon } from "./Icons";
 
 /** Signal venant de la page Signaux : quoi appuyer, et à quel moment exact. */
 export interface SignalHint {
@@ -67,6 +67,10 @@ interface Props {
   onScheduledChange?: () => void;
   /** Ouvre le choix du jeu (ligne actif du panneau). */
   onPickAsset: () => void;
+  /** Nombre de jambes déjà préparées dans le combiné. */
+  comboCount?: number;
+  /** Ouvre le panneau Combiné. */
+  onOpenCombo?: () => void;
 }
 
 /** Mises programmées : partent toutes seules, annulables (panneau « En cours »). */
@@ -170,7 +174,7 @@ function loadOrderPrefs(currency: CurrencyCode): { durationSec: number; amountSt
 }
 
 /** Panneau d'ordres façon Quotex : jeu + programmation, Durée, Investissement, gains, HAUSSE/BAISSE. */
-export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset }: Props) {
+export function TradeForm({ balance, symbol, online, onOpened, initialDuration, signal, onBalance, replay, progSlot, onScheduledChange, onPickAsset, comboCount = 0, onOpenCombo }: Props) {
   const { currency, money } = useMoney();
   const { user } = useAuth();
   const { t, lang } = useLang();
@@ -622,7 +626,7 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
         </div>
       ) : (
         <>
-          {/* Jeu + contact de programmation */}
+          {/* Jeu + bouton Combiné */}
           <div className={ORDER.assetRow}>
             <button
               id="guide-symbol"
@@ -641,6 +645,18 @@ export function TradeForm({ balance, symbol, online, onOpened, initialDuration, 
               <span className={ORDER.payout}>{payoutPct}%</span>
               <ChevronDownIcon className={ORDER.assetChev} />
             </button>
+            {onOpenCombo && (
+              <button
+                type="button"
+                onClick={onOpenCombo}
+                aria-haspopup="dialog"
+                className={comboCount > 0 ? ORDER.comboBtnOn : ORDER.comboBtn}
+              >
+                <LayersIcon className="h-3.5 w-3.5" />
+                <span>{t("Combiné")}</span>
+                {comboCount > 0 && <span className={ORDER.comboBadge}>{comboCount}</span>}
+              </button>
+            )}
           </div>
 
           {/* Durée + Investissement */}

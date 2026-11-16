@@ -12,7 +12,18 @@ import {
   View,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { CONFIG, DURATIONS, INK, RING_CFG, RULES, SYMBOLS, durationLabel, fmtRemainShort } from '../theme';
+import {
+  CONFIG,
+  DURATIONS,
+  RING_CFG,
+  RULES,
+  SYMBOLS,
+  durationLabel,
+  fmtRemainShort,
+  syncStatusBar,
+  useTheme,
+  useThemedStyles,
+} from '../theme';
 import { CheckIcon, XIcon } from './Icons';
 
 /* ---------- Bouton (identique à BTN) ---------- */
@@ -26,6 +37,7 @@ export const Btn = React.memo(function Btn({
   textStyle,
   accessibilityLabel,
 }) {
+  const styles = useThemedStyles(makeStyles);
   const variantStyle =
     variant === 'primary' ? styles.btnPrimary : variant === 'ghost' ? styles.btnGhost : styles.btnCard;
   const variantText = variant === 'primary' ? styles.btnTextPrimary : styles.btnTextDefault;
@@ -47,6 +59,7 @@ export const Btn = React.memo(function Btn({
 /* ---------- Champ de formulaire (identique à FORM) ---------- */
 
 export function Field({ label, children }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -58,6 +71,7 @@ export function Field({ label, children }) {
 /* ---------- Squelette de chargement ---------- */
 
 export function Skeleton({ style, calm = false }) {
+  const styles = useThemedStyles(makeStyles);
   const pulse = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
@@ -81,6 +95,7 @@ export function Skeleton({ style, calm = false }) {
 /* ---------- État vide ---------- */
 
 export function EmptyState({ icon, title, text, action }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.emptyBox}>
       {icon ? <View style={styles.emptyIcon}>{icon}</View> : null}
@@ -94,6 +109,7 @@ export function EmptyState({ icon, title, text, action }) {
 /* ---------- État d'erreur ---------- */
 
 export function ErrorState({ text, retry, retryLabel = 'Réessayer' }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.errorBox}>
       <Text style={styles.errorText}>{text}</Text>
@@ -116,9 +132,23 @@ export const BottomSheet = React.memo(function BottomSheet({
   hideTitle = false,
   header,
 }) {
+  const { theme, ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
+  // Réapplique la StatusBar après ouverture/fermeture d'un Modal Android (évite tout flash blanc/noir).
+  useEffect(() => {
+    syncStatusBar(theme);
+  }, [open, theme]);
+
   if (!open) return null;
   return (
-    <Modal visible={open} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={open}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      onDismiss={() => syncStatusBar(theme)}
+    >
       <View style={styles.sheetRoot}>
         <Pressable style={styles.sheetFade} onPress={onClose} accessibilityLabel={title} />
         <View style={styles.sheetBox}>
@@ -132,7 +162,7 @@ export const BottomSheet = React.memo(function BottomSheet({
                 onPress={onClose}
                 style={styles.sheetClose}
               >
-                <XIcon size={16} color={INK.doux} />
+                <XIcon size={16} color={ink.doux} />
               </TouchableOpacity>
             </View>
           )}
@@ -160,6 +190,8 @@ export const SelectSheet = React.memo(function SelectSheet({
   selectedValue,
   onSelect,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   if (!open) return null;
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
@@ -185,7 +217,7 @@ export const SelectSheet = React.memo(function SelectSheet({
                   <Text style={styles.tagText}>{opt.badge}</Text>
                 </View>
               ) : null}
-              {active ? <CheckIcon size={16} color={INK.hausse} /> : null}
+              {active ? <CheckIcon size={16} color={ink.hausse} /> : null}
             </TouchableOpacity>
           );
         })}
@@ -204,6 +236,8 @@ export const CountdownRing = React.memo(function CountdownRing({
   size = RING_CFG.big,
   compact = false,
 }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -224,12 +258,12 @@ export const CountdownRing = React.memo(function CountdownRing({
   const c = 2 * Math.PI * r;
   const cx = size / 2;
   const cy = size / 2;
-  const strokeColor = compact ? RING_CFG.miniLine : urgent ? RING_CFG.urgent : RING_CFG.line;
+  const strokeColor = compact ? ink.primary : urgent ? ink.baisse : ink.action;
 
   return (
     <View style={[styles.ringWrap, { width: size, height: size }]}>
       <Svg width={size} height={size}>
-        <Circle cx={cx} cy={cy} r={r} fill="none" stroke={RING_CFG.track} strokeWidth={stroke} />
+        <Circle cx={cx} cy={cy} r={r} fill="none" stroke={ink.ligne} strokeWidth={stroke} />
         <Circle
           cx={cx}
           cy={cy}
@@ -269,17 +303,9 @@ export const CountdownRing = React.memo(function CountdownRing({
 
 /* ---------- Écran d'ouverture animé (identique à SplashScreen.tsx) ---------- */
 
-const SPLASH_CANDLES = [
-  INK.hausse,
-  INK.hausse,
-  INK.baisse,
-  INK.hausse,
-  INK.baisse,
-  INK.baisse,
-  INK.hausse,
-];
+const SPLASH_DIRECTIONS = ['up', 'up', 'down', 'up', 'down', 'down', 'up'];
 
-function SplashCandle({ color, delay, calm }) {
+function SplashCandle({ color, delay, calm, styles }) {
   const anim = useRef(new Animated.Value(calm ? 0.85 : 0.25)).current;
 
   useEffect(() => {
@@ -318,11 +344,19 @@ function SplashCandle({ color, delay, calm }) {
 }
 
 export function SplashScreen({ calm = false }) {
+  const { ink } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.splashRoot}>
       <View style={styles.splashCandles}>
-        {SPLASH_CANDLES.map((color, i) => (
-          <SplashCandle key={i} color={color} delay={i * 120} calm={calm} />
+        {SPLASH_DIRECTIONS.map((dir, i) => (
+          <SplashCandle
+            key={i}
+            color={dir === 'up' ? ink.hausse : ink.baisse}
+            delay={i * 120}
+            calm={calm}
+            styles={styles}
+          />
         ))}
       </View>
     </View>
@@ -332,6 +366,7 @@ export function SplashScreen({ calm = false }) {
 /* ---------- Premier trade guidé (identique à GuideBubbles.tsx) ---------- */
 
 export function GuideBubbles({ t, onDone }) {
+  const styles = useThemedStyles(makeStyles);
   const [step, setStep] = useState(0);
   const gamesList = SYMBOLS.map((s) => s.base).join(', ');
   const durationsList = DURATIONS.map((d) => durationLabel(d)).join(', ');
@@ -396,285 +431,286 @@ export function GuideBubbles({ t, onDone }) {
   );
 }
 
-const styles = StyleSheet.create({
-  btnBase: {
-    minHeight: 42,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  btnPrimary: {
-    backgroundColor: INK.primary,
-  },
-  btnGhost: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: INK.ligne,
-  },
-  btnCard: {
-    backgroundColor: INK.carte,
-    borderWidth: 1,
-    borderColor: INK.ligne,
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  btnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  btnTextPrimary: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  btnTextDefault: {
-    color: INK.texte,
-  },
-  fieldWrap: {
-    width: '100%',
-  },
-  fieldLabel: {
-    marginBottom: 6,
-    fontSize: 14,
-    fontWeight: '500',
-    color: INK.doux,
-  },
-  skeleton: {
-    backgroundColor: '#283044',
-    borderRadius: 12,
-  },
-  emptyBox: {
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: INK.ligne,
-    backgroundColor: INK.carte,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  emptyIcon: {
-    marginBottom: 2,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: INK.texte,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: INK.doux,
-    textAlign: 'center',
-  },
-  errorBox: {
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(229,93,79,0.4)',
-    backgroundColor: INK.carte,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  errorText: {
-    fontSize: 13,
-    color: INK.texte,
-    textAlign: 'center',
-  },
-  sheetRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheetFade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  sheetBox: {
-    maxHeight: '75%',
-    width: '100%',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: INK.ligne,
-    backgroundColor: INK.carte,
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 34,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: INK.ligne,
-    marginBottom: 8,
-  },
-  sheetHead: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  sheetTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: INK.texte,
-  },
-  sheetClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: INK.fond,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetBody: {
-    flexGrow: 0,
-  },
-  sheetBodyContent: {
-    paddingBottom: 6,
-  },
-  list1: {
-    gap: 4,
-    paddingBottom: 8,
-  },
-  sheetRow: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-  },
-  sheetRowOn: {
-    backgroundColor: INK.fond,
-  },
-  sheetDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  sheetRowName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    color: INK.texte,
-  },
-  tag: {
-    borderRadius: 6,
-    backgroundColor: INK.tagfond,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: INK.tag,
-  },
-  ringWrap: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringCenter: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringNumMini: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: INK.texte,
-    fontVariant: ['tabular-nums'],
-  },
-  ringNumBig: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: INK.texte,
-    fontVariant: ['tabular-nums'],
-  },
-  ringNumSmall: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: INK.texte,
-    fontVariant: ['tabular-nums'],
-  },
-  ringUnitBig: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: INK.doux,
-  },
-  ringUnitSmall: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: INK.doux,
-  },
-  splashRoot: {
-    flex: 1,
-    backgroundColor: INK.fond,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  splashCandles: {
-    height: 40,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  splashCandle: {
-    width: 8,
-    height: 40,
-    borderRadius: 999,
-  },
-  guideOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 50,
-    justifyContent: 'flex-end',
-  },
-  guideVeil: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(28,31,46,0.6)',
-  },
-  guidePos: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  guideCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: INK.action,
-    backgroundColor: INK.carte,
-    padding: 12,
-    elevation: 10,
-  },
-  guideStep: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: INK.doux,
-  },
-  guideTitle: {
-    marginTop: 4,
-    fontSize: 15,
-    fontWeight: '800',
-    color: INK.texte,
-  },
-  guideText: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 18,
-    color: INK.texte,
-  },
-  guideBtns: {
-    marginTop: 12,
-    flexDirection: 'row',
-    gap: 8,
-  },
-});
+const makeStyles = (INK) =>
+  StyleSheet.create({
+    btnBase: {
+      minHeight: 42,
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+    },
+    btnPrimary: {
+      backgroundColor: INK.primary,
+    },
+    btnGhost: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: INK.ligne,
+    },
+    btnCard: {
+      backgroundColor: INK.carte,
+      borderWidth: 1,
+      borderColor: INK.ligne,
+    },
+    btnDisabled: {
+      opacity: 0.5,
+    },
+    btnText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    btnTextPrimary: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    btnTextDefault: {
+      color: INK.texte,
+    },
+    fieldWrap: {
+      width: '100%',
+    },
+    fieldLabel: {
+      marginBottom: 6,
+      fontSize: 14,
+      fontWeight: '500',
+      color: INK.doux,
+    },
+    skeleton: {
+      backgroundColor: INK.skelBg,
+      borderRadius: 12,
+    },
+    emptyBox: {
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: INK.ligne,
+      backgroundColor: INK.carte,
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+    },
+    emptyIcon: {
+      marginBottom: 2,
+    },
+    emptyTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: INK.texte,
+      textAlign: 'center',
+    },
+    emptyText: {
+      fontSize: 13,
+      color: INK.doux,
+      textAlign: 'center',
+    },
+    errorBox: {
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(229,93,79,0.4)',
+      backgroundColor: INK.carte,
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+    },
+    errorText: {
+      fontSize: 13,
+      color: INK.texte,
+      textAlign: 'center',
+    },
+    sheetRoot: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheetFade: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    sheetBox: {
+      maxHeight: '80%',
+      width: '100%',
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
+      borderWidth: 1,
+      borderBottomWidth: 0,
+      borderColor: INK.ligne,
+      backgroundColor: INK.carte,
+      paddingHorizontal: 12,
+      paddingTop: 6,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    },
+    sheetHandle: {
+      alignSelf: 'center',
+      width: 34,
+      height: 4,
+      borderRadius: 999,
+      backgroundColor: INK.ligne,
+      marginBottom: 8,
+    },
+    sheetHead: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    sheetTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: INK.texte,
+    },
+    sheetClose: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: INK.fond,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetBody: {
+      flexGrow: 0,
+    },
+    sheetBodyContent: {
+      paddingBottom: 6,
+    },
+    list1: {
+      gap: 4,
+      paddingBottom: 8,
+    },
+    sheetRow: {
+      minHeight: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+    },
+    sheetRowOn: {
+      backgroundColor: INK.fond,
+    },
+    sheetDot: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+    },
+    sheetRowName: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '800',
+      color: INK.texte,
+    },
+    tag: {
+      borderRadius: 6,
+      backgroundColor: INK.tagfond,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    tagText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: INK.tag,
+    },
+    ringWrap: {
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ringCenter: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ringNumMini: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: INK.texte,
+      fontVariant: ['tabular-nums'],
+    },
+    ringNumBig: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: INK.texte,
+      fontVariant: ['tabular-nums'],
+    },
+    ringNumSmall: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: INK.texte,
+      fontVariant: ['tabular-nums'],
+    },
+    ringUnitBig: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: INK.doux,
+    },
+    ringUnitSmall: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: INK.doux,
+    },
+    splashRoot: {
+      flex: 1,
+      backgroundColor: INK.fond,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+    },
+    splashCandles: {
+      height: 40,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+    splashCandle: {
+      width: 8,
+      height: 40,
+      borderRadius: 999,
+    },
+    guideOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 50,
+      justifyContent: 'flex-end',
+    },
+    guideVeil: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: INK.guideVeil,
+    },
+    guidePos: {
+      paddingHorizontal: 16,
+      paddingBottom: 24,
+    },
+    guideCard: {
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: INK.action,
+      backgroundColor: INK.carte,
+      padding: 12,
+      elevation: 10,
+    },
+    guideStep: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: INK.doux,
+    },
+    guideTitle: {
+      marginTop: 4,
+      fontSize: 15,
+      fontWeight: '800',
+      color: INK.texte,
+    },
+    guideText: {
+      marginTop: 4,
+      fontSize: 13,
+      lineHeight: 18,
+      color: INK.texte,
+    },
+    guideBtns: {
+      marginTop: 12,
+      flexDirection: 'row',
+      gap: 8,
+    },
+  });
