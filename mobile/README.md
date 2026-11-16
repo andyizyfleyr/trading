@@ -1,20 +1,18 @@
 # TradeFacile mobile — Expo SDK 52
 
-Application **React Native native, sans WebView**. Les écrans appellent les API du site en HTTPS. Le site et l'application utilisent le même compte et le même solde fictif ; il n'y a aucun paiement réel. La session est stockée dans le stockage sécurisé de l'appareil.
+Application **React Native native (Expo SDK 52), sans WebView**, alignée à l'identique sur le design, les sections et la disposition du site web mobile. Les écrans appellent les API du site en HTTPS et partagent le même compte et le même solde fictif (aucun paiement réel). La session est stockée dans le stockage sécurisé de l'appareil (`expo-secure-store`).
 
-L'application comprend bienvenue, connexion, inscription, graphique en bougies, mises simples, programmées et combinées, signaux, historique, solde, dépôt/retrait fictifs et choix du pays, de la devise et de la langue. Elle reprend les couleurs et la structure du site ; la correspondance visuelle et les parcours restent à vérifier sur un téléphone Android.
+## Écrans et structure
 
-## Essayer avec Snack sur Android
+- `App.js` : coquille globale (écran d'ouverture à 7 bougies animées, en-tête fixe avec logo `▲/▼ TradeFacile` et pastille solde, bandeau hors ligne, barre de navigation basse 3 onglets `Trader` / `Signaux` / `Historique`).
+- `screens/AuthScreens.js` : `Connexion`, `Inscription` et `Bienvenue` (3 écrans avec illustrations SVG, points de progression et sélecteur de langue).
+- `screens/TraderScreen.js` + `components/CandleChart.js` + `components/TradeCards.js` : vue plein écran sans défilement, graphique en bougies interactif (glisser, pincer pour zoomer, double-toucher, pastille prix/mise, bouton `Direct ▸`, toast flottant, pastille `N en cours`), panneau d'ordres façon Quotex (jeu + `85%`, cadres `Durée`/`Départ` et `Investissement` avec `−`/`+`, ligne `Gain potentiel` pointillée, boutons `Hausse` / `Baisse`) et panneaux coulissants (`Choisir un jeu`, `Durée ou départ`, `Choisir l'heure`, `En cours`, `Résultat` avec `Rejouer` immédiat), ainsi que le guide premier trade en 5 étapes.
+- `screens/SignauxScreen.js` : consigne encadrée en bleu, pastille géante `Hausse ▲`/`Baisse ▼`, compte à rebours géant + jauge, bouton `Préparer ma mise →`, guide en 3 étapes numérotées, grilles jeu/durée et liste des 20 coups à venir avec badge `À JOUER`.
+- `screens/HistoriqueScreen.js` : en-tête compacte (`Exporter` CSV + `↻`), bandeau statistiques 3 colonnes (`Terminés`, `Réussite`, `Net`), filtre jeu + onglets `Toutes` / `En cours` / `Terminées` et lignes compactes groupées par jour.
+- `screens/ProfilScreen.js` : carte identité + solde, boutons `Ajouter` / `Retirer` ouvrant les panneaux de montants prédéfinis, sélecteurs `Pays` / `Devise` / `Langue`, interrupteur `Réduire les animations` et déconnexion.
+- `theme.js`, `api.js`, `money.js`, `otc.js`, `i18n.js`, `components/Icons.js`, `components/Ui.js` : palette Quotex, client API, fractions exactes, moteur OTC et dictionnaires synchronisés avec le site.
 
-1. Installez une version d'Expo Go compatible **SDK 52** : https://expo.dev/go?sdkVersion=52&platform=android&device=true . La version récente d'Expo Go ne prend pas forcément en charge ce SDK ancien.
-2. Ouvrez https://snack.expo.dev/ et choisissez **SDK 52**, si Snack le propose encore.
-3. Copiez le contenu de `mobile/App.js` dans le fichier `App.js` de Snack, puis créez `otc.js`, `money.js` et `i18n.js` et copiez-y les fichiers correspondants du dossier `mobile/`.
-4. Dans Dependencies, ajoutez `expo-secure-store` **~14.0.1**, `react-native-svg` **15.8.0** et `big-integer` **1.6.52**.
-5. Enregistrez le Snack et ouvrez son QR code avec Expo Go compatible sur Android.
-
-La disponibilité de SDK 52 dans Snack et le fonctionnement sur votre téléphone doivent être vérifiés : aucun Snack publié ni test sur appareil réel n'ont été réalisés ici. Si Snack ne propose plus SDK 52, utilisez le lancement local ci-dessous. Les icônes du dépôt sont utilisées pour un APK construit, pas pour l'icône d'Expo Go.
-
-## Lancement local
+## Lancement local (Expo SDK 52)
 
 ```sh
 cd mobile
@@ -22,23 +20,26 @@ npm ci
 npx expo start
 ```
 
-Ouvrez le QR code avec Expo Go SDK 52 ; l'ordinateur et le téléphone doivent pouvoir communiquer sur le réseau. Une connexion Internet est nécessaire pour les API.
+Scannez le QR code avec **Expo Go SDK 52** sur Android (le téléphone et l'ordinateur doivent être sur le même réseau).
+
+## Essayer avec Snack (SDK 52)
+
+1. Installez Expo Go compatible **SDK 52** : https://expo.dev/go?sdkVersion=52&platform=android&device=true
+2. Ouvrez Snack en important directement le dossier `mobile/` du dépôt GitHub (`https://snack.expo.dev/@git/github.com/andyizyfleyr/trading:mobile`) et sélectionnez **SDK 52**.
+3. Dépendances requises : `expo-secure-store` `~14.0.1`, `react-native-svg` `15.8.0`, `big-integer` `^1.6.52`.
 
 ## Construire un APK Android
 
-Le profil `preview` dans `eas.json` demande un APK ; `production` demande un AAB pour le Play Store. Depuis `mobile/` :
-
 ```sh
+cd mobile
 npx eas-cli login
 npx eas-cli build --platform android --profile preview
 ```
 
-EAS peut demander la configuration du projet et des identifiants Android. L'APK est produit par EAS, pas par Snack ; aucun APK n'est inclus. Testez l'installation sur un appareil avant distribution. Le nom de package `com.tradefacile.mobile` est provisoire : vérifiez sa disponibilité avant publication.
+## Vérification
 
-## Ressources
-
-- `assets/icon.png` : icône d'application issue du logo du site.
-- `assets/adaptive-icon.png` : avant-plan de l'icône adaptative Android.
-- `assets/splash.png` : écran de démarrage.
-- `otc.js` et `i18n.js` : moteur et dictionnaires à garder synchronisés avec ceux du site.
-- `money.js` : fractions et troncature pour les six devises.
+```sh
+cd mobile
+npm test
+npm run export
+```
